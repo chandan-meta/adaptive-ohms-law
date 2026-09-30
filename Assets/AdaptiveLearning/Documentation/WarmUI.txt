@@ -1,0 +1,49 @@
+WARM LAB UI — IMPLEMENTATION NOTES
+Approved design: https://www.figma.com/design/YTwqNuIbyWh2aYVfAZ9DJS?node-id=2-19
+
+Scenes: 06 prediction; 08 instruments; 09 circuit building; 10 experiment;
+11 graph; 12 resistance; 13 Ohm's Law.
+
+Shared styling:
+Resources/WarmLabTheme.asset contains the rounded sprite and three font references.
+Scripts/UI/WarmLabTheme.cs defines ivory, ink, amber, sage and plum roles.
+Editor/WarmLabThemeUpgrade.cs applies the theme to saved scenes without rebuilding apparatus.
+Menu: Adaptive Learning > Presentation > Apply Approved Warm UI.
+The upgrade opens and saves each lesson scene; save manual scene edits before running it.
+Chat and cinematic controls use the same theme when created at runtime.
+
+Fonts: Nunito Sans Bold; Source Sans 3 Regular and Semibold.
+Original font licences and source URLs are in Art/Interface/Fonts.
+Existing equipment models, terminals, meter needles, rotary input and microphone
+hold/release logic are retained. No additional 3D models were imported for this pass.
+
+Graph presentation:
+Screen-space graphs suppress apparatus close-ups even when narration mentions current
+or voltage. Responsive companion framing updates Wattson's return position after resize.
+
+Validation (2026-09-30):
+Seven scene openings captured at 1920x1080, 1920x1200 and 1440x1080.
+Circuit/lab checks: 25 passes, including topology, saving, joystick/reset and chat controls.
+Scenes 12-13: all 20 acceptance points passed.
+Graph: five layouts, real mouse/touch row and point selection, hint scoring and replay passed.
+Cinematics: 22 checks passed, including current/voltage wording while a graph is visible
+and companion placement after desktop/tablet resizing.
+Reports and screenshots are under Logs/LabQA/Logs and Logs/WarmUI.
+
+Limitations:
+Physical Android devices and live microphone/speech recognition were not exercised in
+this UI pass. Provider availability and browser voice support remain service/device dependent.
+Unity 6000.3's existing editor SearchDatabase startup exception appeared in batch runs;
+lesson runtime checks reported no script errors.
+
+WebGL package:
+Builds/WebGL rebuilt successfully: 0 errors, 2 platform-specific compiler warnings
+(CS0067 WattsonSpeech.Failed; CS0414 WattsonVoiceInput.deviceIndex).
+Font licence notices are distributed in Builds/WebGL/Licenses.
+Local preview: http://localhost:8080/ — Start lesson begins at Scene 6.
+Restart preview with Backend/Start-WebLesson.ps1 if needed.
+Browser verification:
+Rebuilt WebGL loaded successfully. Scene 6 answer/completion continued to Scene 8.
+Chat opened and closed; Skip accepted input. UI inspected at 1440x810, 1280x800,
+and 1200x900. No browser console errors during these checks.
+Representative live WebGL screenshot: Logs/WebGL-warm-ui.png.

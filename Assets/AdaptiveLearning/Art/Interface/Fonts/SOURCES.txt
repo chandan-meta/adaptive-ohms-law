@@ -1,0 +1,11 @@
+Warm laboratory typography
+
+Nunito Sans Bold (static TTF)
+https://github.com/googlefonts/NunitoSans/tree/main/fonts/ttf
+Licence: SIL Open Font License 1.1; see NunitoSans-OFL.txt.
+
+Source Sans 3 Regular and Semibold (static TTF)
+https://github.com/adobe-fonts/source-sans/tree/release/TTF
+Licence: SIL Open Font License 1.1; see SourceSans-LICENSE.txt.
+
+Downloaded 2026-09-30. Unmodified font files. Included in Unity player for UI text.

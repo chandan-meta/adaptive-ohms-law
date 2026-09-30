@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d353d2a593683c4e91a2d2e4ca44477, type: 3}
+  m_Name: Scene07EvidenceQuestion
+  m_EditorClassIdentifier: Assembly-CSharp::AdaptiveOhmsLaw.QuestionDefinition
+  questionId: S07_EvidenceConclusion
+  concepts: 060000000000000001000000
+  questionText: With the resistance kept the same, what happened to the current as
+    the voltage increased?
+  answers:
+  - The current increased.
+  - The current decreased.
+  - The current stayed the same.
+  correctAnswer: 0
+  difficulty: 1
+  hints:
+  - Look at your observation table. Compare the current at 1 V with the current at
+    3 V.
+  - At 1 V, current was 0.20 A. At 3 V, current was 0.60 A. 0.60 A is larger than
+    0.20 A.
+  - With resistance held constant, higher voltage provides more electrical push,
+    increasing current.
+  masteryImpact: 1

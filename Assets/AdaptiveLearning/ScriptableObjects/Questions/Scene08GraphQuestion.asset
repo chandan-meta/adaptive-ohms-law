@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d353d2a593683c4e91a2d2e4ca44477, type: 3}
+  m_Name: Scene08GraphQuestion
+  m_EditorClassIdentifier: Assembly-CSharp::AdaptiveOhmsLaw.QuestionDefinition
+  questionId: S08_GraphProportionality
+  concepts: 0800000006000000
+  questionText: What does this straight line through the origin tell us, for this
+    fixed resistor?
+  answers:
+  - Current is proportional to voltage
+  - Current stays constant
+  - Current falls as voltage rises
+  correctAnswer: 0
+  difficulty: 1
+  hints:
+  - Compare 1 V, 0.20 A with 2 V, 0.40 A.
+  - When voltage doubles, current doubles too.
+  - A straight line through the origin shows proportionality.
+  masteryImpact: 1

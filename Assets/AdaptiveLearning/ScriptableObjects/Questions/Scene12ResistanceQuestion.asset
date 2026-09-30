@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d353d2a593683c4e91a2d2e4ca44477, type: 3}
+  m_Name: Scene12ResistanceQuestion
+  m_EditorClassIdentifier: Assembly-CSharp::AdaptiveOhmsLaw.QuestionDefinition
+  questionId: S12_ResistanceCalculation
+  concepts: 070000000800000006000000
+  questionText: Which calculation gives the resistance of our wire?
+  answers:
+  - Voltage divided by current
+  - Current divided by voltage
+  - Voltage multiplied by current
+  correctAnswer: 0
+  difficulty: 1
+  hints:
+  - 'Remember our formula: R = V / I.'
+  - Resistance is potential difference (voltage) divided by electric current.
+  masteryImpact: 1

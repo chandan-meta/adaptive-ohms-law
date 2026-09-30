@@ -1,0 +1,117 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 118899cb856d7e04bac83f4463fd3b31, type: 3}
+  m_Name: Scene12Dialogue
+  m_EditorClassIdentifier: Assembly-CSharp::AdaptiveOhmsLaw.DialogueSequence
+  lines:
+  - id: intro_voltage
+    speaker: WATTSON
+    text: We have seen what pushes charge.
+    audio: {fileID: 8300000, guid: e730907dd52f32f4cbd36b7d2abed1cf, type: 3}
+    duration: 3.5
+    emotion: Curious
+    nextEvent: 
+  - id: intro_current
+    speaker: WATTSON
+    text: And we have measured how much charge flows.
+    audio: {fileID: 8300000, guid: 618ea72db57987c4e9224b9ce557ef93, type: 3}
+    duration: 3.5
+    emotion: Curious
+    nextEvent: 
+  - id: intro_why
+    speaker: WATTSON
+    text: But why does not charge flow equally easily through every conductor?
+    audio: {fileID: 8300000, guid: 105744c1ea94fb348a57d4f6697cf02c, type: 3}
+    duration: 4.55873
+    emotion: Curious
+    nextEvent: 
+  - id: inspect_prompt
+    speaker: WATTSON
+    text: Select wire XY to inspect its microscopic structure.
+    audio: {fileID: 8300000, guid: f180fac30d22a8d4a83aa0c42fa600bc, type: 3}
+    duration: 4.3336506
+    emotion: Curious
+    nextEvent: 
+  - id: wire_opposes
+    speaker: WATTSON
+    text: The material opposes the flow of electric current.
+    audio: {fileID: 8300000, guid: d42e903257e86504ab451720698a987d, type: 3}
+    duration: 3.8
+    emotion: Curious
+    nextEvent: 
+  - id: wire_resistance_name
+    speaker: WATTSON
+    text: That opposition is called electrical resistance. Symbol R.
+    audio: {fileID: 8300000, guid: ef91d988e5cf7fc488765a97bea33931, type: 3}
+    duration: 5.203583
+    emotion: Curious
+    nextEvent: 
+  - id: table_intro
+    speaker: WATTSON
+    text: And the best part? You have already collected the measurements we need.
+    audio: {fileID: 8300000, guid: 78d6611e6044c2543ab807f078c742e4, type: 3}
+    duration: 5.203628
+    emotion: Curious
+    nextEvent: 
+  - id: table_constant
+    speaker: WATTSON
+    text: The value of V divided by I is the same for every reading. For this wire
+      at constant temperature, that constant is its resistance.
+    audio: {fileID: 8300000, guid: 456632901c14f8741b5e1d2f2056166e, type: 3}
+    duration: 9.302767
+    emotion: Curious
+    nextEvent: 
+  - id: graph_intro
+    speaker: WATTSON
+    text: There is another place we can find the same resistance.
+    audio: {fileID: 8300000, guid: bcf8f5c6fe659634abd8c5f394aac163, type: 3}
+    duration: 4
+    emotion: Curious
+    nextEvent: 
+  - id: graph_slope_explain
+    speaker: WATTSON
+    text: On a graph with voltage vertically and current horizontally, the slope
+      gives us resistance. We found the same five ohms in the table and in the graph.
+    audio: {fileID: 8300000, guid: d580d0552e6681449baedc2166c7e775, type: 3}
+    duration: 9.892653
+    emotion: Curious
+    nextEvent: 
+  - id: unit_reveal
+    speaker: WATTSON
+    text: A conductor has a resistance of one ohm when one volt across it produces
+      a current of one ampere.
+    audio: {fileID: 8300000, guid: 921dac2178eb81343b97ab56dde1c224, type: 3}
+    duration: 6.5
+    emotion: Curious
+    nextEvent: 
+  - id: adaptive_question_prompt
+    speaker: WATTSON
+    text: Which calculation gives the resistance of our wire?
+    audio: {fileID: 8300000, guid: cff19b322e33d8340b3afcd9186c63a2, type: 3}
+    duration: 4
+    emotion: Curious
+    nextEvent: 
+  - id: scene12_complete
+    speaker: WATTSON
+    text: Outstanding work! You have discovered electrical resistance and how to
+      find it from measurements and graphs.
+    audio: {fileID: 8300000, guid: 198b0151b62398448805958927bd0e59, type: 3}
+    duration: 7.317868
+    emotion: Curious
+    nextEvent: 
+  - id: final_handoff
+    speaker: WATTSON
+    text: Now let us see how all three pieces come together to name the law.
+    audio: {fileID: 8300000, guid: a2a0793c753f1d44e82f651b60d7deea, type: 3}
+    duration: 4.5
+    emotion: Curious
+    nextEvent: 

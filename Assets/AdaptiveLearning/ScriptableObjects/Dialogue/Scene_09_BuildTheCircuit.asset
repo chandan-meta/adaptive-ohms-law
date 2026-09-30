@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2aac4ec71d034ca99128c751393f01d6, type: 3}
+  m_Name: Scene_09_BuildTheCircuit
+  m_EditorClassIdentifier: Assembly-CSharp::AdaptiveOhmsLaw.LabLessonDefinition
+  title: 09 / BUILD THE CIRCUIT
+  buildCircuit: 1
+  nextScene: Scene_10_BecomeTheExperimenter
+  steps:
+  - id: step0
+    speaker: WATTSON
+    text: 'That is our test conductor, nichrome wire XY. Connect the ammeter in series so the same current passes through it and the wire. Connect the voltmeter in parallel across X and Y. Tap two terminals to add each lead.'
+    audio: {fileID: 0}
+    duration: 5
+    emotion: Curious
+    nextEvent: 
+  - id: step1
+    speaker: WATTSON
+    text: 'Investigation ready. The ammeter measures current through the wire. The voltmeter measures potential difference across X and Y. Remember your prediction? Let us find out.'
+    audio: {fileID: 0}
+    duration: 5
+    emotion: Curious
+    nextEvent: 

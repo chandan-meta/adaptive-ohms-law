@@ -1,0 +1,7 @@
+Orange equipment highlight
+==========================
+Scenes 8-13 use model-shaped orange outlines instead of cyan rings.
+Scene hierarchy: expand an instrument > Orange outline - [subject]. The cinematic director toggles this group. No colliders or assessment logic are changed.
+Materials: Art/Interface/EquipmentOutlines. Orange edge controls colour and width; three outer shells provide a restrained glow without enabling bloom on the whole laboratory. Mask prevents an orange fill over the instrument face. Hidden legacy models, glass and moving needles are excluded.
+Editor: Adaptive Learning > Presentation > Apply Orange Equipment Outlines rebuilds the meshes after a model is edited. Original instrument meshes and materials are preserved. The shader uses a forward URP stencil mask and screen-pixel widths; only the selected apparatus is rendered with the effect.
+Verification: Play-mode capture shows the ammeter contour highlighted, and Skip removes the outline. WebGL build and browser checks recorded in Logs/Orange-outline-WebGL.log.

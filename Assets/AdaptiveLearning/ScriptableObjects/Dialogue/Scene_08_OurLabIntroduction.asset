@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2aac4ec71d034ca99128c751393f01d6, type: 3}
+  m_Name: Scene_08_OurLabIntroduction
+  m_EditorClassIdentifier: Assembly-CSharp::AdaptiveOhmsLaw.LabLessonDefinition
+  title: 08 / OUR LAB
+  buildCircuit: 0
+  nextScene: Scene_09_BuildTheCircuit
+  steps:
+  - id: step0
+    speaker: WATTSON
+    text: 'Ohm did not have the modern instruments in your school laboratory. This is our lab. Meet the ammeter: it measures current, symbol I, in amperes, A.'
+    audio: {fileID: 0}
+    duration: 5
+    emotion: Curious
+    nextEvent: 
+  - id: step1
+    speaker: WATTSON
+    text: 'This is the voltmeter. It measures potential difference, symbol V, in volts.'
+    audio: {fileID: 0}
+    duration: 5
+    emotion: Curious
+    nextEvent: 
+  - id: step2
+    speaker: WATTSON
+    text: 'This straight nichrome wire is our test conductor. Its ends are X and Y. Everything we measure will revolve around this wire.'
+    audio: {fileID: 0}
+    duration: 5
+    emotion: Curious
+    nextEvent: 
+  - id: step3
+    speaker: WATTSON
+    text: 'Our controllable DC source provides the potential difference. We will change its voltage during the investigation.'
+    audio: {fileID: 0}
+    duration: 5
+    emotion: Curious
+    nextEvent: 
+  - id: step4
+    speaker: WATTSON
+    text: 'The key opens or closes the circuit. Let us investigate Ohm''s relationship using these instruments. First, build the circuit.'
+    audio: {fileID: 0}
+    duration: 5
+    emotion: Curious
+    nextEvent: 
