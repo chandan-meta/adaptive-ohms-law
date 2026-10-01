@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: S05_L05
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: S05_L05
+  speaker: WATTSON
+  text: That provides the electrical push that drives charge through the circuit.
+  ttsText: That provides the electrical push that drives charge through the circuit.
+  vo: {fileID: 8300000, guid: bbbc37b8866ad9e44b3a83b5a2655c2d, type: 3}
+  fallbackDuration: 4.5

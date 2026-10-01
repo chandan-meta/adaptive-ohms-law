@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: Scene13_FAQ_2
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: Scene13_FAQ_2
+  speaker: WATTSON
+  text: For metal wires at a steady temperature, yes, and that covers most of what
+    you meet in a school lab. Some things, like bulb filaments that heat up, or diodes,
+    do not keep a constant resistance, so their V-I graph is not a straight line.
+    Scientists call the well-behaved ones ohmic conductors.
+  ttsText: For metal wires at a steady temperature, yes, and that covers most of
+    what you meet in a school lab. Some things, like bulb filaments that heat up,
+    or diodes, do not keep a constant resistance, so their V-I graph is not a straight
+    line. Scientists call the well-behaved ones ohmic conductors.
+  vo: {fileID: 8300000, guid: 1e3b6732c9a1b4f4dbeaa95004ad51ec, type: 3}
+  fallbackDuration: 14

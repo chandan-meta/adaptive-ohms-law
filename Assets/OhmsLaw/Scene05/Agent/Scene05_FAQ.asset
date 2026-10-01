@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d8219cbcde5a974f82494f1839f89c6, type: 3}
+  m_Name: Scene05_FAQ
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.LocalFAQ
+  entries:
+  - question: Why were the charges moving before the battery?
+    answer: {fileID: 11400000, guid: cf42ec1c49a6f2b4f98f639af4ee1575, type: 2}
+  - question: Which way do electrons move?
+    answer: {fileID: 11400000, guid: a6af120eb1459b949bfd9319de7b5f7a, type: 2}
+  - question: What is one ampere?
+    answer: {fileID: 11400000, guid: d1da640f05366c346960742925cbf146, type: 2}

@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: Scene10_FAQ_1
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: Scene10_FAQ_1
+  speaker: WATTSON
+  text: Starting low is good detective practice. A small push gives a small, safe
+    current, we can check that everything is connected properly, and then we raise
+    the voltage one step at a time so we can see clearly what each step does to the
+    current.
+  ttsText: Starting low is good detective practice. A small push gives a small, safe
+    current, we can check that everything is connected properly, and then we raise
+    the voltage one step at a time so we can see clearly what each step does to the
+    current.
+  vo: {fileID: 8300000, guid: 9fa40938212124d438d5edfd8f888dd3, type: 3}
+  fallbackDuration: 14

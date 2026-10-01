@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: Scene10_FAQ_2
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: Scene10_FAQ_2
+  speaker: WATTSON
+  text: The potential difference is the push on the charges in the wire. A bigger
+    push makes the free electrons drift along faster, so more charge crosses each
+    section of the wire every second, and that is a bigger current. Look at your
+    table to see exactly how much bigger.
+  ttsText: The potential difference is the push on the charges in the wire. A bigger
+    push makes the free electrons drift along faster, so more charge crosses each
+    section of the wire every second, and that is a bigger current. Look at your
+    table to see exactly how much bigger.
+  vo: {fileID: 8300000, guid: 46966513d96173d4ea5a9c2d5ee6d835, type: 3}
+  fallbackDuration: 14

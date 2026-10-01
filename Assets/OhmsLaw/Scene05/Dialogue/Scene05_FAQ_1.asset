@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: Scene05_FAQ_1
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: Scene05_FAQ_1
+  speaker: WATTSON
+  text: Good eye, detective. Free electrons in a metal are always jiggling about
+    because of heat. They dart in every direction, so on average they go nowhere.
+    The battery doesn't start them moving, it gives all of them a steady drift in
+    one direction.
+  ttsText: Good eye, detective. Free electrons in a metal are always jiggling about
+    because of heat. They dart in every direction, so on average they go nowhere.
+    The battery doesn't start them moving, it gives all of them a steady drift in
+    one direction.
+  vo: {fileID: 8300000, guid: c0b44b933cadd6846bd7c1349a2ce6a7, type: 3}
+  fallbackDuration: 14

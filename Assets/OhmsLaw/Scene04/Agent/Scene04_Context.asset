@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c18dce35c4f218942974316577a84ef5, type: 3}
+  m_Name: Scene04_Context
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.SceneAgentContext
+  sceneId: Scene04
+  sceneTitle: Meet Wattson & Georg Ohm
+  askWattsonEnabled: 1
+  covered:
+  - 'The Christmas-lights mystery: the lights were dim, and a new battery made them
+    bright.'
+  - Georg Ohm investigated the relationship between voltage and current.
+  - The words voltage and current.
+  - The Ohm-niscope, Wattson's gadget for looking inside a wire.
+  doNotSpoil:
+  - V = IR
+  - V is proportional to I
+  - R = V / I
+  - What happens to current when voltage increases (the Scene 6 prediction)
+  - Resistance and ohms
+  - The final answer to the Christmas-lights mystery
+  faq: {fileID: 11400000, guid: bc4515942463cbd47badffcdcbf6e8b4, type: 2}

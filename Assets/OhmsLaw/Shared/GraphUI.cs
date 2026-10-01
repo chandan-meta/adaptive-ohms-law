@@ -1,0 +1,132 @@
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace OhmsLaw
+{
+    // V-I graph on a world-space canvas: V on the vertical axis, I on the horizontal axis, points from ExperimentData,
+    // the straight line through the origin, two highlighted points and the ΔV/ΔI triangle.
+    // Layout in canvas px (WorldCanvasScale 0.0015 on the Boards shot): 40 px ticks read ~20 px on screen, titles ~24.
+    // Point labels sit up-left of their point (the line runs up-right), tags down-right, so nothing crosses the line.
+    public class GraphUI : MonoBehaviour
+    {
+        public const float Width = 740f, Height = 520f, MaxI = 1.2f, MaxV = 6f;   // plot area; canvas is 1060 x 750
+        public const float MarginLeft = 170f, MarginBottom = 170f;
+        public const float TickFont = 40f, PointFont = 40f, AxisTitleFont = 48f, TagFont = 48f;
+        const float PointSize = 34f, PointHighlight = 50f;
+        static readonly Vector2 TextRect = new Vector2(320, 60);
+
+        RectTransform plot, line, triangle;
+        GameObject axes;
+        RectTransform[] points;
+        TextMeshProUGUI[] tags;
+        RectTransform pulseTarget;
+        float pulse = -1;
+
+        static ExperimentData Data => ExperimentData.Main;
+        static Color Voltage => UI.Theme ? UI.Theme.voltage : Color.cyan;
+        static Color Current => UI.Theme ? UI.Theme.current : Color.yellow;
+        static Color Resistance => UI.Theme ? UI.Theme.resistance : Color.red;
+
+        void Awake()
+        {
+            // Dark rounded board behind everything.
+            var board = UI.Panel(UI.Stretch("Board", transform), WorldText.PanelColor);
+            board.raycastTarget = false;
+            plot = UI.Rect("Plot", transform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(MarginLeft, MarginBottom), new Vector2(Width, Height));
+            axes = plot.gameObject;
+            var grid = new Color(1, 1, 1, 0.1f);
+            for (int i = 1; i <= 6; i++)
+            {
+                Segment(plot, At(i * 0.2f, 0), At(i * 0.2f, MaxV), grid, 2);
+                Segment(plot, At(0, i), At(MaxI, i), grid, 2);
+            }
+            Segment(plot, Vector2.zero, new Vector2(Width + 20, 0), Color.white, 6);
+            Segment(plot, Vector2.zero, new Vector2(0, Height + 20), Color.white, 6);
+            for (int i = 1; i <= 6; i++)
+            {
+                Text(plot, (i * 0.2f).ToString("0.0"), At(i * 0.2f, 0) + new Vector2(0, -50), TickFont, Color.white);
+                Text(plot, i.ToString("0"), At(0, i) + new Vector2(-80, 0), TickFont, Color.white);
+            }
+            var iLabel = Text(plot, "Current, I (A)", new Vector2(Width / 2, -130), AxisTitleFont, Current, new Vector2(640, 60));
+            var vLabel = Text(plot, "Potential Difference, V (V)", new Vector2(-135, Height / 2), AxisTitleFont, Voltage, new Vector2(640, 60));
+            vLabel.rectTransform.localRotation = Quaternion.Euler(0, 0, 90);
+            iLabel.textWrappingMode = vLabel.textWrappingMode = TextWrappingModes.NoWrap; // one line each, whatever the font's advance
+
+            // The line through the origin, drawn a little past the last reading (not to the frame edge).
+            line = Segment(plot, Vector2.zero, At(1.1f, 1.1f * Data.resistance), Voltage, 8);
+            line.gameObject.SetActive(false);
+
+            points = new RectTransform[Data.Count];
+            tags = new TextMeshProUGUI[Data.Count];
+            for (int i = 0; i < Data.Count; i++)
+            {
+                var dot = UI.Rect("Point " + (i + 1), plot, Vector2.zero, new Vector2(0.5f, 0.5f), At(Data.currents[i], Data.voltages[i]), Vector2.one * PointSize);
+                var image = dot.gameObject.AddComponent<Image>();
+                image.sprite = UI.Theme ? UI.Theme.circle : null;
+                image.color = Color.white;
+                image.raycastTarget = false;
+                Text(dot, $"({Data.currents[i]:0.00}, {Data.voltages[i]:0.0})", new Vector2(-60, 70), PointFont, Color.white);
+                tags[i] = Text(dot, "", new Vector2(170, -70), TagFont, Current, new Vector2(320, 140));
+                points[i] = dot;
+                dot.gameObject.SetActive(false);
+            }
+            Axes(false);
+        }
+
+        Vector2 At(float amps, float volts) => new Vector2(amps / MaxI * Width, volts / MaxV * Height);
+
+        static TextMeshProUGUI Text(RectTransform parent, string text, Vector2 position, float size, Color color, Vector2? rect = null)
+        {
+            var r = UI.Rect("Text", parent, Vector2.zero, new Vector2(0.5f, 0.5f), position, rect ?? TextRect);
+            return UI.Label(r, text, size, color);
+        }
+
+        static RectTransform Segment(RectTransform parent, Vector2 from, Vector2 to, Color color, float thickness)
+        {
+            var rect = UI.Rect("Line", parent, Vector2.zero, new Vector2(0, 0.5f), from, new Vector2((to - from).magnitude, thickness));
+            rect.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(to.y - from.y, to.x - from.x) * Mathf.Rad2Deg);
+            var image = rect.gameObject.AddComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+            return rect;
+        }
+
+        public void Axes(bool on) => axes.SetActive(on);
+        public void Plot(int count) { for (int i = 0; i < points.Length; i++) points[i].gameObject.SetActive(i < count); }
+        public void Line(bool on) => line.gameObject.SetActive(on);
+
+        public void Highlight(int row, bool on, string tag = "")
+        {
+            if (row < 0 || row >= points.Length) return;
+            points[row].sizeDelta = Vector2.one * (on ? PointHighlight : PointSize);
+            points[row].GetComponent<Image>().color = on ? Current : Color.white;
+            tags[row].text = on ? tag : "";
+        }
+
+        // Right-angled triangle between two points: ΔI along the bottom, ΔV up the side, with their values.
+        // ΔI reads below its leg (point labels are above the points), ΔV to the right of the vertical leg.
+        public void Triangle(int a, int b)
+        {
+            if (triangle) Destroy(triangle.gameObject);
+            if (a < 0) return;
+            triangle = UI.Rect("Triangle", plot, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+            Vector2 pa = At(Data.currents[a], Data.voltages[a]), pb = At(Data.currents[b], Data.voltages[b]), corner = new Vector2(pb.x, pa.y);
+            Segment(triangle, pa, corner, Resistance, 6);
+            Segment(triangle, corner, pb, Resistance, 6);
+            float dI = Data.currents[b] - Data.currents[a], dV = Data.voltages[b] - Data.voltages[a];
+            Text(triangle, $"ΔI = {dI:0.00} A", (pa + corner) / 2 + new Vector2(0, -50), TagFont, Resistance);
+            Text(triangle, $"ΔV = {dV:0.0} V", (corner + pb) / 2 + new Vector2(150, 0), TagFont, Resistance);
+        }
+
+        public void Pulse() { pulse = 0; pulseTarget = plot; }
+
+        void Update()
+        {
+            if (pulse < 0) return;
+            pulse += Time.deltaTime;
+            pulseTarget.localScale = Vector3.one * (1 + 0.05f * Mathf.Sin(pulse * Mathf.PI * 3) * (1 - pulse / 1.2f));
+            if (pulse > 1.2f) { pulse = -1; pulseTarget.localScale = Vector3.one; }
+        }
+    }
+}

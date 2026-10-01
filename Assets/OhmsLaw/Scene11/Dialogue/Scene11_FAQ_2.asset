@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: Scene11_FAQ_2
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: Scene11_FAQ_2
+  speaker: WATTSON
+  text: "Two quantities are directly proportional when doubling one doubles the other,
+    tripling one triples the other, and so on. Our table shows exactly that: double
+    the volts, double the amperes. Scientists write it with the symbol V \u221D I."
+  ttsText: "Two quantities are directly proportional when doubling one doubles the
+    other, tripling one triples the other, and so on. Our table shows exactly that:
+    double the volts, double the amperes. Scientists write it with the symbol V \u221D
+    I."
+  vo: {fileID: 8300000, guid: 73a86327cd69b404a9ef5a13e06e56af, type: 3}
+  fallbackDuration: 14

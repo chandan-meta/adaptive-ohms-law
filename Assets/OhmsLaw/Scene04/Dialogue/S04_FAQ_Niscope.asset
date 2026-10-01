@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: S04_FAQ_Niscope
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: S04_FAQ_Niscope
+  speaker: WATTSON
+  text: It's my detective gadget! The Ohm-niscope lets us zoom right inside a wire
+    to see what electricity is really doing in there. Stick with me and you'll get
+    to look through it.
+  ttsText: It's my detective gadget! The Ohm-niscope lets us zoom right inside a
+    wire to see what electricity is really doing in there. Stick with me and you'll
+    get to look through it.
+  vo: {fileID: 8300000, guid: 6a57b2da1b37aa740b3d9160524d5570, type: 3}
+  fallbackDuration: 10

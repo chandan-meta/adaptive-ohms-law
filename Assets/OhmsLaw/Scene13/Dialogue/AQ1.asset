@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: AQ1
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: AQ1
+  speaker: WATTSON
+  text: If resistance stays constant and voltage doubles, what happens to current?
+  ttsText: If resistance stays constant and voltage doubles, what happens to current?
+  vo: {fileID: 8300000, guid: 8c6c84777ce556a4ab51a5056e850d99, type: 3}
+  fallbackDuration: 4.5

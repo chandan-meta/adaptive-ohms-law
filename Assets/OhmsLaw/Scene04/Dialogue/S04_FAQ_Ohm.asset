@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: S04_FAQ_Ohm
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: S04_FAQ_Ohm
+  speaker: WATTSON
+  text: Georg Ohm was a German teacher and scientist, born in 1789. He loved careful
+    experiments and built much of his own equipment to study electricity. We are
+    standing in his lab right now, detective!
+  ttsText: Georg Ohm was a German teacher and scientist, born in 1789. He loved careful
+    experiments and built much of his own equipment to study electricity. We are
+    standing in his lab right now, detective!
+  vo: {fileID: 8300000, guid: bbe98a101493b6245aca468062596d41, type: 3}
+  fallbackDuration: 11

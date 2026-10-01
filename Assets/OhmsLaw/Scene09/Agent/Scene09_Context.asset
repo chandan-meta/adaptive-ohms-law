@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c18dce35c4f218942974316577a84ef5, type: 3}
+  m_Name: Scene09_Context
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.SceneAgentContext
+  sceneId: Scene09
+  sceneTitle: Build the Circuit
+  askWattsonEnabled: 1
+  covered:
+  - 'Everything from Scenes 5 to 8: voltage (V, volt) as the push, current (I, ampere),
+    Ohm''s investigation, the modern instruments.'
+  - The nichrome wire XY is the test conductor; we will change the potential difference
+    across it and measure the current through it.
+  - The ammeter is connected in series so the same current passes through it and
+    the test wire.
+  - The voltmeter is connected in parallel across the two ends of the wire, X and
+    Y, to measure the potential difference between them.
+  - Closing the key completes the circuit so current can flow.
+  doNotSpoil:
+  - The readings
+  - The pattern between V and I
+  - V is proportional to I
+  - V = IR
+  - Resistance
+  - Ohms
+  - The Christmas-lights answer
+  faq: {fileID: 11400000, guid: a7cf455846ee290409353722c718ce6a, type: 2}

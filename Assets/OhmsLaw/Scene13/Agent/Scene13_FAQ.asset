@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d8219cbcde5a974f82494f1839f89c6, type: 3}
+  m_Name: Scene13_FAQ
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.LocalFAQ
+  entries:
+  - question: What does V = IR mean?
+    answer: {fileID: 11400000, guid: 3b945502c98e07049b96aab679b35213, type: 2}
+  - question: Can I use Ohm's law for any wire?
+    answer: {fileID: 11400000, guid: 0e210745dc4945b49a5c334e87821585, type: 2}
+  - question: Who was Ohm?
+    answer: {fileID: 11400000, guid: 70255ae893ab42743838b5f08bf6ecdf, type: 2}

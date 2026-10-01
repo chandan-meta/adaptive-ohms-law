@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: Scene06_FAQ_1
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: Scene06_FAQ_1
+  speaker: WATTSON
+  text: 'It means we change only one thing, the potential difference, and keep the
+    rest fixed: the same wire, the same material, the same length and thickness,
+    and the same temperature. Then whatever happens to the current, we know what
+    caused it.'
+  ttsText: 'It means we change only one thing, the potential difference, and keep
+    the rest fixed: the same wire, the same material, the same length and thickness,
+    and the same temperature. Then whatever happens to the current, we know what
+    caused it.'
+  vo: {fileID: 8300000, guid: 2c9a98103f3c3af4985f73551c91fff6, type: 3}
+  fallbackDuration: 14

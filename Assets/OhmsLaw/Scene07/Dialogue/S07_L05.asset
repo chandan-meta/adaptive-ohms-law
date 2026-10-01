@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: S07_L05
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: S07_L05
+  speaker: WATTSON
+  text: In 1826, Ohm kept changing one electrical condition, the potential difference
+    and observing what happened to the current.
+  ttsText: In 1826, Ohm kept changing one electrical condition, the potential difference
+    and observing what happened to the current.
+  vo: {fileID: 8300000, guid: a402d72d3520f194680e3851e8de19d6, type: 3}
+  fallbackDuration: 7.5

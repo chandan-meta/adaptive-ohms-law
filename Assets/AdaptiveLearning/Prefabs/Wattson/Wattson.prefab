@@ -1210,15 +1210,15 @@ PrefabInstance:
     - target: {fileID: -5312392611743470245, guid: 4c33a294ddf00fa4583429d053211a18, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 362c0b9434b56c54f94f11bd8ca1be32, type: 2}
+      objectReference: {fileID: 2100000, guid: 06dc99476b1f59348859a6a64d047245, type: 2}
     - target: {fileID: -3845306748062910162, guid: 4c33a294ddf00fa4583429d053211a18, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 362c0b9434b56c54f94f11bd8ca1be32, type: 2}
+      objectReference: {fileID: 2100000, guid: 06dc99476b1f59348859a6a64d047245, type: 2}
     - target: {fileID: -1056207475478466068, guid: 4c33a294ddf00fa4583429d053211a18, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 362c0b9434b56c54f94f11bd8ca1be32, type: 2}
+      objectReference: {fileID: 2100000, guid: 06dc99476b1f59348859a6a64d047245, type: 2}
     - target: {fileID: 919132149155446097, guid: 4c33a294ddf00fa4583429d053211a18, type: 3}
       propertyPath: m_Name
       value: LB_FK
@@ -1226,7 +1226,7 @@ PrefabInstance:
     - target: {fileID: 2678291845866926273, guid: 4c33a294ddf00fa4583429d053211a18, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 362c0b9434b56c54f94f11bd8ca1be32, type: 2}
+      objectReference: {fileID: 2100000, guid: 06dc99476b1f59348859a6a64d047245, type: 2}
     - target: {fileID: 3739084307322668666, guid: 4c33a294ddf00fa4583429d053211a18, type: 3}
       propertyPath: m_LocalRotation.w
       value: 0.70883256
@@ -1246,7 +1246,7 @@ PrefabInstance:
     - target: {fileID: 7270768491125189329, guid: 4c33a294ddf00fa4583429d053211a18, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: c989400353c1ca14c91e75e6f7a19a46, type: 2}
+      objectReference: {fileID: 2100000, guid: b0a9626166cd73a419b288332b7e2c4a, type: 2}
     - target: {fileID: 8146019071205884359, guid: 4c33a294ddf00fa4583429d053211a18, type: 3}
       propertyPath: m_LocalRotation.w
       value: 0.7088325

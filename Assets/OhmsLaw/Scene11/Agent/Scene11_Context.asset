@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c18dce35c4f218942974316577a84ef5, type: 3}
+  m_Name: Scene11_Context
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.SceneAgentContext
+  sceneId: Scene11
+  sceneTitle: Turn Data into a Graph
+  askWattsonEnabled: 1
+  covered:
+  - "Everything from Scenes 5 to 10: voltage (V, volt), current (I, ampere), the
+    circuit, the five readings (1 V \u2192 0.2 A ... 5 V \u2192 1.0 A), current rises
+    with potential difference, doubling V doubles I."
+  - Plotted with current I on the horizontal axis and potential difference V on the
+    vertical axis, the five points lie on a straight line through the origin.
+  - "For the nichrome wire at constant temperature, the potential difference across
+    it is directly proportional to the current through it: V \u221D I."
+  doNotSpoil:
+  - Resistance
+  - V / I = constant
+  - The slope of the graph is the resistance
+  - Ohms
+  - V = IR
+  - The name 'Ohm's law'
+  - The Christmas-lights answer
+  faq: {fileID: 11400000, guid: 4466b06e54a5190418115a5ecb1b34d5, type: 2}

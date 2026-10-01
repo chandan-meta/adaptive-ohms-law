@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: Scene06_FAQ_3
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: Scene06_FAQ_3
+  speaker: WATTSON
+  text: 'Ohm did exactly what we are about to do: he changed the electrical conditions
+    in his circuit, step by step, and measured what happened each time. He repeated
+    it over and over and wrote every reading down. Let''s go and see.'
+  ttsText: 'Ohm did exactly what we are about to do: he changed the electrical conditions
+    in his circuit, step by step, and measured what happened each time. He repeated
+    it over and over and wrote every reading down. Let''s go and see.'
+  vo: {fileID: 8300000, guid: bc770b20c732cec4098c37a9565163e1, type: 3}
+  fallbackDuration: 13.764

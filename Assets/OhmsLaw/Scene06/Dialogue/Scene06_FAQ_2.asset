@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: Scene06_FAQ_2
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: Scene06_FAQ_2
+  speaker: WATTSON
+  text: Potential difference, or voltage, is the electrical push between two points
+    in a circuit. The battery sets it up, and it is what makes the charges drift
+    along the wire together. We measure it in volts.
+  ttsText: Potential difference, or voltage, is the electrical push between two points
+    in a circuit. The battery sets it up, and it is what makes the charges drift
+    along the wire together. We measure it in volts.
+  vo: {fileID: 8300000, guid: 18f15e08bebda3b409642760ed1f20a3, type: 3}
+  fallbackDuration: 12.462

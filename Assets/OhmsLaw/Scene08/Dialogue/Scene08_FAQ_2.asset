@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: Scene08_FAQ_2
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: Scene08_FAQ_2
+  speaker: WATTSON
+  text: A voltmeter measures the potential difference, the voltage, between two points.
+    In our circuit it will tell us the push across the two ends of the nichrome wire,
+    X and Y, in volts.
+  ttsText: A voltmeter measures the potential difference, the voltage, between two
+    points. In our circuit it will tell us the push across the two ends of the nichrome
+    wire, X and Y, in volts.
+  vo: {fileID: 8300000, guid: e192cacde45d6ed48850ddc15730802a, type: 3}
+  fallbackDuration: 11.16

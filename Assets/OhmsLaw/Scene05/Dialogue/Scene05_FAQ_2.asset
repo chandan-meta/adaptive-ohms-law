@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: Scene05_FAQ_2
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: Scene05_FAQ_2
+  speaker: WATTSON
+  text: Electrons carry negative charge, so they drift from the negative terminal
+    end toward the positive terminal end. Scientists also talk about conventional
+    current, which is taken to flow from positive to negative. Same circuit, two
+    ways of describing it.
+  ttsText: Electrons carry negative charge, so they drift from the negative terminal
+    end toward the positive terminal end. Scientists also talk about conventional
+    current, which is taken to flow from positive to negative. Same circuit, two
+    ways of describing it.
+  vo: {fileID: 8300000, guid: ee226850fae03274aacd7c60f72d770e, type: 3}
+  fallbackDuration: 14

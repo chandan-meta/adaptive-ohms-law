@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f35561eec0b0e6248941cd6a1c5d22d9, type: 3}
+  m_Name: ModulePalette
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.ModulePalette
+  voltage: {r: 0.24705882, g: 0.6627451, b: 1, a: 1}
+  current: {r: 1, g: 0.72156864, b: 0.1882353, a: 1}
+  resistance: {r: 1, g: 0.3529412, b: 0.37254903, a: 1}
+  wattsonAccent: {r: 0.7490196, g: 0.9647059, b: 1, a: 1}
+  panel: {r: 0.07, g: 0.09, b: 0.13, a: 0.82}
+  font: {fileID: 11400000, guid: 2213567c461ecbd479818b63bbf90b18, type: 2}
+  roundedPanel: {fileID: 21300000, guid: fbdd84064efc6b4478c293f1029579ae, type: 3}
+  circle: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  wattsonFace: {fileID: 2800000, guid: 9f28cedb385b42d4db22c8c319d47db0, type: 3}

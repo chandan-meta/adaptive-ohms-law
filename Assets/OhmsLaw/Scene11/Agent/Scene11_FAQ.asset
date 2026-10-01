@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d8219cbcde5a974f82494f1839f89c6, type: 3}
+  m_Name: Scene11_FAQ
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.LocalFAQ
+  entries:
+  - question: Why does the line go through the origin?
+    answer: {fileID: 11400000, guid: bd25ab75e37d420418461d75bcc768f7, type: 2}
+  - question: What does 'directly proportional' mean?
+    answer: {fileID: 11400000, guid: 07bd1da20a701f54e930a42cb1d5e942, type: 2}
+  - question: Why does the temperature have to stay constant?
+    answer: {fileID: 11400000, guid: 4a379b396ff03254fb86d290a72deb00, type: 2}

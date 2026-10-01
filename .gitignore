@@ -48,3 +48,9 @@ sysinfo.txt
 Thumbs.db
 Desktop.ini
 /Assets/_Recovery.meta
+
+# Keep the proxy env template
+!.env.example
+
+# Proxy dependencies
+node_modules/

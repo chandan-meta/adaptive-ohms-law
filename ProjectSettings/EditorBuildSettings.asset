@@ -6,6 +6,39 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/OhmsLaw/Scenes/Scene00_ModulePlayer.unity
+    guid: 1b3f34ee44b96614e98716010006cdda
+  - enabled: 1
+    path: Assets/OhmsLaw/Scenes/Scene04_MeetWattson.unity
+    guid: a691381ead373a3469016c2029a0bee0
+  - enabled: 1
+    path: Assets/OhmsLaw/Scenes/Scene05_InsideTheWire.unity
+    guid: 7248ae7669697ad47be60f03903306a3
+  - enabled: 1
+    path: Assets/OhmsLaw/Scenes/Scene06_AdaptiveQuestion.unity
+    guid: d8f29cab11b4c3449b193e341e9039fc
+  - enabled: 1
+    path: Assets/OhmsLaw/Scenes/Scene07_BackToOhm.unity
+    guid: aae7a57bcb010ca438bb0072ccb035a8
+  - enabled: 1
+    path: Assets/OhmsLaw/Scenes/Scene08_OurLab.unity
+    guid: 5d41bf884409a3b48992179d1f99cc77
+  - enabled: 1
+    path: Assets/OhmsLaw/Scenes/Scene09_BuildCircuit.unity
+    guid: c318c12b0f02ff145bb257766ffba43a
+  - enabled: 1
+    path: Assets/OhmsLaw/Scenes/Scene10_Experiment.unity
+    guid: dd3828212bc3cdf40a892f00a25cd0f1
+  - enabled: 1
+    path: Assets/OhmsLaw/Scenes/Scene11_Graph.unity
+    guid: b4ad4886b8dbb7e48b29aee352b1cdca
+  - enabled: 1
+    path: Assets/OhmsLaw/Scenes/Scene12_Resistance.unity
+    guid: 2a8e2162e5cade442863e548418dec3f
+  - enabled: 1
+    path: Assets/OhmsLaw/Scenes/Scene13_OhmsLaw.unity
+    guid: e205f44f82d63a2448b7d1fb4b174a59
+  - enabled: 1
     path: Assets/AdaptiveLearning/Scenes/Scene_08_OurLabIntroduction.unity
     guid: eec0e89a1c6f4d0ebf0ae1cb2d395c4f
   - enabled: 1

@@ -13,4 +13,4 @@
 *.wav binary
 *.mp3 binary
 *.ttf binary
-
+Assets/AdaptiveLearning/Art/env/Environment.fbx filter=lfs diff=lfs merge=lfs -text

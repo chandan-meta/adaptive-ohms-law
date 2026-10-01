@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c18dce35c4f218942974316577a84ef5, type: 3}
+  m_Name: Scene10_Context
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.SceneAgentContext
+  sceneId: Scene10
+  sceneTitle: Become the Experimenter
+  askWattsonEnabled: 1
+  covered:
+  - 'Everything from Scenes 5 to 9: voltage (V, volt) as the push, current (I, ampere),
+    the circuit with the ammeter in series and the voltmeter in parallel across the
+    nichrome wire XY.'
+  - "The five readings: 1 V \u2192 0.2 A, 2 V \u2192 0.4 A, 3 V \u2192 0.6 A, 4 V
+    \u2192 0.8 A, 5 V \u2192 1.0 A."
+  - The current increases when the potential difference increases.
+  - "Doubling the potential difference doubles the current (1 V \u2192 0.2 A and
+    2 V \u2192 0.4 A)."
+  doNotSpoil:
+  - V is proportional to I as a law statement
+  - The straight-line graph (Scene 11)
+  - Resistance
+  - V / I = 5 or V / I is constant
+  - Ohms
+  - V = IR
+  - The Christmas-lights answer
+  faq: {fileID: 11400000, guid: d2c8c2dc96251174c820280d2145cd9e, type: 2}

@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: Scene11_FAQ_1
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: Scene11_FAQ_1
+  speaker: WATTSON
+  text: 'Think about zero volts: no push, so no current, which is the point zero-zero.
+    And every reading doubled together with its partner: 1 volt, 0.2 ampere; 2 volts,
+    0.4 ampere. Points that scale together like that always line up on a straight
+    line that starts at the origin.'
+  ttsText: 'Think about zero volts: no push, so no current, which is the point zero-zero.
+    And every reading doubled together with its partner: 1 volt, 0.2 ampere; 2 volts,
+    0.4 ampere. Points that scale together like that always line up on a straight
+    line that starts at the origin.'
+  vo: {fileID: 8300000, guid: 21c291929b3ac0b478b31ef9e534af8a, type: 3}
+  fallbackDuration: 14
