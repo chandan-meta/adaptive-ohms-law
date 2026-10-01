@@ -10,7 +10,7 @@ namespace OhmsLaw
     // Top-right playback controls: pause, replay line, subtitles, volume and (long-press) skip. Hides after 3 s idle.
     public class CinematicControlsUI : MonoBehaviour
     {
-        const float HideAfter = 3f, SkipHold = 1f, ButtonWidth = 150f;
+        const float HideAfter = float.PositiveInfinity, SkipHold = 1f, ButtonWidth = 150f; // always visible, like the reference HUD
 
         CanvasGroup group;
         RectTransform volumePanel;

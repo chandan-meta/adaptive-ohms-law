@@ -26,33 +26,71 @@ namespace OhmsLaw.Editor
         public static readonly Vector3 BoardsWattson = new Vector3(-0.95f, 1.05f, -1.9f);
         public static readonly Vector2 TableCanvas = new Vector2(1080, 520), GraphCanvas = new Vector2(1060, 750);
 
-        // Observation table and V-I graph on world-space canvases facing the Boards camera (default StudyBoardsCam).
+        // In the classroom the two canvases sit ON the teaching board (board UV): table left, graph right, each in a
+        // chalk-framed panel. 0.0012 keeps both inside the 3.2 m board; at the Boards camera's ~500 px/m the 44 px cells read ~26 px.
+        public const float BoardCanvasScale = 0.0014f;
+        public static readonly Vector2 TableBoardUV = new Vector2(0.26f, 0.5f), GraphBoardUV = new Vector2(0.75f, 0.5f);
+
+        // Observation table and V-I graph on world-space canvases: on the classroom's teaching board when ClassroomSet ran,
+        // otherwise free-floating boards facing the Boards camera (default StudyBoardsCam).
         protected void Boards(bool withTable, bool withGraph, bool unitsInTable = false, Vector3? face = null)
         {
+            bool onBoard = ClassroomStage;
             Vector3 eye = face ?? StudyBoardsCam;
             var set = Node("Boards Set", null, Vector3.zero);
             Ref(set);
+            Vector3 wattson = onBoard ? BoardsWattsonC : BoardsWattson;
             if (withTable)
             {
-                var canvas = WorldCanvas("Observation Table", set.transform, TableBoard, TableCanvas, eye);
+                var canvas = onBoard ? BoardCanvas("Observation Table", set.transform, TableBoardUV, TableCanvas)
+                                     : WorldCanvas("Observation Table", set.transform, TableBoard, TableCanvas, eye);
                 Ref(canvas.gameObject);
                 var table = canvas.gameObject.AddComponent<ObservationTableUI>();
                 table.units = unitsInTable;
                 director.table = table;
                 Placeholder(canvas.gameObject, "Observation table board: real frame/material, fill-in animation");
-                Marker("Table Point", BoardsWattson);
+                Marker("Table Point", wattson);
             }
             if (withGraph)
             {
-                var canvas = WorldCanvas("Graph", set.transform, GraphBoard, GraphCanvas, eye);
+                var canvas = onBoard ? BoardCanvas("Graph", set.transform, GraphBoardUV, GraphCanvas)
+                                     : WorldCanvas("Graph", set.transform, GraphBoard, GraphCanvas, eye);
                 Ref(canvas.gameObject);
                 director.graph = canvas.gameObject.AddComponent<GraphUI>();
                 Placeholder(canvas.gameObject, "V-I graph board: real frame/material, line-draw animation", false);
                 // Where the table's columns lift off toward the axes: the seam between the two boards.
-                var seam = (TableBoard + GraphBoard) * 0.5f + new Vector3(0, 0.1f, 0.2f);
-                Vfx("columns become axes", set.transform, seam, 1.6f).transform.rotation = Quaternion.LookRotation(seam - eye);
+                if (onBoard)
+                {
+                    var (seam, rot) = BoardSurface(new Vector2(0.505f, 0.5f), 0.05f);
+                    Vfx("columns become axes", set.transform, seam, 1.2f).transform.rotation = rot;
+                }
+                else
+                {
+                    var seam = (TableBoard + GraphBoard) * 0.5f + new Vector3(0, 0.1f, 0.2f);
+                    Vfx("columns become axes", set.transform, seam, 1.6f).transform.rotation = Quaternion.LookRotation(seam - eye);
+                }
             }
-            Marker("Boards Point", BoardsWattson);
+            if (!refs.ContainsKey("Boards Point") || !onBoard) Marker("Boards Point", wattson);
+        }
+
+        // A canvas mounted on the chalk face inside a chalk-framed panel; the board's rotation makes UGUI read from the room.
+        Canvas BoardCanvas(string name, Transform parent, Vector2 uv, Vector2 size)
+        {
+            var (position, rotation) = BoardSurface(uv, 0.006f);
+            float w = size.x * BoardCanvasScale / BoardSizeC.x, h = size.y * BoardCanvasScale / BoardSizeC.y;
+            var panel = BoardPanel(new Rect(uv.x - w / 2 - 0.015f, uv.y - h / 2 - 0.02f, w + 0.03f, h + 0.04f), name + " Panel");
+            panel.SetActive(true);
+            var go = Node(name, parent, position);
+            go.transform.rotation = rotation;
+            var canvas = go.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.worldCamera = camera;
+            var rect = go.GetComponent<RectTransform>();
+            rect.sizeDelta = size;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.localScale = Vector3.one * BoardCanvasScale;
+            go.AddComponent<GraphicRaycaster>();
+            return canvas;
         }
 
         Canvas WorldCanvas(string name, Transform parent, Vector3 position, Vector2 size, Vector3 face)

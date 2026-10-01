@@ -3,81 +3,92 @@ using System.Linq;
 using TMPro;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace OhmsLaw.Editor
 {
-    // Stage kit: the modern circuit on the bench (Scenes 8-13), built from the imported instruments in Scene 4's study frame.
+    // Stage kit: the modern circuit on the classroom bench (Scenes 8-13), laid out like the reference frames
+    // (Docs/Polish/References/Scene09_*.png): DC source, ammeter, X —nichrome wire— Y, switch, the voltmeter behind
+    // the wire and the parts tray at the right end. The instruments are the imported prefabs; posts, badges, key,
+    // cables, contact shadows and the X → Y pulse are built here.
     public abstract partial class SceneBuilderBase
     {
         const string Imported = "Assets/AdaptiveLearning/Prefabs/ImportedLabEquipment/";
-        const string KeyPrefab = "Assets/AdaptiveLearning/Prefabs/LabEquipment/Switch.prefab"; // knife switch: a lever the learner sees close
         const string RigTextures = Art + "/Textures/";
         const string ImportedTextures = "Assets/AdaptiveLearning/Art/ImportedOhmsLab/OhmsLaw_circuit_Final.fbm/";
 
-        // Bench-local layout: origin at BenchCentre on the bench top, +X toward the room, +Z toward the cameras. Bench 2.0 x 0.9 m.
-        // The cameras sit on the room side looking toward -Z, so +X is frame-left: read left to right the frame shows
-        // source, ammeter slot, X —wire— Y, key, parts tray (the textbook diagram order), with the voltmeter slot behind the wire.
-        const float MeterScale = 0.21f, SourceScale = 0.17f, WireScale = 0.45f, KeyScale = 0.19f;   // 0.24 x 0.22 x 0.34, 0.32 x 0.21 x 0.23, 0.9 x 0.08 x 0.14, 0.23 x 0.2 x 0.13 m
-        static readonly Vector3 SourceAt = new Vector3(0.75f, 0, 0.14f), AmmeterSlotAt = new Vector3(0.50f, 0, -0.20f);
-        static readonly Vector3 WireAt = new Vector3(0.02f, 0, 0.09f), VoltmeterSlotAt = new Vector3(0.02f, 0, -0.20f);
-        static readonly Vector3 KeyAt = new Vector3(-0.42f, 0, 0.28f), TrayAt = new Vector3(-0.72f, 0, 0);
-        const float TrayWidth = 0.30f, TrayDepth = 0.78f, TrayBase = 0.012f;
-        // Where leads attach, in each model's own space at scale 1 (fronts face local -Z; from the old lesson's anchors).
-        static readonly Vector3[] SourcePosts = { new Vector3(-0.08f, 0.27f, -0.70f), new Vector3(-0.58f, 0.27f, -0.70f) };
-        static readonly Vector3[] MeterPosts = { new Vector3(0.46f, 0.18f, -0.63f), new Vector3(-0.46f, 0.18f, -0.63f) };
-        static readonly Vector3 WireTerminalX = new Vector3(-0.86f, 0.12f, 0), WireTerminalY = new Vector3(0.86f, 0.12f, 0); // the wire is turned 180°, so X lands at +X
-        static readonly Vector3[] KeyContacts = { new Vector3(-0.4f, 0.12f, 0), new Vector3(0.4f, 0.12f, 0) };   // hinge side, blade side
-        const float RodHeight = 0.137f;  // rod axis above the base at scale 1
-        // Cap heights (metres) from Docs/Polish/TYPOGRAPHY.md.
-        const float TerminalCap = 0.04f, MeterReadingCap = 0.04f, PropLabelCap = 0.03f, CaptionWrap = 0.45f, PathLabelCap = 0.045f, PathLabelWrap = 1.2f;
-        const float LeadWidth = 0.007f, LeadRest = 0.004f;
+        // Classroom frame (ART_DIRECTION §2, §5): bench top centre at the origin, 2.0 x 0.9 m, cameras on the -Z side,
+        // so +X is frame-right and every dial faces -Z. "Bench Close" stands at RigBenchCam; text is faced to it at build.
+        public static readonly Vector3 RigBench = new Vector3(0, 0.80f, 0);
+        public static readonly Vector3 RigBenchCam = new Vector3(0, 1.15f, -1.9f), RigBenchLook = new Vector3(0, 0.82f, 0);
+        public const float RigBenchFov = 36f;
 
-        Material leadRed, leadBlack;
+        // Bench-local layout (metres on the top), left → right as in the reference: source, ammeter (back row), X, wire,
+        // Y, key (front right); voltmeter behind the wire; parts tray behind the key, where the meters wait in Scenes 8-9.
+        const float SourceScale = 0.18f, MeterScale = 0.21f;                                          // 0.34 x 0.22 x 0.24 m, 0.24 x 0.22 x 0.34 m
+        static readonly Vector3 SourceAt = new Vector3(-0.75f, 0, 0.06f), AmmeterSlotAt = new Vector3(-0.28f, 0, 0.21f);
+        static readonly Vector3 VoltmeterSlotAt = new Vector3(0.12f, 0, 0.27f), KeyAt = new Vector3(0.75f, 0, -0.18f);
+        static readonly Vector3 TrayAt = new Vector3(0.70f, 0, 0.21f);
+        const float TrayWidth = 0.56f, TrayDepth = 0.44f, TrayBase = 0.012f, TraySlotDx = 0.14f;
+        static readonly Vector2 MeterFootprint = new Vector2(0.24f, 0.34f), SourceFootprint = new Vector2(0.34f, 0.24f);
+        // Lead anchors in each imported model's own space at scale 1 (fronts face -Z; from the old lesson's anchors).
+        // The source posts get a red / black sleeve whose tip is 0.05 in front of the anchor.
+        static readonly Vector3 SourcePlusPost = new Vector3(-0.08f, 0.27f, -0.70f), SourceMinusPost = new Vector3(-0.58f, 0.27f, -0.70f);
+        static readonly Vector3 MeterPostLeft = new Vector3(-0.46f, 0.18f, -0.63f), MeterPostRight = new Vector3(0.46f, 0.18f, -0.63f);
+        const float SleeveLength = 0.1f;
+        // Wire XY: a thin nichrome rod 5 cm over the bench between two brushed posts on black bases.
+        const float WireZ = -0.18f, WireHalf = 0.35f, WireRadius = 0.0025f;
+        const float BaseSize = 0.07f, BaseHeight = 0.015f, PostRadius = 0.013f, PostHeight = 0.05f;
+        const float PostTop = BaseHeight + PostHeight, WireHeight = PostTop - 0.01f;                 // the rod runs through each post just under its top
+        const float BadgeSize = 0.062f, BadgeBack = 0.012f;                                           // dark cube on the post's +X side (reference)
+        static readonly Vector3 WireCentre = new Vector3(0, WireHeight, WireZ);
+        static readonly Vector3 XPost = new Vector3(-WireHalf, 0, WireZ), YPost = new Vector3(WireHalf, 0, WireZ);
+        // Lever key: black base, two brushed terminals, a hinged arm with a rubber grip. CircuitRig turns "LeverHinge" about Z.
+        const float KeyBaseW = 0.26f, KeyBaseH = 0.04f, KeyBaseD = 0.10f, KeyTerminalDx = 0.09f, KeyTerminalR = 0.014f, KeyTerminalH = 0.03f;
+        const float KeyHingeX = -0.06f, KeyPivotY = KeyBaseH + KeyTerminalH + 0.004f, KeyArmLength = 0.15f, KeyHandleLength = 0.065f, KeyOpenDegrees = 35f;
+        // Cables: 6 mm radius (ART_DIRECTION §5) resting on the top; the voltmeter leads are thinner.
+        const float LeadWidth = 0.012f, ThinLead = 0.006f, LeadRest = 0.006f, LeadExit = 0.03f, PathWidth = 0.022f;
+        const float ReadingHeight = 1.3f;                                                              // readout above a meter, in the meter's local units
+        static readonly Color Magenta = new Color(0.878f, 0.251f, 0.984f);                             // #E040FB, the pulse
+        const float ChevronBar = 0.03f, ChevronDegrees = 38f;
+
+        Material nichrome, steel, matteBlack, badgeNavy, rubber, graphite, leadRed, leadBlack, sleeveRed, sleeveBlack, rigShadow;
+        Material pulseCore, pulseHalo, pulseTrail, pulseChevron;
 
         // Modern circuit on the bench. assembled: meters already in their slots (Scene 10 onward). A closed key with
         // voltage 0 reads nothing; Scene 9 closes it at CircuitRig.KeyClosedDefaultVolts, so Scene 10 should start there.
         protected CircuitRig Rig(bool assembled, bool keyClosed, float voltage, bool active = true)
         {
-            var root = Node("Circuit Rig", null, BenchCentre);
+            var root = Node("Circuit Rig", null, RigBench);
             var rig = root.AddComponent<CircuitRig>();
             rig.state = new CircuitState { keyClosed = keyClosed, voltage = voltage };
             rig.sfx = sfx;
             rig.click = sounds["Click"];
             rig.snap = sounds["Pop"];
             var bench = root.transform;
-            Vector3 eye = Vector3.Lerp(StudyBenchCam, StudyCloseCam, 0.5f) - BenchCentre; // the instruments turn toward the cameras
+            Vector3 W(Vector3 local) => bench.TransformPoint(local);
+            RigMaterials();
             var billboards = new List<Transform>();
-            leadRed = Lit("LeadRed", new Color(0.55f, 0.06f, 0.05f), 0f, 0.6f);
-            leadBlack = Lit("LeadBlack", new Color(0.05f, 0.05f, 0.06f), 0f, 0.6f);
 
-            // Nichrome wire XY between its two clamps, along the bench. Dull alloy finish; never glows.
-            var wire = Model(Imported + "NichromeWireXY.prefab", "NICHROME WIRE — XY", bench, WireAt, new Vector3(0, 180, 0), WireScale, collider: false);
-            FindChild(wire, "Rod_").GetComponent<Renderer>().sharedMaterial = Lit("Nichrome", NichromeTint, 0.75f, 0.42f);
-            Caption(wire, "NICHROME WIRE — XY", 0.5f, WireScale, billboards);
-            Ref(wire);
-            Vector3 x = wire.transform.TransformPoint(WireTerminalX), y = wire.transform.TransformPoint(WireTerminalY); // clamp terminals, world
-            var glowFace = AssetDatabase.LoadAssetAtPath<Material>(Root + "/Scene04/Materials/Word_CURRENT.mat"); // Scene 4's HDR amber word face
-            foreach (var (name, at) in new[] { ("X", x), ("Y", y) })
-            {
-                var badge = WorldText.Card("Card " + name, name, glowFace ? Color.white : palette.current, bench, bench.InverseTransformPoint(at) + Vector3.up * 0.11f, TerminalCap);
-                if (glowFace) badge.fontSharedMaterial = glowFace;
-                billboards.Add(Ref(badge.gameObject).transform);
-            }
-            var rod = WireAt + Vector3.up * (RodHeight * WireScale);
+            // Nichrome wire XY: the rod and its two posts with the X / Y badges ("Card X", "Card Y"). Never glows.
+            var wire = Ref(Node("NICHROME WIRE — XY", bench, WireCentre));
+            Prim(PrimitiveType.Cylinder, "Nichrome Rod", wire.transform, Vector3.zero, new Vector3(WireRadius * 2, WireHalf, WireRadius * 2), nichrome, new Vector3(0, 0, 90));
+            Post("X", wire.transform);
+            Post("Y", wire.transform);
             var sheath = Hdr(palette.wattsonAccent, 1.2f);
             sheath.a = 0.35f;
-            var highlight = Prim(PrimitiveType.Cylinder, "Wire Highlight", bench, rod, new Vector3(0.05f, 0.31f, 0.05f), Glow("Glow_WireHighlight", sheath, false), new Vector3(0, 0, 90));
+            var highlight = Prim(PrimitiveType.Cylinder, "Wire Highlight", bench, WireCentre, new Vector3(0.03f, WireHalf + 0.01f, 0.03f), Glow("Glow_WireHighlight", sheath, false), new Vector3(0, 0, 90));
             highlight.SetActive(false);
             rig.wireHighlight = Ref(highlight);
 
-            // Meters: in their slots (Scene 10 onward) or in the parts tray (Scenes 8-9), dials toward the cameras.
-            rig.ammeterSlot = Slot("Ammeter Slot", bench, AmmeterSlotAt, eye);
-            rig.voltmeterSlot = Slot("Voltmeter Slot", bench, VoltmeterSlotAt, eye);
-            var trayA = Slot("Tray Ammeter", bench, TrayAt + new Vector3(0, TrayBase, -0.19f), null);
-            var trayV = Slot("Tray Voltmeter", bench, TrayAt + new Vector3(0, TrayBase, 0.19f), null);
-            var ammeter = Meter("Ammeter", "AMMETER", "Measures current — I — ampere (A)", palette.current, "Ammeter_0to1p2.png", "Ammeter1", "niddle_grp",
+            // Meters: in their slots (Scene 10 onward) or side by side in the parts tray (Scenes 8-9), dials to the camera.
+            rig.ammeterSlot = Slot("Ammeter Slot", bench, AmmeterSlotAt);
+            rig.voltmeterSlot = Slot("Voltmeter Slot", bench, VoltmeterSlotAt);
+            var trayA = Slot("Tray Ammeter", bench, TrayAt + new Vector3(-TraySlotDx, TrayBase, 0));
+            var trayV = Slot("Tray Voltmeter", bench, TrayAt + new Vector3(TraySlotDx, TrayBase, 0));
+            var ammeter = Meter("Ammeter", "AMMETER", palette.current, "Ammeter_0to1p2.png", "Ammeter1", "niddle_grp",
                 assembled ? rig.ammeterSlot : trayA, bench, billboards, out rig.ammeterReading, out rig.ammeterNeedle);
-            var voltmeter = Meter("Voltmeter", "VOLTMETER", "Measures potential difference — V — volt (V)", palette.voltage, "VoltMeter_0to6.png", "Voltmeter", "niddle_grp1",
+            var voltmeter = Meter("Voltmeter", "VOLTMETER", palette.voltage, "VoltMeter_0to6.png", "Voltmeter", "niddle_grp1",
                 assembled ? rig.voltmeterSlot : trayV, bench, billboards, out rig.voltmeterReading, out rig.voltmeterNeedle);
             rig.ammeter = ammeter.transform;
             rig.voltmeter = voltmeter.transform;
@@ -87,9 +98,9 @@ namespace OhmsLaw.Editor
             rig.parallelGlow = SlotGlow("Parallel Slot Glow", bench, VoltmeterSlotAt, palette.voltage);
             PartsTray(bench);
 
-            // Variable DC source at the room end (frame left): repainted 0-5 V panel, knob and pilot lamp driven by CircuitRig.
+            // Variable DC source at the left, panel to the camera: repainted 0-5 V panel, knob and pilot lamp driven by
+            // CircuitRig, a red + and a black − sleeve on its posts.
             var source = Model(Imported + "DCSource.prefab", "cells / controllable DC source", bench, SourceAt, Vector3.zero, SourceScale);
-            source.transform.localRotation = Facing(SourceAt, eye, 90f);
             var panelBody = FindChild(source, "Power_Supply 1").GetComponent<Renderer>();
             var panelMats = panelBody.sharedMaterials;
             var panelSource = panelMats[0];
@@ -108,166 +119,248 @@ namespace OhmsLaw.Editor
             rig.sourceBody = panelBody;
             rig.lampMaterialIndex = 0;
             rig.sourceKnob = FindChild(source, "Round_Switch");
-            Caption(source, "cells / controllable DC source", 1.7f, SourceScale, billboards);
+            foreach (var (name, post, sleeve) in new[] { ("Post +", SourcePlusPost, sleeveRed), ("Post −", SourceMinusPost, sleeveBlack) })
+                Prim(PrimitiveType.Cylinder, name, source.transform, post, new Vector3(0.11f, SleeveLength / 2, 0.11f), sleeve, new Vector3(90, 0, 0));
+            RigShadow(source.transform, Vector3.zero, SourceFootprint, SourceScale);
             Ref(source);
 
-            // Key: a knife switch in Scene 4's brass and dark wood; the hinge is the lever pivot CircuitRig animates (open 35°, closed 0°).
-            var key = Model(KeyPrefab, "switch / key", bench, KeyAt + Vector3.up * (0.06f * KeyScale), Vector3.zero, KeyScale);
-            key.transform.localRotation = Facing(KeyAt, eye, 20f);
-            var brass = AssetDatabase.LoadAssetAtPath<Material>(Root + "/Scene04/Materials/Brass.mat");
-            var wood = AssetDatabase.LoadAssetAtPath<Material>(Root + "/Scene04/Materials/DarkWood.mat");
-            if (!brass) brass = Lit("KeyBrass", new Color(0.78f, 0.6f, 0.3f), 1f, 0.6f);
-            if (!wood) wood = Lit("KeyWood", new Color(0.22f, 0.13f, 0.08f), 0f, 0.45f);
-            var handle = Lit("KeyHandle", new Color(0.08f, 0.07f, 0.07f), 0f, 0.55f);
-            foreach (var r in key.GetComponentsInChildren<Renderer>()) r.sharedMaterial = r.name == "SwitchBase" ? wood : r.name == "Handle" ? handle : brass;
-            rig.key = key.transform;
-            rig.keyLever = FindChild(key, "LeverHinge");
-            rig.keyLever.localRotation = Quaternion.Euler(0, 0, keyClosed ? 0 : 35);
-            Placeholder(key, "Knife-switch key built from primitives (LabEquipment/Switch.prefab re-skinned); swap for a sculpted plug key when one exists");
-            Caption(key, "switch / key", 1.6f, KeyScale, billboards);
-            Ref(key);
+            // Key at the front right: the lever rests on the far terminal when closed, rises 35° when open.
+            var key = Ref(Node("switch / key", bench, KeyAt));
+            var k = key.transform;
+            Prim(PrimitiveType.Cube, "Base", k, Vector3.up * (KeyBaseH / 2), new Vector3(KeyBaseW, KeyBaseH, KeyBaseD), matteBlack);
+            foreach (float side in new[] { -1f, 1f })
+                Prim(PrimitiveType.Cylinder, side < 0 ? "Terminal A" : "Terminal B", k, new Vector3(side * KeyTerminalDx, KeyBaseH + KeyTerminalH / 2, 0), new Vector3(KeyTerminalR * 2, KeyTerminalH / 2, KeyTerminalR * 2), steel);
+            Prim(PrimitiveType.Cube, "Hinge Block", k, new Vector3(KeyHingeX, (KeyBaseH + KeyPivotY) / 2, 0), new Vector3(0.02f, KeyPivotY - KeyBaseH, 0.024f), steel);
+            var hinge = Node("LeverHinge", k, new Vector3(KeyHingeX, KeyPivotY, 0)).transform;
+            Prim(PrimitiveType.Cube, "Lever Arm", hinge, new Vector3(KeyArmLength / 2, 0.004f, 0), new Vector3(KeyArmLength, 0.008f, 0.016f), steel);
+            Prim(PrimitiveType.Cylinder, "Handle", hinge, new Vector3(KeyArmLength + KeyHandleLength / 2, 0.004f, 0), new Vector3(0.024f, KeyHandleLength / 2, 0.024f), rubber, new Vector3(0, 0, 90));
+            hinge.localRotation = Quaternion.Euler(0, 0, keyClosed ? 0 : KeyOpenDegrees);
+            rig.key = k;
+            rig.keyLever = hinge;
+            FitCollider(key); // the tap target, fitted before the cables (renderers too) join the key
+            RigShadow(k, Vector3.zero, new Vector2(KeyBaseW, KeyBaseD));
 
-            // Leads, in world space. Red on the source's + side, black on the return; the meter leads appear with their meter.
-            // Each lead takes the terminal nearest to where it comes from, so the layout can move without re-plumbing.
-            Vector3 W(Vector3 local) => bench.TransformPoint(local);
-            var ammeterPosts = MeterPosts.Select(p => rig.ammeterSlot.TransformPoint(p * MeterScale)).ToArray();
-            var voltmeterPosts = MeterPosts.Select(p => rig.voltmeterSlot.TransformPoint(p * MeterScale)).ToArray();
-            var sourcePosts = SourcePosts.Select(p => source.transform.TransformPoint(p)).ToArray();
-            var keyContacts = KeyContacts.Select(p => key.transform.TransformPoint(p)).ToArray();
-            Vector3 ammeterIn = Nearest(ammeterPosts, sourcePosts[0]), ammeterOut = Other(ammeterPosts, ammeterIn);
-            Vector3 sourcePlus = Nearest(sourcePosts, ammeterIn), sourceMinus = Other(sourcePosts, sourcePlus);
-            Vector3 keyIn = Nearest(keyContacts, y), keyOut = Other(keyContacts, keyIn);
-            float restY = BenchCentre.y + LeadRest;
-            // Source → ammeter goes round the source's inner side, between it and the X clamp; the return runs along the front edge.
-            var toAmmeter = LeadPath(sourcePlus, ammeterIn, W(new Vector3(0.55f, 0, 0.26f)), W(new Vector3(0.515f, 0, 0.09f)));
-            var toX = LeadPath(ammeterOut, x, Over(x, ammeterOut));
-            var toKey = LeadPath(y, keyIn, Over(y, keyIn));
-            var toSource = LeadPath(keyOut, sourceMinus, W(new Vector3(-0.52f, 0, 0.40f)), W(new Vector3(0.72f, 0, 0.40f)), W(new Vector3(0.80f, 0, 0.35f)));
+            // Terminals, world space. Red on the + side (source + → ammeter → X), black return (Y → key → source −);
+            // the voltmeter leads are thin and take the posts' tops. The series lead enters X from the outer side and
+            // leaves Y from the back, so neither crosses a badge.
+            Vector3 sourcePlus = source.transform.TransformPoint(SourcePlusPost + Vector3.back * (SleeveLength / 2));
+            Vector3 sourceMinus = source.transform.TransformPoint(SourceMinusPost + Vector3.back * (SleeveLength / 2));
+            Vector3 ammeterL = rig.ammeterSlot.TransformPoint(MeterPostLeft * MeterScale), ammeterR = rig.ammeterSlot.TransformPoint(MeterPostRight * MeterScale);
+            Vector3 voltmeterL = rig.voltmeterSlot.TransformPoint(MeterPostLeft * MeterScale), voltmeterR = rig.voltmeterSlot.TransformPoint(MeterPostRight * MeterScale);
+            Vector3 xOuter = W(XPost + new Vector3(-PostRadius, WireHeight, 0)), xTop = W(XPost + Vector3.up * PostTop);
+            Vector3 yBack = W(YPost + new Vector3(0, WireHeight, PostRadius)), yTop = W(YPost + Vector3.up * PostTop);
+            Vector3 keyA = W(KeyAt + new Vector3(-KeyTerminalDx - KeyTerminalR, KeyBaseH + KeyTerminalH / 2, 0));
+            Vector3 keyB = W(KeyAt + new Vector3(KeyTerminalDx, KeyBaseH + KeyTerminalH / 2, KeyTerminalR));
+            Vector3 OnTop(float x, float z) => W(new Vector3(x, LeadRest, z));
+            Vector3 Lifted(float x, float y, float z) => W(new Vector3(x, y, z));
+
+            var toAmmeter = LeadPath(sourcePlus, Vector3.back, ammeterL, Vector3.up, OnTop(-0.73f, -0.15f), OnTop(-0.60f, -0.10f), OnTop(-0.45f, 0.0f));
+            var toX = LeadPath(ammeterR, Vector3.up, xOuter, Vector3.left, Lifted(-0.25f, 0.02f, -0.02f), OnTop(-0.39f, -0.09f), Lifted(-0.42f, 0.02f, -0.16f));
+            var toKey = LeadPath(yBack, Vector3.forward, keyA, Vector3.left, Lifted(0.38f, 0.015f, -0.09f), OnTop(0.50f, -0.10f), OnTop(0.57f, -0.15f));
+            var toSource = LeadPath(keyB, Vector3.forward, sourceMinus, Vector3.back,
+                OnTop(0.84f, -0.06f), OnTop(0.45f, -0.06f), OnTop(0.0f, -0.06f), OnTop(-0.30f, -0.07f), OnTop(-0.50f, -0.12f),
+                OnTop(-0.70f, -0.21f), OnTop(-0.87f, -0.19f), Lifted(-0.875f, 0.025f, -0.14f));
             rig.ammeterLeads = Node("Ammeter Leads", bench);
-            Lead("Lead Source → Ammeter", rig.ammeterLeads.transform, leadRed, toAmmeter);
-            Lead("Lead Ammeter → X", rig.ammeterLeads.transform, leadRed, toX);
+            Lead("Lead Source → Ammeter", rig.ammeterLeads.transform, leadRed, LeadWidth, toAmmeter);
+            Lead("Lead Ammeter → X", rig.ammeterLeads.transform, leadRed, LeadWidth, toX);
             rig.ammeterLeads.SetActive(assembled);
-            Lead("Lead Y → Key", key.transform, leadBlack, toKey);
-            Lead("Lead Key → Source", key.transform, leadBlack, toSource);
-            Vector3 voltmeterX = Nearest(voltmeterPosts, x), voltmeterY = Other(voltmeterPosts, voltmeterX);
-            rig.voltmeterLeads = Lead("Voltmeter Lead X", bench, leadRed, LeadPath(x, voltmeterX, Over(x, voltmeterX)));
-            rig.voltmeterLeadY = Lead("Voltmeter Lead Y", bench, leadBlack, LeadPath(y, voltmeterY, Over(y, voltmeterY)));
+            Lead("Lead Y → Key", k, leadBlack, LeadWidth, toKey);
+            Lead("Lead Key → Source", k, leadBlack, LeadWidth, toSource);
+            rig.voltmeterLeads = Lead("Voltmeter Lead X", bench, leadRed, ThinLead, LeadPath(voltmeterL, Vector3.up, xTop, Vector3.up, OnTop(-0.20f, 0.0f), Lifted(-0.29f, 0.025f, -0.06f), Lifted(-0.345f, 0.03f, -0.10f)));
+            rig.voltmeterLeadY = Lead("Voltmeter Lead Y", bench, leadBlack, ThinLead, LeadPath(voltmeterR, Vector3.up, yTop, Vector3.up, OnTop(0.30f, 0.0f), Lifted(0.315f, 0.025f, -0.06f), Lifted(0.325f, 0.03f, -0.11f)));
             rig.voltmeterLeads.enabled = rig.voltmeterLeadY.enabled = assembled;
 
-            // Current path overlay along the leads, across the ammeter's posts and along the bench in front of the wire
-            // (the path lights up; the nichrome wire itself never glows). Lit amber by CircuitRig once the ammeter is in.
-            Vector3 UnderWire(float t) { var p = Vector3.Lerp(x, y, t); return new Vector3(p.x, restY + 0.01f, p.z + 0.05f); }
+            // Current path: an additive overlay along the cables and across the bench under the wire (the rod never
+            // glows), set a little toward the camera so it sits over the cable ribbons. Lit amber by CircuitRig once the ammeter is in.
             var path = new List<Vector3>();
             Append(path, toAmmeter);
             Append(path, toX);
-            Append(path, new[] { x, UnderWire(0.12f), UnderWire(0.88f), y });
+            Append(path, new[] { xOuter, W(XPost + Vector3.up * 0.004f), W(YPost + Vector3.up * 0.004f), yBack });
             Append(path, toKey);
             Append(path, toSource);
-            var glow = Glow("Glow_CurrentPath", Hdr(Color.white, 1.6f), false);
-            rig.currentPath = Polyline("Current Path", bench, glow, 0.014f, false, true, path.Select(p => p + Vector3.up * 0.006f).ToArray());
+            rig.currentPath = Polyline("Current Path", bench, Glow("Glow_CurrentPath", Hdr(Color.white, 1.6f), false), PathWidth, false, true,
+                path.Select(p => p + (RigBenchCam - p).normalized * 0.012f).ToArray());
             rig.currentPath.startColor = rig.currentPath.endColor = Color.clear;
-            rig.pathLabel = WorldText.Card("Path Label", "Source → Ammeter → Nichrome Wire XY → Switch → Source", palette.current, bench, new Vector3(-0.1f, 0.36f, -0.44f), PathLabelCap, cardBacking, PathLabelWrap);
-            rig.pathLabel.gameObject.SetActive(false);
-            billboards.Add(rig.pathLabel.transform);
-            foreach (var card in billboards) Face(card.gameObject, BenchCentre + eye); // CircuitRig keeps them on the live camera
+
+            Pulse(rig, bench, billboards);
+            foreach (var card in billboards) Face(card.gameObject, RigBenchCam); // CircuitRig keeps them on the live camera
             rig.billboards = billboards.ToArray();
 
-            // Where Wattson hovers to point at things: behind the bench, 0.35-0.4 m up, never between the cameras and the subject.
-            Marker("Wire Point", BenchCentre + new Vector3(0.35f, 0.4f, -0.75f));
-            Marker("Tray Point", BenchCentre + new Vector3(-0.78f, 0.35f, -0.78f));
-            Marker("Voltmeter Point", BenchCentre + new Vector3(-0.42f, 0.35f, -0.75f));
-            Marker("Source Point", BenchCentre + new Vector3(0.80f, 0.4f, -0.75f));
-            Marker("Key Point", BenchCentre + new Vector3(-0.25f, 0.4f, -0.78f));
+            // Where Wattson hovers to point at things: 0.55 m behind the bench like a teacher behind the desk, never
+            // between the cameras and the subject. His prefab pivot is 0.27 m above his boots and 0.44 m under his head:
+            // at bench + 0.22 the boots drop just behind the back edge and the head top (y 1.46) sits at 88 % of the
+            // Bench Close half-frame at z 1.0, so his bob never clips; the wide shots have room above.
+            Marker("Wire Point", RigBench + new Vector3(-0.52f, 0.22f, 1.0f));
+            Marker("Tray Point", RigBench + new Vector3(0.95f, 0.22f, 1.0f));
+            Marker("Voltmeter Point", RigBench + new Vector3(0.50f, 0.22f, 1.0f));
+            Marker("Source Point", RigBench + new Vector3(-1.02f, 0.22f, 1.0f));
+            Marker("Key Point", RigBench + new Vector3(1.15f, 0.22f, 1.0f));
             root.SetActive(active);
             Ref(root);
             return rig;
         }
 
-        // An imported meter at a slot: repainted dial, collider for drag, digit card and a hidden caption above it.
-        GameObject Meter(string prefab, string name, string caption, Color tint, string dial, string bodyMesh, string needlePivot, Transform at, Transform bench,
+        void RigMaterials()
+        {
+            var shade = RigTexture(RigTextures + "CableShade.png");
+            nichrome = Lit("Nichrome", new Color(0.64f, 0.57f, 0.44f), 0.85f, 0.45f);             // dull gold-grey alloy, no emission
+            steel = Lit("PostSteel", new Color(0.70f, 0.71f, 0.73f), 1f, 0.58f);                  // brushed posts, terminals, lever
+            matteBlack = Lit("MatteBlack", new Color(0.045f, 0.048f, 0.055f), 0.1f, 0.32f);        // post bases, key base
+            badgeNavy = Lit("BadgeNavy", new Color(0.106f, 0.133f, 0.2f), 0f, 0.4f);               // #1B2233
+            rubber = Lit("KeyHandle", new Color(0.06f, 0.06f, 0.065f), 0f, 0.5f);
+            graphite = Lit("TrayGraphite", new Color(0.1f, 0.11f, 0.12f), 0.3f, 0.45f);
+            leadRed = Cable("LeadRed", new Color(0.8f, 0.1f, 0.08f), shade);
+            leadBlack = Cable("LeadBlack", new Color(0.09f, 0.09f, 0.1f), shade);
+            sleeveRed = Lit("SleeveRed", new Color(0.75f, 0.09f, 0.07f), 0f, 0.55f);
+            sleeveBlack = Lit("SleeveBlack", new Color(0.05f, 0.05f, 0.055f), 0f, 0.5f);
+            rigShadow = Translucent("RigShadow", new Color(0, 0, 0, 0.7f));
+            rigShadow.SetTexture("_BaseMap", RigTexture(RigTextures + "RigShadow.png")); // solid under the footprint, soft penumbra
+            rigShadow.renderQueue = (int)RenderQueue.Transparent - 20;                   // under the slot glows and cable overlays
+            EditorUtility.SetDirty(rigShadow);
+            pulseCore = Lit("PulseCore", new Color(1f, 0.75f, 1f), 0f, 0.7f, Hdr(Magenta, 4.5f));
+            pulseHalo = Glow("Glow_PulseHalo", Hdr(new Color(Magenta.r, Magenta.g, Magenta.b, 0.7f), 1.8f));
+            pulseTrail = Glow("Glow_PulseTrail", Hdr(Magenta, 2.6f), false);
+            pulseChevron = Glow("Glow_PulseChevron", Hdr(Magenta, 3f), false);
+        }
+
+        // Dark rubber insulation; the shade texture runs across the ribbon so the flat line reads as a round tube.
+        static Material Cable(string name, Color color, Texture2D shade)
+        {
+            var material = Lit(name, color, 0f, 0.5f);
+            material.SetTexture("_BaseMap", shade);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        // An imported meter at a slot: repainted dial, collider for drag and tap, digit readout above it, contact shadow.
+        GameObject Meter(string prefab, string name, Color tint, string dial, string bodyMesh, string needlePivot, Transform at, Transform bench,
             List<Transform> billboards, out TextMeshPro reading, out Transform needle)
         {
-            var go = Model(Imported + prefab + ".prefab", name, bench, at.localPosition, Vector3.zero, MeterScale); // collider fitted before the turn, so it stays tight
-            go.transform.localRotation = at.localRotation;
+            var go = Model(Imported + prefab + ".prefab", name, bench, at.localPosition, Vector3.zero, MeterScale); // collider fitted here, before the readout and shadow join
             var body = FindChild(go, bodyMesh).GetComponent<Renderer>();
             var printed = body.sharedMaterial;
             var texture = RigTexture(RigTextures + dial);
             body.sharedMaterial = Mat(prefab + "_Dial", printed.shader.name, m => { m.CopyPropertiesFromMaterial(printed); if (texture) m.SetTexture("_BaseMap", texture); });
             needle = FindChild(go, needlePivot);
-            reading = WorldText.Card("Reading", "0.0", tint, go.transform, new Vector3(0, 1.3f, -0.1f), MeterReadingCap, cardBacking);
+            reading = WorldText.Card("Reading", "0.0", tint, go.transform, new Vector3(0, ReadingHeight, -0.1f), WorldText.Cap.Reading, cardBacking);
             reading.transform.localScale = Vector3.one / MeterScale;
             billboards.Add(reading.transform);
-            Caption(go, name + "\n<size=83%>" + caption + "</size>", 1.75f, MeterScale, billboards);
+            RigShadow(go.transform, Vector3.zero, MeterFootprint, MeterScale);
             return go;
         }
 
-        // Instrument caption ("Caption <part>"), hidden until a cue shows it; sized for the close camera.
-        void Caption(GameObject part, string text, float localHeight, float scale, List<Transform> billboards)
+        // X / Y terminal (reference): matte black base, brushed post with the rod through it just under the top, and the
+        // navy badge with its orange letter on the camera face, fixed to the post's +X side. Badge root = "Card <letter>".
+        void Post(string letter, Transform wire)
         {
-            var card = WorldText.Card("Caption " + part.name, text, Color.white, part.transform, new Vector3(0, localHeight, 0), PropLabelCap, cardBacking, CaptionWrap);
-            card.transform.localScale = Vector3.one / scale;
-            card.gameObject.SetActive(false);
-            billboards.Add(Ref(card.gameObject).transform);
+            float side = letter == "X" ? -1f : 1f;
+            var post = Node("Post " + letter, wire, new Vector3(side * WireHalf, -WireHeight, 0)).transform; // at bench level
+            Prim(PrimitiveType.Cube, "Base", post, Vector3.up * (BaseHeight / 2), new Vector3(BaseSize, BaseHeight, BaseSize), matteBlack);
+            Prim(PrimitiveType.Cylinder, "Post", post, Vector3.up * (BaseHeight + PostHeight / 2), new Vector3(PostRadius * 2, PostHeight / 2, PostRadius * 2), steel);
+            RigShadow(post, Vector3.zero, new Vector2(BaseSize, BaseSize));
+            var badge = Node("Card " + letter, post, new Vector3(PostRadius + BadgeSize / 2, PostTop, BadgeBack));
+            Prim(PrimitiveType.Cube, "Cube", badge.transform, Vector3.zero, Vector3.one * BadgeSize, badgeNavy);
+            WorldText.Card("Letter", letter, palette.current, badge.transform, new Vector3(0, 0, -(BadgeSize / 2 + 0.0008f)), WorldText.Cap.Terminal);
+            Ref(badge); // no PopIn: the badges open every match-cut scene already visible
         }
 
-        // A pose on the bench for a meter: its dial turned toward the cameras (or straight out of the tray).
-        Transform Slot(string name, Transform bench, Vector3 at, Vector3? eye)
+        // Soft dark quad on the top under an object (contact AO). size in metres; parentScale is the parent's uniform
+        // scale (the quad is expressed in the parent's units), 1.35x the footprint so the penumbra shows past the base.
+        void RigShadow(Transform parent, Vector3 foot, Vector2 size, float parentScale = 1f)
         {
-            var slot = Node(name, bench, at).transform;
-            slot.localRotation = eye.HasValue ? Facing(at, eye.Value) : Quaternion.Euler(0, 180, 0);
-            return slot;
+            var quad = Prim(PrimitiveType.Quad, "Contact Shadow", parent, foot + Vector3.up * (0.002f / parentScale), new Vector3(size.x, size.y, 1f) * (1.35f / parentScale), rigShadow, new Vector3(90, 0, 0));
+            quad.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
         }
 
-        // The imported models face local -Z: yaw so that face points at the eye, at most `cap` degrees off the bench axis.
-        static Quaternion Facing(Vector3 at, Vector3 eye, float cap = 28f)
-        {
-            Vector3 away = at - eye;
-            away.y = 0;
-            float off = Mathf.DeltaAngle(180f, Quaternion.LookRotation(away).eulerAngles.y);
-            return Quaternion.Euler(0, 180f + Mathf.Clamp(off, -cap, cap), 0);
-        }
+        // A pose on the bench for a meter; dials face -Z, toward the cameras, everywhere.
+        Transform Slot(string name, Transform bench, Vector3 at) => Node(name, bench, at).transform;
 
         // Soft additive disc on the bench under a slot; CircuitRig shows and pulses it while that part may be dragged.
         GameObject SlotGlow(string name, Transform bench, Vector3 at, Color colour)
         {
             var hdr = Hdr(colour, 1.6f);
             hdr.a = 0.55f;
-            var glow = Prim(PrimitiveType.Quad, name, bench, at + Vector3.up * 0.004f, new Vector3(0.5f, 0.6f, 1), Glow("Glow_" + name.Replace(" ", ""), hdr), new Vector3(90, 0, 0));
+            var glow = Prim(PrimitiveType.Quad, name, bench, at + Vector3.up * 0.004f, new Vector3(0.32f, 0.42f, 1), Glow("Glow_" + name.Replace(" ", ""), hdr), new Vector3(90, 0, 0));
             glow.SetActive(false);
             return glow;
         }
 
-        // Shallow graphite tray at the wall end of the bench (frame right); the meters wait in it until Scene 9 places them.
+        // Shallow graphite tray behind the key, at the right end; the meters wait in it side by side until Scene 9 places them.
         void PartsTray(Transform bench)
         {
             var tray = Node("Parts Tray", bench, TrayAt);
-            var graphite = Lit("TrayGraphite", new Color(0.1f, 0.11f, 0.12f), 0.3f, 0.45f);
             Prim(PrimitiveType.Cube, "Base", tray.transform, new Vector3(0, TrayBase / 2, 0), new Vector3(TrayWidth, TrayBase, TrayDepth), graphite);
             foreach (float sx in new[] { -1f, 1f })
                 Prim(PrimitiveType.Cube, "Rim", tray.transform, new Vector3(sx * (TrayWidth - 0.012f) / 2, 0.02f, 0), new Vector3(0.012f, 0.04f, TrayDepth), graphite);
             foreach (float sz in new[] { -1f, 1f })
                 Prim(PrimitiveType.Cube, "Rim", tray.transform, new Vector3(0, 0.02f, sz * (TrayDepth - 0.012f) / 2), new Vector3(TrayWidth, 0.04f, 0.012f), graphite);
+            RigShadow(tray.transform, Vector3.zero, new Vector2(TrayWidth, TrayDepth));
             Ref(tray);
+        }
+
+        // "[VFX] Pulse travels from X to Y": a magenta glowing sphere with a short trail and three chevrons ahead,
+        // running along the rod from X to Y (ART_DIRECTION §6). Hidden; CircuitRig plays it whenever it is shown
+        // (a cue, the ammeter snap, the key closing) and hides it again after the repeats.
+        void Pulse(CircuitRig rig, Transform bench, List<Transform> billboards)
+        {
+            var pulse = Node("[VFX] Pulse travels from X to Y", bench, XPost + Vector3.up * WireHeight);
+            var head = Prim(PrimitiveType.Sphere, "Pulse", pulse.transform, Vector3.zero, Vector3.one * 0.04f, pulseCore);
+            head.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            var halo = Prim(PrimitiveType.Quad, "Halo", head.transform, Vector3.zero, Vector3.one * 2.6f, pulseHalo);
+            halo.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            billboards.Add(halo.transform);
+            var trail = head.AddComponent<TrailRenderer>();
+            trail.sharedMaterial = pulseTrail;
+            trail.time = 0.3f;
+            trail.minVertexDistance = 0.004f;
+            trail.startWidth = 0.028f;
+            trail.endWidth = 0f;
+            var fade = new Gradient();
+            fade.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) },
+                new[] { new GradientAlphaKey(0.9f, 0), new GradientAlphaKey(0, 1) });
+            trail.colorGradient = fade;
+            trail.numCapVertices = 4;
+            trail.textureMode = LineTextureMode.Stretch;
+            trail.shadowCastingMode = ShadowCastingMode.Off;
+            trail.autodestruct = false;
+            var chevrons = new Transform[3];
+            for (int i = 0; i < chevrons.Length; i++) chevrons[i] = Chevron(pulse.transform, i);
+            rig.pulse = Ref(pulse);
+            rig.pulseHead = head.transform;
+            rig.pulseTrail = trail;
+            rig.pulseChevrons = chevrons;
+            rig.pulseTo = new Vector3(2 * WireHalf, 0, 0);
+            pulse.SetActive(false);
+        }
+
+        // A ">" of two glowing bars in the wire's vertical plane, tip at the origin, pointing +X (toward Y); farther ones smaller.
+        Transform Chevron(Transform parent, int index)
+        {
+            var chevron = Node("Chevron " + (index + 1), parent).transform;
+            float size = 1f - 0.2f * index, rad = ChevronDegrees * Mathf.Deg2Rad;
+            foreach (float sign in new[] { -1f, 1f })
+                Prim(PrimitiveType.Cube, "Bar", chevron, new Vector3(-ChevronBar / 2 * Mathf.Cos(rad), sign * ChevronBar / 2 * Mathf.Sin(rad), 0) * size,
+                    new Vector3(ChevronBar, 0.005f, 0.003f) * size, pulseChevron, new Vector3(0, 0, -sign * ChevronDegrees))
+                    .GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            return chevron;
         }
 
         static Texture2D RigTexture(string path)
         {
             var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            if (!texture) Debug.LogWarning("Rig: repainted texture missing, the printed scale stays: " + path);
+            if (!texture) Debug.LogWarning("Rig: texture missing, the material keeps its default: " + path);
             return texture;
         }
 
-        // A lead between two terminals: leaves each post upward, then sags onto the bench through the waypoints
-        // (or arcs straight across when there are none). World space.
-        Vector3[] LeadPath(Vector3 from, Vector3 to, params Vector3[] via)
+        // A cable between two terminals, world space: leaves each terminal along its `out` direction, then sags through
+        // the waypoints (bench-level knots rest on the top). Catmull-Rom through the knots.
+        static Vector3[] LeadPath(Vector3 from, Vector3 fromOut, Vector3 to, Vector3 toOut, params Vector3[] via)
         {
-            var knots = new List<Vector3> { from, from + Vector3.up * 0.035f };
-            float restY = BenchCentre.y + LeadRest;
-            if (via.Length == 0) knots.Add(Vector3.Lerp(from, to, 0.5f) + Vector3.up * 0.03f);
-            foreach (var v in via) knots.Add(new Vector3(v.x, Mathf.Max(v.y, restY), v.z));
-            knots.Add(to + Vector3.up * 0.035f);
+            var knots = new List<Vector3> { from, from + fromOut * LeadExit };
+            knots.AddRange(via);
+            knots.Add(to + toOut * LeadExit);
             knots.Add(to);
-            return CatmullRom(knots, 6);
+            return CatmullRom(knots, 8);
         }
 
         static Vector3[] CatmullRom(List<Vector3> knots, int subdivisions)
@@ -286,13 +379,15 @@ namespace OhmsLaw.Editor
             return points.ToArray();
         }
 
-        LineRenderer Lead(string name, Transform parent, Material insulation, Vector3[] path) => Polyline(name, parent, insulation, LeadWidth, false, true, path);
-
-        // A knot that lifts a lead over the clamp it plugs into.
-        static Vector3 Over(Vector3 terminal, Vector3 other) => Vector3.Lerp(terminal, other, 0.35f) + Vector3.up * 0.05f;
-
-        static Vector3 Nearest(Vector3[] points, Vector3 to) => points.OrderBy(p => (p - to).sqrMagnitude).First();
-        static Vector3 Other(Vector3[] pair, Vector3 one) => pair[0] == one ? pair[1] : pair[0];
+        // Lit cable ribbon: lighting data on, so URP/Lit shades it (a LineRenderer has no normals otherwise).
+        LineRenderer Lead(string name, Transform parent, Material insulation, float width, Vector3[] path)
+        {
+            var line = Polyline(name, parent, insulation, width, false, true, path);
+            line.generateLightingData = true;
+            line.numCapVertices = 4;
+            line.textureMode = LineTextureMode.Stretch;
+            return line;
+        }
 
         static void Append(List<Vector3> path, IEnumerable<Vector3> points)
         {

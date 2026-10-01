@@ -17,7 +17,8 @@ namespace OhmsLaw
     // The modern bench: variable DC source, ammeter (series), voltmeter (parallel across XY), nichrome wire XY, key.
     // Readings: voltmeter = V, ammeter = V / R from ExperimentData. The nichrome wire never glows.
     // The instruments are the imported models: needles swing from their modelled rest pose about their own axis,
-    // the source knob turns with the set voltage and its pilot lamp lights while the key is closed.
+    // the source knob turns with the set voltage and its pilot lamp lights while the key is closed. A magenta pulse
+    // runs X → Y along the rod when the ammeter snaps in and when the key closes (or when a cue shows it).
     public class CircuitRig : MonoBehaviour
     {
         // "Small default source voltage so the needles move" when the key is first closed (Scene 9); Scene 10 starts here.
@@ -29,7 +30,8 @@ namespace OhmsLaw
         [Header("Parts")]
         public Transform ammeter, voltmeter, key, keyLever;
         public Transform ammeterSlot, voltmeterSlot;
-        public TextMeshPro ammeterReading, voltmeterReading, pathLabel;
+        public TextMeshPro ammeterReading, voltmeterReading;
+        [Tooltip("Optional world label shown while the ammeter is in (the kit no longer builds one: the board carries the path).")] public TextMeshPro pathLabel;
         public Transform ammeterNeedle, voltmeterNeedle;
         [Tooltip("Glowing overlay along Source → Ammeter → XY → Key → Source; lit once the ammeter is in.")] public LineRenderer currentPath;
         [Tooltip("Leads X → voltmeter and Y → voltmeter; shown once the voltmeter is in.")] public LineRenderer voltmeterLeads, voltmeterLeadY;
@@ -46,7 +48,16 @@ namespace OhmsLaw
         public Renderer sourceBody;
         public int lampMaterialIndex;
         [ColorUsage(false, true)] public Color lampColor = new Color(2.5f, 2.5f, 2.5f);
-        [Tooltip("World text that turns to face the live camera (readouts, captions, badges, path label).")] public Transform[] billboards = new Transform[0];
+        [Tooltip("World quads that turn to face the live camera (readouts, the pulse halo).")] public Transform[] billboards = new Transform[0];
+
+        [Header("Pulse X → Y")]
+        [Tooltip("\"[VFX] Pulse travels from X to Y\": hidden; runs its repeats whenever it is shown (a cue or PlayPulse()) and hides itself after.")] public GameObject pulse;
+        public Transform pulseHead;
+        public TrailRenderer pulseTrail;
+        [Tooltip("Chevrons ahead of the head, nearest first.")] public Transform[] pulseChevrons = new Transform[0];
+        [Tooltip("Y's end of the wire in the pulse root's space; the head starts at the root (X).")] public Vector3 pulseTo = new Vector3(0.7f, 0, 0);
+        public float pulseSeconds = 1.2f, pulseGap = 0.4f, chevronLead = 0.07f, chevronSpacing = 0.055f;
+        public int pulseRepeats = 3;
 
         [Header("Learner input")]
         [Tooltip("Part the learner may drag right now: \"ammeter\", \"voltmeter\" or empty.")] public string draggable = "";
@@ -63,6 +74,7 @@ namespace OhmsLaw
         Vector3 dragHome;
         Vector2 pressAt;
         bool moving;
+        Coroutine pulsing;
 
         public float Volts => state.keyClosed && ammeterPlaced && voltmeterPlaced ? state.voltage : 0;
         public float Amps => state.keyClosed && ammeterPlaced ? ExperimentData.Main.CurrentAt(state.voltage) : 0;
@@ -91,14 +103,25 @@ namespace OhmsLaw
             if (state.voltage <= 0) state.voltage = KeyClosedDefaultVolts;
             keyArmed = false;
             if (sfx && click) sfx.PlayOneShot(click);
+            PlayPulse();
             KeyClosed?.Invoke();
+        }
+
+        // The X → Y pulse: shows the "[VFX] Pulse travels from X to Y" object; Update runs it and hides it again.
+        // The matching "[VFX]" screen panel comes up as it would for a cue, and leaves when the object hides.
+        public void PlayPulse()
+        {
+            if (!pulse) return;
+            pulse.SetActive(true);
+            var panels = CalloutLayer.Instance;
+            if (panels) panels.Vfx(pulse.name, true, pulse);
         }
 
         Transform Part(string part) => part == "ammeter" ? ammeter : part == "voltmeter" ? voltmeter : null;
 
         void SetPlaced(string part)
         {
-            if (part == "ammeter") ammeterPlaced = true; else voltmeterPlaced = true;
+            if (part == "ammeter") { ammeterPlaced = true; PlayPulse(); } else voltmeterPlaced = true;
             if (draggable == part) draggable = "";
             Placed?.Invoke(part);
         }
@@ -170,10 +193,13 @@ namespace OhmsLaw
             if (voltmeterLeadY) voltmeterLeadY.enabled = voltmeterPlaced;
 
             // Drop targets breathe while a part may be dragged; the wire highlight breathes while a cue shows it.
-            float pulse = 1 + 0.08f * Mathf.Sin(Time.time * 4.5f);
-            Breathe(seriesGlow, seriesGlowScale, draggable == "ammeter", pulse);
-            Breathe(parallelGlow, parallelGlowScale, draggable == "voltmeter", pulse);
+            float breath = 1 + 0.08f * Mathf.Sin(Time.time * 4.5f);
+            Breathe(seriesGlow, seriesGlowScale, draggable == "ammeter", breath);
+            Breathe(parallelGlow, parallelGlowScale, draggable == "voltmeter", breath);
             if (wireHighlight && wireHighlight.activeSelf) wireHighlight.transform.localScale = highlightScale * (1 + 0.05f * Mathf.Sin(Time.time * 3f));
+
+            // The pulse plays whenever something shows its object (cue, snap, key) and puts it away afterwards.
+            if (pulse && pulse.activeSelf && pulsing == null) pulsing = StartCoroutine(Pulse());
         }
 
         void LateUpdate()
@@ -182,6 +208,41 @@ namespace OhmsLaw
             if (!cam) return;
             foreach (var card in billboards)
                 if (card && card.gameObject.activeInHierarchy) card.rotation = Quaternion.LookRotation(card.position - cam.transform.position);
+        }
+
+        void OnDisable() => pulsing = null; // Unity stops the coroutine with the object; let a later show start a fresh run
+
+        // Head and chevrons run from X to Y along the rod `pulseRepeats` times, with a dark gap between runs; the
+        // trail is cleared at each restart so nothing streaks back. Hiding the object mid-run ends it.
+        IEnumerator Pulse()
+        {
+            float length = pulseTo.magnitude;
+            Vector3 along = length > 0 ? pulseTo / length : Vector3.right;
+            for (int repeat = 0; repeat < pulseRepeats && pulse.activeSelf; repeat++)
+            {
+                if (pulseHead) { pulseHead.localPosition = Vector3.zero; pulseHead.gameObject.SetActive(true); }
+                if (pulseTrail) pulseTrail.Clear();
+                for (float t = 0; t < 1f && pulse.activeSelf; t += Time.deltaTime / pulseSeconds)
+                {
+                    float travelled = t * length;
+                    if (pulseHead) pulseHead.localPosition = along * travelled;
+                    for (int i = 0; i < pulseChevrons.Length; i++)
+                    {
+                        var chevron = pulseChevrons[i];
+                        if (!chevron) continue;
+                        float ahead = travelled + chevronLead + i * chevronSpacing;
+                        bool shown = ahead < length;
+                        if (chevron.gameObject.activeSelf != shown) chevron.gameObject.SetActive(shown);
+                        chevron.localPosition = along * ahead;
+                    }
+                    yield return null;
+                }
+                if (pulseHead) pulseHead.gameObject.SetActive(false);
+                foreach (var chevron in pulseChevrons) if (chevron) chevron.gameObject.SetActive(false);
+                for (float t = 0; t < pulseGap && pulse.activeSelf; t += Time.deltaTime) yield return null;
+            }
+            pulse.SetActive(false);
+            pulsing = null;
         }
 
         static void Swing(Transform pivot, Quaternion zero, float degrees)

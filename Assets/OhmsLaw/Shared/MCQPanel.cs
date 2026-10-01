@@ -9,7 +9,8 @@ namespace OhmsLaw
     // The caller decides what an answer means and writes it to LearnerSession.
     public class MCQPanel
     {
-        const float Width = 1180f, Row = UI.MCQRow, Pad = 40f, Top = 36f, Gap = 24f;
+        const float DefaultWidth = 1180f, Row = UI.MCQRow, Pad = 40f, Top = 36f, Gap = 24f;
+        readonly float Width;
         const float OptionHeight = 92f, Badge = 60f, HintBand = 60f;
 
         readonly RectTransform panel;
@@ -18,10 +19,14 @@ namespace OhmsLaw
         readonly TextMeshProUGUI hint;
         public int Picked { get; private set; } = -1;
 
-        public MCQPanel(string questionText, string[] optionTexts)
+        // dockRight puts the panel against the right edge (x >= ~50 %) so the table, graph or Wattson it asks about stays visible.
+        public MCQPanel(string questionText, string[] optionTexts, bool dockRight = false, float width = DefaultWidth)
         {
+            Width = dockRight ? Mathf.Min(width, 900f) : width;
             var root = ModuleFlow.Instance.transform.Find("SafeArea");
-            panel = UI.Rect("MCQ Panel", root, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(Width, 100));
+            panel = dockRight
+                ? UI.Rect("MCQ Panel", root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-48, -130), new Vector2(Width, 100))
+                : UI.Rect("MCQ Panel", root, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(Width, 100));
             UI.Panel(panel, UI.HudColor, true, 28f);
             panel.gameObject.AddComponent<UIFade>();
 

@@ -1,8 +1,10 @@
+using TMPro;
 using UnityEngine;
 
 namespace OhmsLaw.Editor
 {
     // Scene 10: Become the Experimenter. Set 1 V, record, auto-run 2-5 V, spot the pattern, find the doubling.
+    // Classroom bench (match-cut from Scene 9 on Bench Close); the observation table lives on the teaching board.
     public class Scene10Builder : SceneBuilderBase
     {
         public override string SceneId => "Scene10";
@@ -40,44 +42,61 @@ namespace OhmsLaw.Editor
 
         protected override void Stage()
         {
-            LabGreybox(modernBench: true);
-            KidsAt(new Vector3(0.2f, 0, -2.2f), Vector3.forward);
-            Wattson(WattsonHome, BenchWideCam);
+            ClassroomSet(modernBench: true, audience: false);
+            Wattson(WattsonHomeC, BenchWideCamC);
             director.matchCutFrom = "Scene09_BuildCircuit";
-            director.rig = Rig(assembled: true, keyClosed: true, voltage: 0);
+            // Scene 9 closed the key at the small default voltage; the hand-off carries the live value across the cut.
+            director.rig = Rig(assembled: true, keyClosed: true, voltage: CircuitRig.KeyClosedDefaultVolts);
             Boards(withTable: true, withGraph: false);
-            Card("Discovery", "V × 2 → I × 2", palette.current, null, new Vector3(1.0f, 2.0f, 0.1f), 0.22f);
+
+            // Wattson's spots. Behind the bench's left end for the Bench Close beats: the steep lens cuts a head at the rig's
+            // markers, here he shows from the waist up at 4-18 % across with his head at 87-94 % (the source is at 5-21 %,
+            // the slider under it). Beside the board's left edge for the Boards shot (1-14 % across): the kit's Boards /
+            // Table Point (5-20 %) would cover the table's V column, which starts at 14 %.
+            Marker("Source Side", new Vector3(-1.2f, 0.7f, 0.95f));
+            Marker("Table Side", new Vector3(-1.45f, 1.6f, 2.2f));
+
+            // The discovery is chalk beside rows 1-2 of the table (table panel u 0.05-0.49; rows 1-2 at v 0.49-0.63), at the
+            // Boards shot's formula tier. The S10_Discover gate reveals the ref "Card Discovery" (SceneDirector.Gates), so
+            // the chalk takes that name.
+            Board("V × 2 → I × 2", palette.current, new Vector2(0.52f, 0.56f), BoardsShotTitleCap, align: TextAlignmentOptions.Left, name: "Discovery")
+                .name = "Card Discovery";
         }
 
         protected override void Beats()
         {
-            Shot("Bench Wide");
-            Cue("rig.voltage 0", "match-cut: circuit complete, key closed, source at 0 V");
+            Shot("Bench Close"); // match-cut: Scene 9's last frame (circuit complete, key closed, voltage carried over)
             Cue("table.rows 0", "empty observation table with headers");
-            Gesture(WattsonController.Gesture.Point, point: "cells / controllable DC source", moveTo: "Source Point");
-            Cue("rig.slider 1", "voltage controller appears (0-5 V in 1 V steps)");
+            Gesture(WattsonController.Gesture.Point, point: "cells / controllable DC source", moveTo: "Source Side");
+            Cue("rig.slider 1", "voltage controller appears at the carried voltage (0-5 V in 1 V steps)");
             Visual("Voltage controller appears by the source", 0.8);
-            Cue("prompt Let's start low. Set the battery to 1 volt.", "on-screen prompt");
             Line("S10_L01", 0.2);
+            Cue("prompt Let's start low. Set the battery to 1 volt.", "on-screen prompt takes over as the subtitle ends", -0.2);
             Gate("S10_Set1V", "Set the slider to 1 V (mouse/touch). Ammeter needle moves to 0.20 A. autoAnswer sets it after 3 s.");
             Cue("prompt", "");
             Gesture(WattsonController.Gesture.Point, point: "VOLTMETER");
             Line("S10_L02");
             Gesture(WattsonController.Gesture.Point, point: "AMMETER");
-            Cue("prompt Record the current reading in ammeter.", "on-screen prompt");
             Line("S10_L03", 0.2);
+            Cue("prompt Record the current reading in ammeter.", "on-screen prompt takes over as the subtitle ends", -0.2);
             Gate("S10_Record", "Tap RECORD (or the ammeter). Row 1 (1, 0.2) animates into the observation table.");
             Cue("prompt", "");
 
             Gesture(WattsonController.Gesture.Talking);
             Line("S10_L04");
-            Shot("Boards");
-            Gesture(WattsonController.Gesture.Point, point: "Observation Table", moveTo: "Table Point");
+            // 2 V and 3 V on the dials (knob, needles, readouts, slider); mid-way through 3 V the camera rises to the
+            // board (1 s blend), where rows 3-5 fill in. The battery control leaves with the bench: in the Boards shot it
+            // would sit over table rows 3-5.
             for (int v = 2; v <= 5; v++)
             {
                 Cue("rig.voltage " + v, $"controller steps to {v} V; meters update");
                 Cue("table.rows " + v, $"row {v} auto-fills", 0.6);
-                Visual($"Auto step to {v} V", 1.5);
+                Visual($"Auto step to {v} V", v == 3 ? 0.5 : 1.5);
+                if (v != 3) continue;
+                Shot("Boards");
+                Cue("rig.slider 0", "voltage controller hidden with the bench");
+                Gesture(WattsonController.Gesture.Point, point: "Observation Table", moveTo: "Table Side");
+                Visual("Camera rises to the observation table on the board", 1.0);
             }
             Gesture(WattsonController.Gesture.Idle, look: "Observation Table");
             Line("S10_L05");
@@ -93,7 +112,6 @@ namespace OhmsLaw.Editor
             Gate("S10_Discover", "Tap either highlighted row or the ×2 chip to reveal V × 2 → I × 2. Auto-reveals after 5 s.");
             Gesture(WattsonController.Gesture.Greet);
             Line("S10_L11", 0.2);
-            Cue("rig.slider 0", "voltage controller hidden");
             Cue("handoff", "SceneHandoffState: table rows + camera");
             Handoff("Scene10Complete", cut: true, afterSeconds: 0.4);
         }

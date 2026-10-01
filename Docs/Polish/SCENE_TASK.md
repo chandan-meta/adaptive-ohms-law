@@ -1,32 +1,43 @@
-# Per-scene polish task (template for the scene agents)
+# Per-scene task (one agent per `Assets/OhmsLaw/Editor/SceneNNBuilder.cs`)
 
-You own exactly one file: `Assets/OhmsLaw/Editor/SceneNNBuilder.cs`. Read `Docs/Polish/BRIEF.md` first, then:
+You own exactly one file. Read, in order: `Docs/Polish/BRIEF.md` (rules), `Docs/Polish/USER_MASTER_PROMPT.md` (the target),
+`Docs/Polish/ART_DIRECTION.md` (buildable spec + content guardrails §9 — binding), your scene's reference image(s) in
+`Docs/Polish/References/` (use the Read tool on the PNGs; Scenes 10–13 have none: extend the Scene 7/8/9 language — classroom,
+teaching board, callouts), `Docs/STORYBOARD_SCENES_05_13.md` (your scene; dialogue/beats/interactions are untouchable),
+`Docs/Polish/CRITIQUE.md` (your scene's findings; many are already fixed by the kits — re-check against the kit code),
+`Docs/Polish/KIT_REPORTS_2.md` (classroom, callouts, bench, electrons, ohm kits: API, caller changes, ref names) and
+`Docs/Polish/KIT_REPORTS.md` sections "text" and "ui" (typography tiers, WorldText.Cap/Wrap, Card styles, boards, HUD).
+Then read the kit source you call: `SceneBuilderBase.cs` (beat DSL, Card/Vfx/Wattson/Cam), `.Look.cs` (Vcam, lenses, Lit/Glow,
+Model, Emitter, Polyline), `.Classroom.cs` (ClassroomSet, Board/BoardLine/BoardPanel/BoardSurface, Audience, constants *C),
+`.Callouts.cs` + `Shared/Callouts.cs` (Callout/Concept helpers, cues `callout show|hide|hideall <id>`, VfxPanel auto-shown for
+"[VFX] ..." objects), `.Rig.cs` + `Shared/CircuitRig.cs` (Rig, markers, PlayPulse), `.Wire.cs` + `Shared/WireInterior.cs` (WireStage,
+markers, effects), `.Lab.cs` + `Scene04/Scripts/OhmWorker.cs` (OhmApparatus / ClassroomApparatus, modes Work/Present/Examine via cue
+`ohm.pose <Mode>`, `ohm.freeze 1|0`), `.Boards.cs` (Boards() mounts on the teaching board when ClassroomSet ran),
+`Shared/SceneDirector.cs` (every cue verb). Today's screenshots of your scene: `Logs/Blockout/shots/<YourScene>/`.
 
-1. `Docs/STORYBOARD_SCENES_05_13.md` — your scene's section (beats, exact text, interactions). Nothing in Dialogue() changes;
-   the Beats() order of lines, gates and hand-offs does not change.
-2. `Docs/Polish/CRITIQUE.md` — your scene's numbered findings and the cross-scene list: fix every HIGH and MEDIUM item that lies
-   inside your file; LOW where cheap.
-3. `Docs/Polish/KIT_REPORTS.md` — what the shared kits now provide (study, rig, wire, text, ui) and what callers must change.
-   Then read the kit source itself: `SceneBuilderBase.cs`, `.Look.cs`, `.Lab.cs`, `.Rig.cs`, `.Wire.cs`, `.Boards.cs`.
-4. `Docs/Polish/STYLE_GUIDE.md` sections 3 (camera conventions) and 7 (VFX recipes); `Docs/Polish/TYPOGRAPHY.md` section 4 (sizes).
-5. `Logs/Blockout/shots/<YourScene>/*.png` — what it looks like today.
+## Stage()
+- Scenes 7–13: `ClassroomSet(modernBench, audience)` first (7: oak desk + audience; 8: starts oak, swaps to the bench via the existing
+  `Hide("Old Table"); Show("Bench")` cues, audience on; 9–13: bench, audience off), `ClassroomApparatus()` for 7–8, `Rig(...)` for 8–13,
+  `Boards(...)` for 10–13 (they land on the teaching board), `Wattson(WattsonHomeC, BenchWideCamC)`. Use the classroom camera names
+  ("Bench Wide", "Bench Close", "Bench Present", "Table Close", "Boards") and add scene-specific Vcam shots only where a reference asks
+  for a different framing. Scenes 5, 6, 12: `WireStage(...)` (the electron space); Scene 5's first 3 s is Scene 4's copper wire
+  (Study() + the Scene 4 wire position) before the dive; Scene 12 starts on the bench, dives, returns to the boards on the board.
+- World text: only the storyboard's on-screen text; cards via `Card(...)` with `WorldText.Cap.*` tiers (glow style for concept/hero/title
+  words, panel style for data/prose); board text via `Board(...)` (chalk). Everything that was a floating prop label becomes a
+  `Callout(id, target, title, description, anchor)` shown/hidden by cues (`callout show <id>`), with the storyboard's label text.
+  Concept cards in the electron space = `Concept(...)` panels (Scene 6 text per ART_DIRECTION §9).
+- Delete `KidsAt(...)`, `FloorGrid`, `Back Wall`, greybox `Prop/Prim` stand-ins that the kits replaced. Keep `Vfx("...")` objects ONLY
+  where no real effect exists; the VfxPanel appears automatically for any shown object named "[VFX] …" (also real effects named that way).
+- Every world card faces the camera that reads it (`Face(card, camPos)`); Wattson never between camera and subject; nothing floats
+  (use `ContactShadow` for new props).
 
-## What to do in Stage()
-- Use the kits: `StudySet(...)`/`OhmApparatus()` (Scenes 7–13), `Rig(...)` (8–13), `Boards(...)` (10–13), `WireStage(...)` (5, 6, 12),
-  `Wattson(position, lookAt)` (Scene 4's prefab variant with the real Ohm-niscope), cards via `Card(...)` with the typography tiers,
-  cameras via `Vcam(name, pos, look, fov, focus, lens, track, noise)` with the lens profiles (`lensWide/Medium/Shallow/Tracking/Dive`).
-- The kids are the POV camera. No capsules, no name labels.
-- Every world card faces the camera that reads it and is sized for that camera's depth (TYPOGRAPHY). Keep all on-screen text exact.
-- Replace magenta `[VFX]` tags with real effects wherever a kit helper or a Scene 4 recipe (`Emitter`, `Glow`, `Polyline`, `PopIn`) makes
-  it a few lines; when you keep a tag, keep its `BlockoutPlaceholder` note.
-- Wattson: 2–3 m from the lens, lower-left or lower-right third, never between the camera and the subject; `moveTo` markers you create.
-- Continuity: the last frame of the previous scene is your first frame (same camera constants, same visible objects, same readings).
-  The match-cut pairs are 5→6, 7→8→9→10→11→12→13. Objects visible at your hand-off must exist at the next scene's start — check the
-  next scene's builder to agree on names/positions and say in your report what the next scene must show.
+## Beats()
+Keep every `Line`, `Gate`, `Handoff` and the cue semantics. Change `Shot(...)` to the classroom cameras / two-camera blends for motion
+(a push-in = `Shot("A")` then `Shot("B")` a few seconds later: the Timeline blends over the overlap), `Gesture(...)` targets/markers,
+`Show/Hide`/`callout` cues for the renamed objects, `Visual(...)` durations within ±0.5 s, `ohm.pose`/`ohm.freeze` cues where the
+references show Ohm presenting/examining. Match-cut continuity: your first frame = the previous scene's last frame (same camera name,
+same visible objects, same readings): check the neighbouring builders and state in your report what they must show.
 
-## What to do in Beats()
-- Keep every `Line`, `Gate`, `Handoff` and the cue semantics. You may change `Shot(...)` cameras, `Gesture(...)` targets/markers,
-  `Show/Hide` of objects you renamed, `Visual(...)` durations within ±0.5 s, and add cues for new effects.
-
-## Report
-Files changed; new ref/marker names; camera list; what the previous/next scene must match; any kit request; compile status.
+## Verify and report
+`bash Tools/compile_check.sh <agent>` must be clean. Report: files changed; refs/markers/callout ids/cameras added; what the previous
+and next scene must match; any kit request (exact and minimal); anything unverified.

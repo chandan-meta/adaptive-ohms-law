@@ -43,6 +43,7 @@ namespace OhmsLaw
 
         RectTransform prompt;
         Slider slider;
+        CalloutLayer callouts; // screen-space callouts; created under the module canvas on first use, persists across scenes
 
         static ModuleFlow Flow => ModuleFlow.Instance;
         GameObject Ref(string name) => refs.FirstOrDefault(r => r && r.name == name);
@@ -129,6 +130,7 @@ namespace OhmsLaw
                 case "wire.lattice": wire.latticeVisibility = value; break;
                 case "wire.radius": if (narrowingMetaphor || value >= wire.tunnelRadius) wire.tunnelRadius = value; break;
                 case "boost": StartCoroutine(Boost(Ref(rest))); break;
+                case "pulse": StartCoroutine(Boost(Ref(rest), settle: true)); break;
                 case "rig.voltage": rig.state.voltage = value; break;
                 case "rig.key": if (on) rig.CloseKey(); else rig.state.keyClosed = false; break;
                 case "rig.place": rig.Place(arg); break;
@@ -149,11 +151,21 @@ namespace OhmsLaw
                 case "graph.pulse": graph.Pulse(); break;
                 case "prompt": Prompt(rest); break;
                 case "spotlight": StartCoroutine(Spotlight()); break;
-                case "ohm.freeze": foreach (var worker in FindObjectsByType<OhmWorker>(FindObjectsSortMode.None)) worker.frozen = true; break;
+                case "ohm.freeze": foreach (var worker in FindObjectsByType<OhmWorker>(FindObjectsSortMode.None)) worker.frozen = on; break;
+                case "ohm.pose": foreach (var worker in FindObjectsByType<OhmWorker>(FindObjectsSortMode.None)) worker.SetMode((OhmWorker.Mode)System.Enum.Parse(typeof(OhmWorker.Mode), arg, true)); break;
                 case "lab": Lab(); break;
                 case "reminder": Reminder(); break;
-                case "show": SetActive(rest, true); break;
-                case "hide": SetActive(rest, false); break;
+                // "callout show <id>" / "callout hide <id>" / "callout hideall" (CalloutDef ids set by the builders).
+                case "callout":
+                    if (callouts || (callouts = CalloutLayer.Instance))
+                    {
+                        string id = words.Length > 2 ? rest.Substring(arg.Length + 1) : "";
+                        if (arg == "show") callouts.Show(id); else if (arg == "hide") callouts.Hide(id); else callouts.HideAll();
+                    }
+                    break;
+                // Showing a "[VFX] ..." object also puts up the matching VfxPanel; hiding it takes the panel down.
+                case "show": SetActive(rest, true); if (rest.StartsWith(CalloutLayer.Prefix) && (callouts || (callouts = CalloutLayer.Instance))) callouts.Vfx(rest, true, Ref(rest)); break;
+                case "hide": SetActive(rest, false); if (rest.StartsWith(CalloutLayer.Prefix) && (callouts || (callouts = CalloutLayer.Instance))) callouts.Vfx(rest, false); break;
                 case "handoff": SaveHandoff(); break;
                 case "note": break; // visual beat description for Docs/FLOW.md
                 default: Debug.LogWarning($"{sceneId}: unknown cue '{command}'", this); break;
@@ -192,15 +204,18 @@ namespace OhmsLaw
             }
         }
 
-        IEnumerator Boost(GameObject go)
+        IEnumerator Boost(GameObject go, bool settle = false)
         {
             if (!go) yield break;
             var from = go.transform.localScale;
+            float peak = settle ? 1.25f : 1.5f;
             for (float t = 0; t < 1; t += Time.deltaTime / 0.8f)
             {
-                go.transform.localScale = from * Mathf.Lerp(1, 1.5f, Mathf.SmoothStep(0, 1, t));
+                float k = settle ? Mathf.Sin(t * Mathf.PI) : Mathf.SmoothStep(0, 1, t);
+                go.transform.localScale = from * Mathf.Lerp(1, peak, k);
                 yield return null;
             }
+            go.transform.localScale = settle ? from : from * peak;
         }
 
         IEnumerator Spotlight()
@@ -300,9 +315,9 @@ namespace OhmsLaw
             slider.targetGraphic = knob;
             slider.minValue = 0;
             slider.maxValue = 5;
-            slider.wholeNumbers = true;
+            slider.wholeNumbers = false; // the carried 0.5 V sits between the ticks; the listener snaps to whole volts
             slider.SetValueWithoutNotify(rig.state.voltage);
-            slider.onValueChanged.AddListener(volts => rig.state.voltage = volts);
+            slider.onValueChanged.AddListener(volts => { rig.state.voltage = Mathf.Round(volts); slider.SetValueWithoutNotify(rig.state.voltage); });
         }
 
         // Record / x2: a UI.Button in the blue accent.

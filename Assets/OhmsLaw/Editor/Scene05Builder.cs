@@ -1,8 +1,11 @@
+using System.Linq;
 using UnityEngine;
 
 namespace OhmsLaw.Editor
 {
-    // Scene 5: Journey Inside the Wire. Carriers in random motion, then the field; voltage and current named.
+    // Scene 5: Journey Inside the Wire. Opens on Scene 4's last frame (the copper test wire on Ohm's desk under the
+    // Ohm-niscope beam), dives through white into the electron space: carriers in random motion, then the field;
+    // voltage and current named. Ends on the frame Scene 6 match-cuts from.
     public class Scene05Builder : SceneBuilderBase
     {
         public override string SceneId => "Scene05";
@@ -40,69 +43,114 @@ namespace OhmsLaw.Editor
 
         protected override void Stage()
         {
-            // Macro shot of the copper wire on Ohm's table, before the dive.
-            var macro = Ref(Node("Macro Wire", null, new Vector3(-100, 0, 0)));
-            Prop(PrimitiveType.Cylinder, "copper wire (macro)", macro.transform, Vector3.zero, new Vector3(0.6f, 6f, 0.6f), "Macro copper wire surface from Scene 4's table", BlockoutAssets.Mat("CopperProp", CopperTint), new Vector3(0, 0, 90));
-            Vfx("race into wire surface", macro.transform, new Vector3(0, 1.2f, -1.5f), 1.6f);
-            Cam("Macro A", new Vector3(-100, 0.6f, -4f), new Vector3(-100, 0, 0), 40);
-            Cam("Macro B", new Vector3(-100, 0.2f, -1.2f), new Vector3(-100, 0, 0), 55);
+            // The macro beat is Scene 4's study with its own lighting, grouped so the flash to white takes it all away
+            // (its window light would otherwise reach the electron space).
+            var macro = Ref(Node("Macro"));
+            Study().transform.SetParent(macro.transform, true);
+            StudyLighting();
+            scene.GetRootGameObjects().Last(g => g.name == "Lighting").transform.SetParent(macro.transform, true);
+            MacroWire(macro.transform);
 
-            var wire = WireStage(CopperTint, lattice: false);
+            // The electron space waits inactive: shown at the cut, it brings its own atmosphere, lights and post volume.
+            var wire = WireStage(CopperTint, lattice: false, active: false);
             wire.fieldOn = false;
             director.wire = wire;
-            Wattson(PlatformPos + new Vector3(-4f, 1.1f, 0.4f), WireCamPos); // glides onto the platform at the start
-            Placeholder(refs["Wattson"], "Wattson and the four kids (Kabir, Manav, Ishaan, Meera) on the platform; the kids are the camera's POV in this blockout");
+            Wattson(PlatformPoint + new Vector3(-3.5f, 0.3f, 0.6f), WireCamPos); // glides to Platform Point: lower-left, on the floor
 
-            Vector3 o = WireOrigin;
-            var question = Card("Question", "WHAT MAKES CHARGE FLOW?", Color.white, null, o + new Vector3(2.5f, 0.9f, 1.2f), 0.45f, false, 6f);
+            var question = Card("Question", "WHAT MAKES CHARGE FLOW?", Color.white, null, WireQuestionPos, WorldText.Cap.Question, false, WorldText.Wrap.Question);
             Face(question);
-            Vfx("letters assemble from charges", null, o + new Vector3(2.5f, -0.4f, 1.2f), 2f).transform.rotation = question.transform.rotation;
-            Vfx("field wave sweeps whole tunnel", null, o + new Vector3(0.5f, 1.6f, 0.6f), 2.2f).transform.rotation = question.transform.rotation;
-            var bracket = Node("Bracket", null, o + new Vector3(0, 0, 0));
-            Prim(PrimitiveType.Sphere, "Point A", bracket.transform, new Vector3(-3f, -0.6f, 1.6f), Vector3.one * 0.3f, BlockoutAssets.Mat("Highlight", new Color(1f, 0.85f, 0.3f, 0.35f)));
-            Prim(PrimitiveType.Sphere, "Point B", bracket.transform, new Vector3(3f, -0.6f, 1.6f), Vector3.one * 0.3f, BlockoutAssets.Mat("Highlight", new Color(1f, 0.85f, 0.3f, 0.35f)));
-            Prim(PrimitiveType.Cube, "Bracket Bar", bracket.transform, new Vector3(0, -0.2f, 1.6f), new Vector3(6f, 0.03f, 0.03f), BlockoutAssets.Mat("Highlight", new Color(1f, 0.85f, 0.3f, 0.35f)));
-            Placeholder(bracket, "Two points along the tunnel light up with a bracket between them (potential difference)");
-            bracket.SetActive(false);
-            Ref(bracket);
-            Face(Card("Voltage", "VOLTAGE\nSymbol: V\nUnit: volt (V)", palette.voltage, null, o + new Vector3(-1.2f, 1.3f, 1.8f), 0.3f, false, 4f));
-            Face(Card("Current", "CURRENT\nSymbol: I\nUnit: ampere (A)", palette.current, null, o + new Vector3(4.2f, 1.0f, 0.4f), 0.3f, false, 4f));
+            WireBracket();
+            // Concept words at the kit's markers (one depth, so both read at the concept-word size); sub-lines keep the tier ratio.
+            float sub = WireConceptCap * WorldText.Cap.ConceptSub / WorldText.Cap.ConceptWord;
+            Face(Card("Voltage", WorldText.Sub("VOLTAGE", "Symbol: V\nUnit: volt (V)", WireConceptCap, sub), palette.voltage, null, refs["Concept Left"].transform.position, WireConceptCap, false, WorldText.Wrap.Concept));
+            Face(Card("Current", WorldText.Sub("CURRENT", "Symbol: I\nUnit: ampere (A)", WireConceptCap, sub), palette.current, null, refs["Concept Right"].transform.position, WireConceptCap, false, WorldText.Wrap.Concept));
+        }
+
+        // Scene 4's test wire between its brass posts at Wire4, the Ohm-niscope beam ending on it with a hot spot, the
+        // amber shimmer of Scene 4's lock-on, and the dive streaks racing out of the surface at the lens. Both macro
+        // cameras stand on Scene 4's dive axis (Wattson's hover point → the wire): "Macro A" is SH11b's pose, the frame
+        // Scene 4 flashed out on; "Macro B" is the push-in, 10 cm off the wire.
+        void MacroWire(Transform macro)
+        {
+            var copper = Lit("Copper", new Color(0.86f, 0.46f, 0.26f), 1f, 0.72f);
+            var brass = Lit("Brass", new Color(0.83f, 0.66f, 0.3f), 1f, 0.68f);
+            var wood = Lit("DarkWood", new Color(0.2f, 0.11f, 0.06f), 0f, 0.4f);
+            var group = Node("Macro Wire", macro).transform;
+            const float half = 0.21f;
+            Prim(PrimitiveType.Cylinder, "Copper Wire", group, Wire4, new Vector3(0.007f, half, 0.007f), copper, new Vector3(0, 0, 90));
+            foreach (float side in new[] { -1f, 1f })
+            {
+                var foot = new Vector3(Wire4.x + side * half, DeskY, Wire4.z);
+                Prim(PrimitiveType.Cube, "Post Base", group, foot + Vector3.up * 0.008f, new Vector3(0.05f, 0.016f, 0.05f), wood);
+                Prim(PrimitiveType.Cylinder, "Post", group, foot + Vector3.up * 0.05f, new Vector3(0.012f, 0.045f, 0.012f), brass);
+                Prim(PrimitiveType.Sphere, "Post Cap", group, foot + Vector3.up * 0.098f, Vector3.one * 0.02f, brass);
+            }
+
+            Vector3 toWire = (Wire4 - Hover).normalized;
+            Vector3 right = Vector3.Cross(Vector3.up, toWire).normalized;
+            Vector3 hit = Wire4 - toWire * 0.007f; // the near surface of the wire
+            Color accent = palette.wattsonAccent;
+            // The beam comes from the gadget in Wattson's raised right hand, behind the lens, and narrows to its focus,
+            // so from the cameras on its axis it is a thin line converging on the wire, not a wash over the lens.
+            var beam = Polyline("Beam", group, Glow("Glow_Beam", Hdr(accent, 6f)), 0.035f, false, true, Hover + right * 0.3f + Vector3.up * 0.08f, hit);
+            beam.widthCurve = AnimationCurve.Linear(0, 1f, 1, 0.15f);
+            Prim(PrimitiveType.Quad, "Beam Hit", group, hit - toWire * 0.002f, Vector3.one * 0.02f, Glow("Glow_Lens", Hdr(accent, 2.5f))).transform.rotation = Quaternion.LookRotation(toWire);
+            Emitter("Shimmer", group, Wire4, Glow("Glow_Shimmer", Hdr(palette.current, 4f)), ps =>
+            {
+                var main = ps.main;
+                main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.7f);
+                main.startSpeed = 0.03f;
+                main.startSize = new ParticleSystem.MinMaxCurve(0.008f, 0.022f);
+                var emission = ps.emission;
+                emission.rateOverTime = 70;
+                var shape = ps.shape;
+                shape.shapeType = ParticleSystemShapeType.Box;
+                shape.scale = new Vector3(half * 2, 0.012f, 0.012f);
+            });
+            WireFx("race into wire surface", hit, group).transform.rotation = Quaternion.LookRotation(-toWire); // out of the surface, at the lens
+
+            var focus = Marker("Macro Wire Point", Wire4).transform;
+            Vcam("Macro A", Wire4 - toWire * 0.16f, Wire4, 82, focus, lensDive);
+            Vcam("Macro B", Wire4 - toWire * 0.1f, Wire4, 26, focus, lensDive); // 0.1 m is the Bokeh focus floor
         }
 
         protected override void Beats()
         {
-            // Fade in from white (ModuleFlow does it on entry) on the macro wire, push in, then white again.
+            // From white (ModuleFlow fades in on entry) on Scene 4's last frame; the push-in blends Macro A into Macro B,
+            // then white again and the cut into the electron space, which takes over the atmosphere as the study goes.
             Shot("Macro A");
-            Visual("Macro copper wire; camera pushes in", 0.2);
-            Shot("Macro B");
             Show("[VFX] race into wire surface");
-            Visual("Race into the wire surface", 2.6);
+            Visual("Macro copper wire under the Ohm-niscope beam; camera pushes in", 0.7);
+            Shot("Macro B");
+            Visual("Race into the wire surface", 2.1);
             Cue("fade 1", "flash to white");
             Wait(0.7);
             Shot("Wire Inside", cut: true);
-            Hide("Macro Wire");
-            Cue("fade 0", "fade in inside the tunnel; carriers in random motion, no drift");
+            Show("Wire Section");
+            Hide("[VFX] race into wire surface");
+            Hide("Macro");
+            Cue("fade 0", "fade in inside the wire; electrons in random motion, no drift");
             Gesture(WattsonController.Gesture.Idle, moveTo: "Platform Point");
-            Visual("Platform with Wattson and the kids glides in", 2.5);
+            Visual("Wattson glides in to his spot on the floor, lower-left", 2.5);
 
             Gesture(WattsonController.Gesture.Point, point: "Cross Section");
             Line("S05_L01");
             Line("S05_L02");
             Line("S05_L03");
 
-            Show("Card Question");
             Show("[VFX] letters assemble from charges");
-            Visual("Giant WHAT MAKES CHARGE FLOW? card holds", 3.0);
+            Show("Card Question", 0.8);
+            Visual("WHAT MAKES CHARGE FLOW? assembles from the charges above the conduit and holds", 3.5);
             Hide("Card Question");
             Hide("[VFX] letters assemble from charges");
             Show("Card Terminal −");
-            Show("Card Terminal +");
-            Visual("Battery terminals appear at the two ends: + and −", 1.5);
+            Show("Card Terminal +", 0.4);
+            Visual("Battery terminals light up at the two ends: − left, + right", 1.5);
 
             Gesture(WattsonController.Gesture.RaiseGadget, gadget: true);
             Show("[VFX] field wave sweeps whole tunnel");
             Cue("wire.field 1", "field set up along the whole tunnel; every carrier starts drifting − → +, jitter kept", 0.3);
-            Visual("Field wave sweeps the whole tunnel", 1.2);
+            Visual("One ring of light sweeps the whole conduit", 1.2);
             Hide("[VFX] field wave sweeps whole tunnel");
 
             Gesture(WattsonController.Gesture.Point, point: "Bracket");
@@ -113,8 +161,10 @@ namespace OhmsLaw.Editor
             Visual("VOLTAGE card: Symbol V, Unit volt (V)", 1.2);
 
             Gesture(WattsonController.Gesture.Point, point: "Cross Section");
+            Hide("Bracket"); // the focus moves to the counting ring; Scene 6 match-cuts without a bracket
             Show("Cross Section");
             Line("S05_L06");
+            Gesture(WattsonController.Gesture.Point, point: "Counter");
             Show("Counter");
             Cue("wire.count 1", "counter ticks per crossing with a one-second ring");
             Line("S05_L07");

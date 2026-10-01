@@ -42,7 +42,7 @@ namespace OhmsLaw
         IEnumerator Prediction(InteractionGate gate)
         {
             var panel = new MCQPanel("If we increase the potential difference while everything else stays the same, what do you predict will happen to the current?",
-                new[] { "A. Increase", "B. Decrease", "C. Stay the same" });
+                new[] { "A. Increase", "B. Decrease", "C. Stay the same" }, dockRight: true);
             yield return panel.WaitForPick(0);
             panel.Close();
             LearnerSession.prediction = LearnerSession.Letter(panel.Picked);
@@ -132,7 +132,7 @@ namespace OhmsLaw
             LearnerSession.s10PatternAttempts = 0;
             for (int attempt = 1; ; attempt++)
             {
-                var panel = new MCQPanel("What do you notice?", options);
+                var panel = new MCQPanel("What do you notice?", options, dockRight: true);
                 yield return panel.WaitForPick(0);
                 panel.Close();
                 LearnerSession.s10PatternAttempts = attempt;
@@ -168,7 +168,7 @@ namespace OhmsLaw
             string[] options = { "5", "0.2", "2.5" };
             for (int attempt = 1; attempt <= 2; attempt++)
             {
-                var panel = new MCQPanel("Slope = ΔV / ΔI = ?", options);
+                var panel = new MCQPanel("Slope = ΔV / ΔI = ?", options, dockRight: true, width: 760f);
                 yield return panel.WaitForPick(0);
                 LearnerSession.slopeAnswer = options[panel.Picked];
                 if (panel.Picked == 0 || attempt == 2)
@@ -192,7 +192,7 @@ namespace OhmsLaw
         {
             LearnerSession.checkpoint.Clear();
             yield return Say(Line(gate, "AQ1"));
-            var q1 = new MCQPanel(Line(gate, "AQ1").text, new[] { "A. It doubles", "B. It halves", "C. It stays the same" });
+            var q1 = new MCQPanel(Line(gate, "AQ1").text, new[] { "A. It doubles", "B. It halves", "C. It stays the same" }, dockRight: true);
             yield return q1.WaitForPick(0);
             q1.Close();
             bool right = q1.Picked == 0;
@@ -201,7 +201,7 @@ namespace OhmsLaw
             {
                 yield return Say(Line(gate, "AQ_GOOD"));
                 yield return Say(Line(gate, "AQ2"));
-                var q2 = new MCQPanel(Line(gate, "AQ2").text, new[] { "A. The one that needs the larger potential difference", "B. The one that needs the smaller potential difference", "C. Both have the same resistance" });
+                var q2 = new MCQPanel(Line(gate, "AQ2").text, new[] { "A. The one that needs the larger potential difference", "B. The one that needs the smaller potential difference", "C. Both have the same resistance" }, dockRight: true);
                 yield return q2.WaitForPick(0);
                 q2.Close();
                 LearnerSession.checkpoint.Add("AQ2 " + LearnerSession.Letter(q2.Picked) + (q2.Picked == 0 ? " correct" : " wrong"));
@@ -211,7 +211,7 @@ namespace OhmsLaw
             {
                 yield return Say(Line(gate, "AQ_EXPLAIN"));
                 yield return Say(Line(gate, "AQ_EASY"));
-                var easy = new MCQPanel(Line(gate, "AQ_EASY").text, new[] { "A. It went up", "B. It went down", "C. Nothing changed" });
+                var easy = new MCQPanel(Line(gate, "AQ_EASY").text, new[] { "A. It went up", "B. It went down", "C. Nothing changed" }, dockRight: true);
                 yield return easy.WaitForPick(0);
                 easy.Close();
                 LearnerSession.checkpoint.Add("AQ_EASY " + LearnerSession.Letter(easy.Picked) + (easy.Picked == 0 ? " correct" : " wrong"));

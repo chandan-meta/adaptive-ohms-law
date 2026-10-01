@@ -139,9 +139,9 @@ namespace OhmsLaw.Editor
             return go;
         }
 
-        // Tube along +X, unit radius, unit length, wound so its front faces point at the axis: seen from inside with the
-        // default back-face culling (never pair it with _Cull Front). Rings along the length keep per-vertex fog honest
-        // over 16 m. Rebuilt every build; the wire interior scales it to (length, radius, radius).
+        // Open tube along +X, unit radius, unit length, wound to face OUTWARD: the conduit of the electron space is seen
+        // from outside with the default back-face culling. No end caps (the ends sit inside the terminal blocks).
+        // Rebuilt every build; WireInterior scales it to (length, radius, radius).
         public static Mesh TunnelMesh()
         {
             const string path = Shared + "/UI/Tunnel.mesh";
@@ -152,7 +152,7 @@ namespace OhmsLaw.Editor
                 AssetDatabase.CreateAsset(mesh, path);
             }
             mesh.Clear();
-            const int segments = 64, rings = 32;
+            const int segments = 48, rings = 8;
             var vertices = new List<Vector3>();
             var uv = new List<Vector2>();
             var triangles = new List<int>();
@@ -165,7 +165,7 @@ namespace OhmsLaw.Editor
                     uv.Add(new Vector2(j * 8f / rings, i / (float)segments));
                     if (i == segments || j == rings) continue;
                     int v = i * (rings + 1) + j;
-                    triangles.AddRange(new[] { v, v + 1, v + rings + 1, v + 1, v + rings + 2, v + rings + 1 }); // inward
+                    triangles.AddRange(new[] { v, v + rings + 1, v + 1, v + 1, v + rings + 1, v + rings + 2 }); // outward
                 }
             }
             mesh.SetVertices(vertices);
@@ -177,23 +177,38 @@ namespace OhmsLaw.Editor
             return mesh;
         }
 
-        // Sprite material for the carriers: a shaded sphere with a "−" bar, HDR so Bloom lights every electron (the
-        // particle colour carries the tint and the near-lens fade). ion: the dull lattice sphere of Scene 12, no bar,
-        // plain colour. Both sprites are regenerated each build.
+        // Sprite material for the electrons: a glossy glowing sphere with a soft halo and a dark navy "−" bar (the
+        // reference's look), HDR so Bloom lights every one; the particle colour carries the tint and the fades.
+        // ion: the dull lattice sphere of Scene 12, no bar, no halo, plain colour. Both sprites are regenerated each build.
         public static Material ChargeMaterial(Color tint, bool ion = false)
         {
             string png = Shared + (ion ? "/UI/IonGlyph.png" : "/UI/ChargeGlyph.png");
-            const int n = 128;
+            int n = ion ? 128 : 256;
             var tex = new Texture2D(n, n, TextureFormat.RGBA32, false);
+            const float body = 0.68f; // sphere radius as a fraction of the half-size; the halo fills the rest
             for (int y = 0; y < n; y++)
                 for (int x = 0; x < n; x++)
                 {
                     float dx = (x + 0.5f) / n - 0.5f, dy = (y + 0.5f) / n - 0.5f;
                     float r = Mathf.Sqrt(dx * dx + dy * dy) * 2;
-                    float alpha = Mathf.SmoothStep(1f, 0f, Mathf.InverseLerp(0.72f, 1f, r));       // solid core, soft rim
-                    float shade = 0.72f + 0.28f * Mathf.Clamp01(1f - Mathf.Sqrt((dx + 0.15f) * (dx + 0.15f) + (dy - 0.15f) * (dy - 0.15f)) * 2.2f); // lit from upper left
-                    bool bar = !ion && Mathf.Abs(dy) < 0.065f && Mathf.Abs(dx) < 0.27f;
-                    tex.SetPixel(x, y, bar ? new Color(0.05f, 0.1f, 0.2f, 1) : new Color(shade, shade, shade, alpha));
+                    float edge = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(body - 0.05f, body + 0.03f, r)); // anti-aliased sphere edge
+                    float halo = ion ? 0 : 0.28f * Mathf.Pow(Mathf.Clamp01(1f - Mathf.InverseLerp(body, 1f, r)), 2f);
+                    float alpha = Mathf.Max(edge, halo);
+                    // Lit from the upper left: white highlight, saturating toward sky blue at the lower-right rim, so
+                    // it reads as a glossy sphere after the HDR tint and tonemapping, not a flat dot.
+                    float light = Mathf.Clamp01(1f - Mathf.Sqrt((dx + 0.14f) * (dx + 0.14f) + (dy - 0.16f) * (dy - 0.16f)) * 1.9f);
+                    float rim = Mathf.InverseLerp(body - 0.22f, body, r) * Mathf.Clamp01(0.5f - (dy - dx) * 1.2f);
+                    var pixel = ion ? new Color(0.9f, 0.9f, 0.9f, alpha) * (0.8f + 0.2f * light)
+                                    : Color.Lerp(new Color(0.42f, 0.72f, 1f), Color.white, light * light) * (1f - 0.3f * rim);
+                    pixel.a = alpha;
+                    if (!ion)
+                    {
+                        // Rounded "−" bar, 56 % of the body wide; anti-aliased so it stays crisp when small.
+                        float bx = Mathf.Max(0, Mathf.Abs(dx) - (0.28f * body - 0.03f)), by = Mathf.Max(0, Mathf.Abs(dy) - (0.085f * body - 0.03f));
+                        float bar = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.02f, 0.035f, Mathf.Sqrt(bx * bx + by * by)));
+                        pixel = Color.Lerp(pixel, new Color(0.012f, 0.025f, 0.06f, 1f), bar); // stays navy after the ×2 HDR face
+                    }
+                    tex.SetPixel(x, y, pixel);
                 }
             File.WriteAllBytes(png, tex.EncodeToPNG());
             UnityEngine.Object.DestroyImmediate(tex);
@@ -214,7 +229,7 @@ namespace OhmsLaw.Editor
             material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             material.SetOverrideTag("RenderType", "Transparent");
             material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-            var face = ion ? tint : Color.Lerp(tint, Color.white, 0.5f) * 2.4f; // HDR face: above the bloom threshold even through the tint
+            var face = ion ? tint : Color.Lerp(tint, Color.white, 0.4f) * 2.0f; // HDR face: the highlight blooms, the blue rim stays blue
             face.a = 1;
             material.SetColor("_BaseColor", face);
             material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(png));

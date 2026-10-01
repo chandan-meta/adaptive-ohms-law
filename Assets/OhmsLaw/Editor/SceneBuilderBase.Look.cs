@@ -267,6 +267,18 @@ namespace OhmsLaw.Editor
             GlobalPost(root, "Study_Global", bloom: 0.85f, vignette: 0.26f, exposure: 0.25f);
         }
 
+        // Realtime "OnAwake" probes show URP's flat default reflection until they have rendered, which can take many
+        // seconds in play mode (glass, glossy floors and Wattson's body turned cyan). Baking at build time is deterministic.
+        protected void BakeProbe(ReflectionProbe probe, string name)
+        {
+            Directory.CreateDirectory(Art + "/Post");
+            string path = Art + "/Post/Probe_" + SceneId + "_" + name + ".exr";
+            probe.mode = ReflectionProbeMode.Baked;
+            bool wasActive = probe.gameObject.activeInHierarchy;
+            if (Lightmapping.BakeReflectionProbe(probe, path)) probe.bakedTexture = AssetDatabase.LoadAssetAtPath<Texture>(path);
+            else Debug.LogWarning(SceneId + ": reflection probe '" + name + "' did not bake (active: " + wasActive + "); its mirrors will fall back to the ambient probe.");
+        }
+
         protected Light Flame(string name, Transform root, Vector3 position, float intensity, float range, bool shadows)
         {
             var light = Node(name, root, position).AddComponent<Light>();
