@@ -305,7 +305,7 @@ namespace OhmsLaw.Editor
 
             // Ohm goes back to his time: in the wide, Wattson waves him off as he dissolves into gold dust.
             Shot("Bench Wide");
-            Gesture(WattsonController.Gesture.Greet, look: "Georg Ohm", moveTo: "Wattson Home");
+            Gesture(WattsonController.Gesture.Greet, look: "Georg Ohm"); // stays below the slate's chalk; Wattson Home (Scene 9's start) sits over it until the easel goes
             Wait(1.0);
             Cue("fx Ohm Farewell Dust", "", 0.8);
             Cue("vanish 1.0 Georg Ohm", "Ohm dissolves back to 1826", 1.0);
@@ -316,6 +316,7 @@ namespace OhmsLaw.Editor
             Cue("look 2.8 classroom", "light, ambient, fog, background, post and reflections crossfade to the classroom");
             Cue("fx Room Wave");
             Cue("vanish 0.6 Study Easel");
+            Gesture(WattsonController.Gesture.Idle, moveTo: "Wattson Home"); // with the slate gone, over to where Scene 9 starts him
             Cue("spread 1.2 Classroom Floor", "", 0.1);
             Cue("retract 0.9 Study Back", "", 0.35);
             Cue("rise 1.0 Classroom Back", "", 0.55);
