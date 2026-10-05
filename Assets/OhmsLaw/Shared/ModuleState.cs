@@ -33,6 +33,61 @@ namespace OhmsLaw
             prediction == "A" ? "Increase" : prediction == "B" ? "Decrease" : prediction == "C" ? "Stay the same" : "";
 
         public static string Letter(int index) => index < 0 ? "" : ((char)('A' + index)).ToString();
+
+        // Concept-level understanding for this session: every graded answer lands here, the questions adapt on it
+        // (Struggling / Confident) and Ask Wattson gets Summary(). Concept ids: Concepts.*.
+        public enum Grade { Correct, Partial, Incorrect }
+
+        public class ConceptRecord
+        {
+            public int correct, partial, incorrect;
+            public readonly List<string> misconceptions = new List<string>();
+            public int Asked => correct + partial + incorrect;
+        }
+
+        public static readonly Dictionary<string, ConceptRecord> concepts = new Dictionary<string, ConceptRecord>();
+
+        public static ConceptRecord Concept(string id)
+        {
+            if (!concepts.TryGetValue(id, out var record)) concepts[id] = record = new ConceptRecord();
+            return record;
+        }
+
+        public static void Record(string concept, Grade grade, string misconception = null)
+        {
+            var record = Concept(concept);
+            if (grade == Grade.Correct) record.correct++;
+            else if (grade == Grade.Partial) record.partial++;
+            else record.incorrect++;
+            if (!string.IsNullOrEmpty(misconception) && !record.misconceptions.Contains(misconception)) record.misconceptions.Add(misconception);
+        }
+
+        // Two or more misses on a concept with fewer right answers than misses: simplify and guide.
+        public static bool Struggling(string concept) => concepts.TryGetValue(concept, out var r) && r.incorrect >= 2 && r.correct < r.incorrect;
+        // Right at least once and never wrong: skip the optional follow-up, offer the harder prediction.
+        public static bool Confident(string concept) => concepts.TryGetValue(concept, out var r) && r.correct > 0 && r.incorrect == 0;
+
+        // One line per concept for the AI context: "voltage: 2 right, 1 wrong (thinks: ...)".
+        public static string Summary()
+        {
+            var lines = new List<string>();
+            foreach (var pair in concepts)
+            {
+                var r = pair.Value;
+                string line = $"{pair.Key}: {r.correct} right, {r.partial} partly right, {r.incorrect} wrong";
+                if (r.misconceptions.Count > 0) line += " (misconceptions: " + string.Join("; ", r.misconceptions) + ")";
+                lines.Add(line);
+            }
+            if (prediction != "") lines.Add("Scene 6 prediction: " + PredictionText);
+            return string.Join("\n", lines);
+        }
+    }
+
+    // Concept ids for LearnerSession.Record.
+    public static class Concepts
+    {
+        public const string ElectronDrift = "electron drift direction", Voltage = "voltage", Current = "current",
+            Relationship = "voltage-current relationship", Graph = "reading the V-I graph", Resistance = "resistance", OhmsLaw = "Ohm's law";
     }
 
     // Carried across a scene change so the next scene can start on the same frame (match-cuts).

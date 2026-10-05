@@ -91,7 +91,7 @@ namespace OhmsLaw
             while (!Mathf.Approximately(rig.state.voltage, volts))
             {
                 waited += Time.deltaTime;
-                if (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay) rig.state.voltage = volts;
+                if (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay) rig.SetVoltage(volts);
                 yield return null;
             }
             yield return new WaitForSeconds(1.2f); // let the needles settle on the reading

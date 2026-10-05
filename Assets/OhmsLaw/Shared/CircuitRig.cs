@@ -27,6 +27,15 @@ namespace OhmsLaw
         public CircuitState state;
         public bool ammeterPlaced, voltmeterPlaced;
 
+        // The source's range (the repainted panel reads 0-5 V). Every writer goes through SetVoltage so the slider, meters,
+        // readouts, graph and Ask Wattson all see one value; VoltageChanged tells the views.
+        public const float MinVolts = 0f, MaxVolts = 5f;
+        public static CircuitRig Active { get; private set; }
+        public event Action<float> VoltageChanged;
+        [Tooltip("The learner (slider) and Ask Wattson may change the voltage now. Activities open it; cue-driven runs close it.")] public bool controlsOpen;
+        public float PreviousVoltage { get; private set; }
+        public float StartVoltage { get; private set; }
+
         [Header("Parts")]
         public Transform ammeter, voltmeter, key, keyLever;
         public Transform ammeterSlot, voltmeterSlot;
@@ -98,11 +107,25 @@ namespace OhmsLaw
             SetPlaced(part);
         }
 
+        // Clamps to the source's range and returns the value actually applied (callers report that, never the request).
+        public float SetVoltage(float volts)
+        {
+            float applied = Mathf.Clamp(volts, MinVolts, MaxVolts);
+            if (Mathf.Approximately(applied, state.voltage)) return applied;
+            PreviousVoltage = state.voltage;
+            state.voltage = applied;
+            VoltageChanged?.Invoke(applied);
+            return applied;
+        }
+
+        // Back to the voltage the scene started with (the match-cut value).
+        public float ResetVoltage() => SetVoltage(StartVoltage);
+
         public void CloseKey()
         {
             if (state.keyClosed) return;
             state.keyClosed = true;
-            if (state.voltage <= 0) state.voltage = KeyClosedDefaultVolts;
+            if (state.voltage <= 0) SetVoltage(KeyClosedDefaultVolts);
             keyArmed = false;
             if (sfx && click) sfx.PlayOneShot(click);
             PlayPulse();
@@ -167,7 +190,10 @@ namespace OhmsLaw
             shownAmps = Amps;
             shownKnob = state.voltage;
             lampLit = !state.keyClosed; // so the first Update applies the lamp
+            StartVoltage = PreviousVoltage = state.voltage;
         }
+
+        void OnEnable() => Active = this;
 
         void Update()
         {
@@ -215,7 +241,11 @@ namespace OhmsLaw
                 if (card && card.gameObject.activeInHierarchy) card.rotation = Quaternion.LookRotation(card.position - cam.transform.position);
         }
 
-        void OnDisable() => pulsing = null; // Unity stops the coroutine with the object; let a later show start a fresh run
+        void OnDisable()
+        {
+            pulsing = null; // Unity stops the coroutine with the object; let a later show start a fresh run
+            if (Active == this) Active = null;
+        }
 
         // Head and chevrons run from X to Y along the rod `pulseRepeats` times, with a dark gap between runs; the
         // trail is cleared at each restart so nothing streaks back. Hiding the object mid-run ends it.

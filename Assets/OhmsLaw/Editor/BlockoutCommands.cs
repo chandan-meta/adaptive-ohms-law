@@ -73,6 +73,7 @@ namespace OhmsLaw.Editor
                     else if (request == "inventory") AssetInventory.Write();
                     else if (request == "player") ModulePlayerBuilder.Build();
                     else if (request.StartsWith("hierarchy ")) AssetInventory.Hierarchy(request.Substring(10).Trim());
+                    else if (request.StartsWith("menu ")) { if (!EditorApplication.ExecuteMenuItem(request.Substring(5).Trim())) throw new ArgumentException("No menu item " + request.Substring(5)); } // editor self-checks
                     else if (request.StartsWith("vo ")) { if (request == "vo all") BakeBlockoutVO.All(); else BakeBlockoutVO.Bake(BlockoutAssets.Builders().First(b => b.SceneId == request.Substring(3))); }
                     else Build(request);
                 }

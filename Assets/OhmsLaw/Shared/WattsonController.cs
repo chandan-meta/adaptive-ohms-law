@@ -8,7 +8,10 @@ namespace OhmsLaw
     // Wattson's body: spring flight along a spline, procedural gestures, and talking driven by audio loudness.
     public class WattsonController : MonoBehaviour
     {
-        public enum Gesture { Idle, Greet, Point, Flick, Reach, RaiseGadget, Aim, Listening, Thinking, Talking }
+        public enum Gesture { Idle, Greet, Point, Flick, Reach, RaiseGadget, Aim, Listening, Thinking, Talking, Transform } // append only: clips store the int
+        // Transform: anticipation (gathers, gadget drawn back), the action (gadget thrust at the target) TransformActionDelay
+        // seconds in, then a settle. Builders time the transformation VFX cues to the action moment.
+        public const float TransformActionDelay = 0.55f, TransformSettleSeconds = 1.1f;
 
         public static WattsonController Active { get; private set; }
 

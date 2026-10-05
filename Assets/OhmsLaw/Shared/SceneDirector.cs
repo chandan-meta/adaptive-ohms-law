@@ -132,7 +132,7 @@ namespace OhmsLaw
                 case "wire.radius": if (narrowingMetaphor || value >= wire.tunnelRadius) wire.tunnelRadius = value; break;
                 case "boost": StartCoroutine(Boost(Ref(rest))); break;
                 case "pulse": StartCoroutine(Boost(Ref(rest), settle: true)); break;
-                case "rig.voltage": rig.state.voltage = value; break;
+                case "rig.voltage": rig.SetVoltage(value); break;
                 case "rig.key": if (on) rig.CloseKey(); else rig.state.keyClosed = false; break;
                 case "rig.place": rig.Place(arg); break;
                 case "rig.slider": Slider(on); break;
@@ -170,7 +170,7 @@ namespace OhmsLaw
                 case "hide": SetActive(rest, false); if (rest.StartsWith(CalloutLayer.Prefix) && (callouts || (callouts = CalloutLayer.Instance))) callouts.Vfx(rest, false); break;
                 case "handoff": SaveHandoff(); break;
                 case "note": break; // visual beat description for Docs/FLOW.md
-                default: Debug.LogWarning($"{sceneId}: unknown cue '{command}'", this); break;
+                default: if (!AreaCue(verb, words, rest, value, on)) Debug.LogWarning($"{sceneId}: unknown cue '{command}'", this); break;
             }
         }
 
@@ -375,7 +375,8 @@ namespace OhmsLaw
             slider.maxValue = 5;
             slider.wholeNumbers = false; // the carried 0.5 V sits between the ticks; the listener snaps to whole volts
             slider.SetValueWithoutNotify(rig.state.voltage);
-            slider.onValueChanged.AddListener(volts => { rig.state.voltage = Mathf.Round(volts); slider.SetValueWithoutNotify(rig.state.voltage); });
+            slider.onValueChanged.AddListener(volts => slider.SetValueWithoutNotify(rig.SetVoltage(Mathf.Round(volts))));
+            rig.VoltageChanged += v => { if (slider) slider.SetValueWithoutNotify(v); }; // Ask Wattson and cues move the knob too
         }
 
         // Record / x2: a UI.Button in the blue accent.
