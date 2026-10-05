@@ -8,9 +8,11 @@ namespace OhmsLaw
     //   Present  Scene 8: upright, both arms open low toward the apparatus, palms up, face to the camera
     //   Examine  Scene 7: a copper wire held in both hands at chest height, eyes on it
     // A mode change blends over ~1/3 s from a snapshot of the pose on screen; Freeze() holds whatever is on screen.
-    // The pose is written in Awake too, so the model's T-pose never reaches a frame. The galvanometer needle
-    // (optional) takes a new deflection with every reading and a full swing on Swing(), which showing the
-    // "[VFX] galvanometer needle swing" object triggers.
+    // The pose is written in Awake too, so the model's T-pose never reaches a frame. Besides the spine, head and arms, the
+    // neck shares the head turn, the collarbones follow each reach a little and the fingers always keep a curl (a pen
+    // grip while writing, open palms presenting, a grip on the wire examining), so no pose has stiff splayed hands.
+    // The galvanometer needle (optional) takes a new deflection with every reading and a full swing on Swing(), which
+    // showing the "[VFX] galvanometer needle swing" object triggers.
     public class OhmWorker : MonoBehaviour
     {
         public enum Mode { Work, Present, Examine }
@@ -36,7 +38,9 @@ namespace OhmsLaw
         public string swingCueName = "[VFX] galvanometer needle swing";
         public float swingRepeat = 3f;
 
-        Transform spine, chest, head, rightArm, rightForeArm, rightHand, leftArm, leftForeArm, leftHand, cam;
+        Transform spine, chest, neck, head, rightClav, leftClav, rightArm, rightForeArm, rightHand, leftArm, leftForeArm, leftHand, cam;
+        Transform[][] rightFingers, leftFingers; // [finger][joint], thumb first
+        Vector3[] rightCurl, leftCurl;           // per finger, hand-local axis that curls it toward the palm
         Transform[] bones;
         Quaternion[] rest, from, pose;   // bind pose, the snapshot a blend starts from, what is on screen
         Vector3 rightPalm, leftPalm;     // palm normals in hand space, from the bind pose
@@ -53,16 +57,22 @@ namespace OhmsLaw
 
         void Awake()
         {
-            spine = Find("Spine"); chest = Find("Spine2"); head = Find("Head");
+            spine = Find("Spine"); chest = Find("Spine2"); head = Find("Head"); neck = Find("Neck", false);
+            rightClav = Find("RightShoulder", false); leftClav = Find("LeftShoulder", false);
             rightArm = Find("RightArm"); rightForeArm = Find("RightForeArm"); rightHand = Find("RightHand");
             leftArm = Find("LeftArm"); leftForeArm = Find("LeftForeArm"); leftHand = Find("LeftHand");
-            bones = new[] { spine, chest, head, rightArm, rightForeArm, rightHand, leftArm, leftForeArm, leftHand };
-            rest = bones.Select(b => b.localRotation).ToArray();
-            from = (Quaternion[])rest.Clone();
-            pose = (Quaternion[])rest.Clone();
             // The bind pose is a T-pose with the palms down.
             rightPalm = rightHand.InverseTransformDirection(Vector3.down);
             leftPalm = leftHand.InverseTransformDirection(Vector3.down);
+            rightFingers = Fingers("Right", rightHand, out rightCurl);
+            leftFingers = Fingers("Left", leftHand, out leftCurl);
+            var list = new System.Collections.Generic.List<Transform> { spine, chest, head, rightArm, rightForeArm, rightHand, leftArm, leftForeArm, leftHand };
+            foreach (var t in new[] { neck, rightClav, leftClav }) if (t) list.Add(t);
+            foreach (var hand in new[] { rightFingers, leftFingers }) foreach (var finger in hand) list.AddRange(finger);
+            bones = list.ToArray();
+            rest = bones.Select(b => b.localRotation).ToArray();
+            from = (Quaternion[])rest.Clone();
+            pose = (Quaternion[])rest.Clone();
             writeSide = notebook ? Side(notebook) : 1;
             rightGoal = Rest(1);
             leftGoal = Rest(-1);
@@ -80,12 +90,31 @@ namespace OhmsLaw
             if (director) swingCue = director.refs.FirstOrDefault(r => r && r.name == swingCueName);
         }
 
-        Transform Find(string bone)
+        Transform Find(string bone, bool required = true)
         {
             foreach (var t in GetComponentsInChildren<Transform>())
                 if (t.name.EndsWith(":" + bone) || t.name == bone) return t;
+            if (!required) return null;
             Debug.LogError("OhmWorker: bone not found: " + bone, this);
             return transform;
+        }
+
+        // The three curling joints of each finger (Mixamo names; the 4th is an end marker), and the hand-local axis that
+        // curls each finger toward the palm, measured in the bind pose (palms down).
+        Transform[][] Fingers(string side, Transform hand, out Vector3[] curl)
+        {
+            var fingers = new System.Collections.Generic.List<Transform[]>();
+            var axes = new System.Collections.Generic.List<Vector3>();
+            foreach (var name in new[] { "Thumb", "Index", "Middle", "Ring", "Pinky" })
+            {
+                var joints = new[] { Find(side + "Hand" + name + "1", false), Find(side + "Hand" + name + "2", false), Find(side + "Hand" + name + "3", false) };
+                if (joints.Any(j => !j)) continue;
+                fingers.Add(joints);
+                Vector3 along = joints[2].position - joints[0].position;
+                axes.Add(hand.InverseTransformDirection(Vector3.Cross(along, Vector3.down).normalized));
+            }
+            curl = axes.ToArray();
+            return fingers.ToArray();
         }
 
         void LateUpdate() => Pose(frozen ? 0f : Time.deltaTime);
@@ -153,13 +182,17 @@ namespace OhmsLaw
             float breath = Mathf.Sin(clock * 1.4f) * 1.2f;
             spine.Rotate(transform.right, lean * 0.5f + breath, Space.World);
             chest.Rotate(transform.right, lean * 0.5f, Space.World);
-            Look(lookGoal, 0.5f, lean); // half-way keeps his face readable
+            // Head part-way to the work and a little toward the camera, so his face stays readable over the desk.
+            if (!cam && Camera.main) cam = Camera.main.transform;
+            Look(cam ? Vector3.Lerp(lookGoal, cam.position, 0.25f) : lookGoal, 0.6f, lean);
 
             // The targets are wrist positions; the writing hand scribbles small loops on the page.
             Vector3 scribble = writing ? transform.right * (Mathf.Sin(clock * 9f) * 0.015f) + transform.forward * (Mathf.Sin(clock * 13f) * 0.008f) : Vector3.zero;
             Vector3 elbowOut = -transform.forward * 0.3f - transform.up * 0.15f;
             Arm(1, rightGoal + (writeSide > 0 ? scribble : Vector3.zero), rightArm.position + transform.right * 0.35f + elbowOut);
             Arm(-1, leftGoal + (writeSide < 0 ? scribble : Vector3.zero), leftArm.position - transform.right * 0.35f + elbowOut);
+            Curl(1, writing && writeSide > 0 ? 0.6f : 0.35f);
+            Curl(-1, writing && writeSide < 0 ? 0.6f : 0.35f);
 
             // A new deflection each time he touches the wire; it settles while he writes.
             int cycleIndex = Mathf.FloorToInt(clock / period);
@@ -209,6 +242,7 @@ namespace OhmsLaw
                 Transform upper = side > 0 ? rightArm : leftArm;
                 Arm(side, hands + transform.right * (side * 0.32f), upper.position + transform.right * (side * 0.3f) - transform.forward * 0.2f - Vector3.up * 0.25f);
                 Palm(side, Vector3.up);
+                Curl(side, 0.18f + breath * 0.03f);
             }
         }
 
@@ -227,6 +261,7 @@ namespace OhmsLaw
                 Transform upper = side > 0 ? rightArm : leftArm;
                 Arm(side, centre + transform.right * (side * 0.17f), upper.position + transform.right * (side * 0.15f) - transform.forward * 0.05f - Vector3.up * 0.3f);
                 Palm(side, Vector3.up);
+                Curl(side, 0.7f);
             }
         }
 
@@ -254,45 +289,50 @@ namespace OhmsLaw
         {
             Vector3 facing = Quaternion.AngleAxis(bodyLean, transform.right) * transform.forward;
             var aim = Quaternion.FromToRotation(facing, (target - head.position).normalized);
-            head.rotation = Quaternion.Slerp(Quaternion.identity, aim, amount) * head.rotation;
+            if (neck)
+            {
+                // The neck takes 40 % of the turn, the head the rest (both about the same axis, so the parts add up).
+                neck.rotation = Quaternion.Slerp(Quaternion.identity, aim, amount * 0.4f) * neck.rotation;
+                head.rotation = Quaternion.Slerp(Quaternion.identity, aim, amount * 0.6f) * head.rotation;
+            }
+            else head.rotation = Quaternion.Slerp(Quaternion.identity, aim, amount) * head.rotation;
         }
 
         void Arm(int side, Vector3 target, Vector3 elbowHint)
         {
-            if (side > 0) Reach(rightArm, rightForeArm, rightHand, target, elbowHint);
-            else Reach(leftArm, leftForeArm, leftHand, target, elbowHint);
+            // The collarbone turns 15 % of the way toward the hand's goal (at most 12 degrees): the shoulder leads the
+            // reach instead of the arm swinging from a fixed socket.
+            Transform clav = side > 0 ? rightClav : leftClav, upper = side > 0 ? rightArm : leftArm;
+            if (clav)
+            {
+                Vector3 bone = upper.position - clav.position, want = target - clav.position;
+                float angle = Mathf.Min(Vector3.Angle(bone, want) * 0.15f, 12f);
+                clav.rotation = Quaternion.FromToRotation(bone, Vector3.RotateTowards(bone, want, angle * Mathf.Deg2Rad, 0)) * clav.rotation;
+            }
+            if (side > 0) Limb.Reach(rightArm, rightForeArm, rightHand, target, elbowHint);
+            else Limb.Reach(leftArm, leftForeArm, leftHand, target, elbowHint);
+        }
+
+        // Curls every finger toward the palm: 0 open, 1 a loose fist; the thumb follows at half strength.
+        void Curl(int side, float amount)
+        {
+            Transform hand = side > 0 ? rightHand : leftHand;
+            var fingers = side > 0 ? rightFingers : leftFingers;
+            var axes = side > 0 ? rightCurl : leftCurl;
+            for (int f = 0; f < fingers.Length; f++)
+            {
+                Vector3 axis = hand.TransformDirection(axes[f]);
+                float c = amount * (f == 0 && fingers.Length == 5 ? 0.5f : 1f);
+                for (int j = 0; j < 3; j++) fingers[f][j].rotation = Quaternion.AngleAxis(c * (j == 0 ? 50f : 65f), axis) * fingers[f][j].rotation;
+            }
         }
 
         // Turns the palm toward `normal` about the forearm's axis: most of it at the forearm (supination), the rest at
         // the wrist, so neither twists grotesquely.
         void Palm(int side, Vector3 normal)
         {
-            Transform lower = side > 0 ? rightForeArm : leftForeArm, hand = side > 0 ? rightHand : leftHand;
-            Vector3 axis = (hand.position - lower.position).normalized;
-            Vector3 now = Vector3.ProjectOnPlane(hand.TransformDirection(side > 0 ? rightPalm : leftPalm), axis);
-            Vector3 want = Vector3.ProjectOnPlane(normal, axis);
-            if (now.sqrMagnitude < 1e-4f || want.sqrMagnitude < 1e-4f) return;
-            float angle = Vector3.SignedAngle(now, want, axis);
-            lower.Rotate(axis, angle * 0.6f, Space.World);
-            hand.Rotate(axis, angle * 0.4f, Space.World);
-        }
-
-        // Two-bone IK in world space, so it does not depend on how the rig's bone axes are oriented.
-        static void Reach(Transform upper, Transform lower, Transform hand, Vector3 target, Vector3 elbowHint)
-        {
-            float upperLength = Vector3.Distance(upper.position, lower.position);
-            float lowerLength = Vector3.Distance(lower.position, hand.position);
-            Vector3 toTarget = target - upper.position;
-            float distance = Mathf.Clamp(toTarget.magnitude, 0.01f, upperLength + lowerLength - 0.001f);
-            Vector3 direction = toTarget.normalized;
-
-            float cos = (upperLength * upperLength + distance * distance - lowerLength * lowerLength) / (2 * upperLength * distance);
-            float angle = Mathf.Acos(Mathf.Clamp(cos, -1f, 1f)) * Mathf.Rad2Deg;
-            Vector3 bendAxis = Vector3.Cross(direction, elbowHint - upper.position).normalized;
-            Vector3 elbow = upper.position + Quaternion.AngleAxis(angle, bendAxis) * direction * upperLength;
-
-            upper.rotation = Quaternion.FromToRotation(lower.position - upper.position, elbow - upper.position) * upper.rotation;
-            lower.rotation = Quaternion.FromToRotation(hand.position - lower.position, upper.position + direction * distance - lower.position) * lower.rotation;
+            if (side > 0) Limb.Twist(rightForeArm, rightHand, rightPalm, normal, 1f, 180f);
+            else Limb.Twist(leftForeArm, leftHand, leftPalm, normal, 1f, 180f);
         }
 
         static float Ease(float rate, float dt) => 1 - Mathf.Exp(-rate * dt);

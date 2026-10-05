@@ -35,6 +35,8 @@ namespace OhmsLaw
         RectTransform frame;
         int rows;
         bool ratio;
+        // Rows the learner recorded show what the meters read then (RECORD); the others show ExperimentData's row.
+        float[] recordedVolts, recordedAmps;
 
         static ExperimentData Data => ExperimentData.Main;
         // Cells are bare chalk on the board until a highlight, glow or sweep tints them.
@@ -53,6 +55,9 @@ namespace OhmsLaw
             var canvas = GetComponent<Canvas>();
             if (canvas && !canvas.worldCamera) canvas.worldCamera = Camera.main;
             int n = Data.Count;
+            recordedVolts = new float[n];
+            recordedAmps = new float[n];
+            for (int r = 0; r < n; r++) recordedVolts[r] = recordedAmps[r] = float.NaN;
             cells = new TextMeshProUGUI[n, 3];
             cellBack = new Image[n, 3];
             tags = new TextMeshProUGUI[n];
@@ -123,6 +128,19 @@ namespace OhmsLaw
         }
 
         public void ShowRows(int count) { rows = Mathf.Clamp(count, 0, Data.Count); Refresh(); }
+
+        // RECORD: the meters' live values go into `row` (0-based), and the table shows at least that many rows.
+        public void Record(int row, float volts, float amps)
+        {
+            if (row < 0 || row >= Data.Count) return;
+            recordedVolts[row] = volts;
+            recordedAmps[row] = amps;
+            rows = Mathf.Max(rows, row + 1);
+            Refresh();
+        }
+
+        float Volts(int row) => float.IsNaN(recordedVolts[row]) ? Data.voltages[row] : recordedVolts[row];
+        float Amps(int row) => float.IsNaN(recordedAmps[row]) ? Data.currents[row] : recordedAmps[row];
         public void ShowRatio(bool on) { ratio = on; Refresh(); }
 
         // Third column: the worked division "1.0 ÷ 0.20 = 5", or just the result.
@@ -174,8 +192,8 @@ namespace OhmsLaw
             for (int r = 0; r < Data.Count; r++)
             {
                 rowObjects[r].SetActive(r < rows);
-                cells[r, 0].text = units ? Data.voltages[r].ToString("0.0") + " V" : Data.voltages[r].ToString("0");
-                cells[r, 1].text = units ? Data.currents[r].ToString("0.00") + " A" : Data.currents[r].ToString("0.0");
+                cells[r, 0].text = units ? Volts(r).ToString("0.0") + " V" : Volts(r).ToString("0.#");
+                cells[r, 1].text = units ? Amps(r).ToString("0.00") + " A" : Amps(r).ToString("0.0#");
                 cellBack[r, 2].transform.gameObject.SetActive(ratio);
                 // Tags stand on their row just outside the frame, like a chalk note beside the table.
                 ((RectTransform)tags[r].transform.parent).anchoredPosition = new Vector2(width + BoardMarginX + ChalkLine / 2 + TagGap, 0);

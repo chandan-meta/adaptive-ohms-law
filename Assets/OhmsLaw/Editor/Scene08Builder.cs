@@ -1,30 +1,43 @@
-using TMPro;
+using System.Linq;
 using UnityEngine;
 
 namespace OhmsLaw.Editor
 {
-    // Scene 8: From Ohm's Lab to Our Lab. The old apparatus becomes today's instruments, one item at a time.
-    // Classroom frame (ART_DIRECTION §2): opens on Scene 7's last frame (Bench Wide, oak desk, Ohm at work), pushes in to
-    // Bench Present for the swap, and ends there with Ohm presenting the modern bench (Scene08_modern_apparatus_presented).
+    // Scene 8: From Ohm's Lab to Our Lab. Opens on Scene 7's last frame in Ohm's study (match-cut). Wattson freezes the
+    // experiment and, in frame beside the desk, starts the transformation with a clear gesture: each 1826 instrument
+    // changes in its own place into today's, one at a time (glowing dust swirls round it, the old one shrinks out while the
+    // new one grows in: torsion galvanometer → ammeter, thermoelectric source → DC source, copper test wires → nichrome
+    // wire XY, mercury cups → key). Then Ohm's desk becomes today's bench where it stood, the instruments settle into the
+    // circuit and the voltmeter joins; the final composition holds while Wattson ties it to the lesson. Ohm goes back to
+    // his time (Wattson waves him off). Last, in the wide shot, the study around the bench turns into the classroom lab:
+    // a wave of light runs out from the bench, the floor spreads from under it, the study's walls lift away as the
+    // classroom's rise, the ceiling follows, and the candle-and-window light crossfades to the classroom's. The last frame
+    // is Scene 9's first (classroom Bench Wide, the rig with the meters in the tray, Wattson at home, no Ohm).
     public class Scene08Builder : SceneBuilderBase
     {
         public override string SceneId => "Scene08";
         public override string SceneName => "Scene08_OurLab";
         public override string Title => "From Ohm's Lab to Our Lab";
 
-        // The parts that appear one per 0.8 s; each pops up on its cue (PopIn) with a spark burst and its callout.
-        static readonly string[] NewParts = { "AMMETER", "VOLTMETER", "NICHROME WIRE — XY", "Card X", "Card Y", "cells / controllable DC source", "switch / key" };
+        const string ApparatusFx = "[VFX] Ohm's apparatus becomes today's instruments", RoomFx = "[VFX] Ohm's study becomes today's lab";
+        const string Source = "cells / controllable DC source", Wire = "NICHROME WIRE — XY", Key = "switch / key";
+        static readonly string[] Dressing = { "Study Lamp", "Study Candle", "Study Inkstand", "Study Papers", "Study Globe", "Study Eyewear", "notebook" };
+        static readonly string[] ClassroomGroups = { "Classroom Floor", "Classroom Back", "Classroom Left", "Classroom Right", "Classroom Ceiling" };
 
         protected override void Dialogue()
         {
             L("S08_L01", "Ohm didn't have the modern instruments sitting in your school laboratory today.", 4.5f);
             L("S08_L02", "So let's investigate his relationship using the instruments you would use today.", 4.5f);
+            // Proposed (WOW plan): the link to the lesson over the held composition, and Ohm's farewell (he has no voice).
+            L("S08_P01", "The instruments changed, detectives. The relationship we're testing is still the same.", 4.4f, proposed: true);
+            L("S08_P02", "Thank you, Georg Ohm! Back to 1826 you go.", 3.0f, proposed: true);
         }
 
         protected override SceneAgentContext Agent() => Context(
             new[]
             {
                 "Everything from Scenes 5 to 7: voltage as the push (V, volt), current as charge per second (I, ampere), Ohm's repeated 1826 investigation and his apparatus.",
+                "Ohm's instruments turned into today's: his torsion galvanometer into an ammeter, his thermoelectric source into a controllable DC source, his copper test wires into the nichrome wire XY, his mercury cups into a key; a voltmeter joined them. The relationship being tested is the same.",
                 "An ammeter measures current (I, ampere). A voltmeter measures potential difference (V, volt).",
                 "The nichrome wire XY is the test conductor; X and Y are its two ends.",
                 "A variable DC source (cells) sets the potential difference; a key (switch) opens and closes the circuit.",
@@ -36,72 +49,168 @@ namespace OhmsLaw.Editor
 
         protected override void Stage()
         {
-            ClassroomSet(modernBench: false, audience: true);   // starts on the oak desk; the swap cues Hide("Old Table"); Show("Bench")
-            ClassroomApparatus();
-            Wattson(WattsonHomeC, BenchWideCamC);
+            // The classroom lab first, alone, so its reflection probe bakes without the study; captured as the "classroom"
+            // look, then put away for the transformation: its room groups and the bench hidden, its lights off.
+            ClassroomSet(modernBench: true, audience: false);
+            var classroom = CaptureLook("classroom", refs["Lab"].transform.Find("Lighting"));
+            foreach (var group in ClassroomGroups.Append("Bench")) refs[group].SetActive(false);
+            foreach (var light in classroom.lights) light.enabled = false;
+            if (classroom.volume) classroom.volume.weight = 0f;
+            if (classroom.probe) classroom.probe.gameObject.SetActive(false);
+
+            // Scene 7's study, apparatus, Ohm and Wattson, exactly as Scene 7 built them (the match-cut's first frame).
+            HistoricalLab();
+            var study = CaptureLook("study", refs["Study Lighting"].transform);
+            StartIn(study, classroom);
+            director.looks = new[] { study, classroom };
             director.matchCutFrom = "Scene07_BackToOhm";
-            // Scene 7 ends with the three measurement pages on the notebook: same first frame here, without their pop-in.
+            ClassroomApparatus();
+            Wattson(WattsonStudyC, StudyWideCamC);
+            // Scene 7 ends with the two clues on the slate and the three measurement pages on the notebook: same first
+            // frame here, without their pop-in. They stay until the study goes.
+            TwoCluesBoard(shown: true);
             foreach (var page in new[] { "Page 1", "Page 2", "Page 3" })
             {
                 Object.DestroyImmediate(refs[page].GetComponent<PopIn>());
                 refs[page].SetActive(true);
             }
 
-            var rig = Rig(assembled: false, keyClosed: false, voltage: 0, active: false);
+            // Today's circuit exactly as Scene 9 opens on it (meters in the tray, key open, 0 V); every part waits hidden.
+            var rig = Rig(assembled: false, keyClosed: false, voltage: 0, active: true);
             director.rig = rig;
-            // The modern parts are hidden until their cue, then scale up (the imported meters are 4 cm apart in the tray, so a soft overshoot).
-            foreach (var part in NewParts)
-            {
-                refs[part].SetActive(false);
-                refs[part].AddComponent<PopIn>().overshoot = 1.1f;
-            }
+            foreach (var part in new[] { "AMMETER", "VOLTMETER", Wire, Source, Key, "Parts Tray" }) refs[part].SetActive(false);
+            // The key's return lead ends at the source's final post: shown once the source has settled.
+            var returnLead = Ref(FindChild(refs[Key], "Lead Key → Source").gameObject);
+            returnLead.SetActive(false);
+            // The meter and the source grow where the galvanometer and the thermoelectric source stand (a size that fits
+            // Ohm's desk) and settle onto their places in the circuit when the bench forms; the bench appears on the desk's
+            // footprint and widens; Ohm steps back from it. "<name> Goal" is where each ends (Scene 9's pose).
+            Interim("AMMETER", ApparatusC, 0.55f);
+            Interim(Source, SourceStudyC + new Vector3(0f, 0f, 0.01f), 0.8f);
+            var bench = refs["Bench"].transform;
+            Goal("Bench");
+            bench.position = new Vector3(OhmDeskC.x, bench.position.y, OhmDeskC.z);
+            bench.localScale = new Vector3(1.61f / BenchWidth, 1f, 0.66f / BenchDepth);
+            var ohm = refs["Georg Ohm"].transform;
+            Goal("Georg Ohm").transform.position = ohm.position + Vector3.forward * 0.12f;
 
-            // Labels (ART_DIRECTION §4), placed for the Bench Present frame: source at mid-left over the source; the three
-            // right-hand parts stack top-right (key, voltmeter, ammeter) so each leader drops straight to its part without
-            // crossing another panel - the key's runs down the right edge to the lever tip, the meters' to a top corner of
-            // each dial, clear of the readouts; the wire's panel hangs just above the rod between Ohm's open hands.
-            Callout("source", refs["cells / controllable DC source"], CalloutDef.Anchor.MidLeft, new Vector3(0f, 0.10f, -0.07f));
-            Callout("ammeter", refs["AMMETER"], CalloutDef.Anchor.AboveTarget, new Vector3(-0.11f, 0.06f, -0.17f)).aboveOffset = new Vector2(120f, 34f);
-            Callout("voltmeter", refs["VOLTMETER"], CalloutDef.Anchor.AboveTarget, new Vector3(0.11f, 0.06f, -0.17f)).aboveOffset = new Vector2(-210f, 186f);
-            Callout("wire", refs["NICHROME WIRE — XY"], CalloutDef.Anchor.AboveTarget).aboveOffset = new Vector2(0f, 60f);
-            Callout("key", refs["switch / key"], CalloutDef.Anchor.TopRight, new Vector3(0.115f, 0.095f, 0f));
+            // Labels (ART_DIRECTION §4) for the Study Desk frame, top and middle anchors only (P01's subtitle is up while
+            // they show): the source top-left, the meters stacked top-right, the wire mid-left, the key mid-right.
+            Callout("source", refs[Source], CalloutDef.Anchor.TopLeft, new Vector3(0f, 0.10f, 0f));
+            Callout("ammeter", refs["AMMETER"], CalloutDef.Anchor.TopRight, new Vector3(0f, 0.04f, 0f));
+            Callout("voltmeter", refs["VOLTMETER"], CalloutDef.Anchor.TopRight, new Vector3(0f, 0.02f, 0f));
+            Callout("wire", refs[Wire], CalloutDef.Anchor.MidLeft);
+            Callout("key", refs[Key], CalloutDef.Anchor.MidRight, new Vector3(0.115f, 0.095f, 0f));
 
-            // The board (ART_DIRECTION §3): the heading and the three instrument lines, left-aligned down the left half so they
-            // stay clear of Ohm's head (board u 0.44-0.56 below v 0.39 from Bench Present), the HUD (u > 0.55 above v 0.69)
-            // and the top-left VFX panel. Heading 40 px / items 28 px from Bench Present (28 / 20 from Bench Wide).
-            float itemCap = WorldText.CapAt(WorldText.Px.Medium, BoardCentreC, BenchPresentCamC, BenchPresentLookC, BenchPresentFov);
-            Board("Our instruments today", Chalk, new Vector2(0.04f, 0.76f), BoardCap, 0f, TextAlignmentOptions.Left, "Instruments");
-            Board("AMMETER", palette.current, new Vector2(0.04f, 0.64f), itemCap, 0f, TextAlignmentOptions.Left, "Ammeter");
-            Board("VOLTMETER", palette.voltage, new Vector2(0.04f, 0.545f), itemCap, 0f, TextAlignmentOptions.Left, "Voltmeter");
-            Board("NICHROME WIRE — XY", Chalk, new Vector2(0.04f, 0.45f), itemCap, 0f, TextAlignmentOptions.Left, "Nichrome");
-
-            // Effects (named "[VFX] ..." so the screen panel comes up with them). Freeze: a frost burst over Ohm's bent torso.
-            Burst("[VFX] freeze (Ohm holds still)", null, OhmFeetC + new Vector3(0f, 1.0f, -0.12f), palette.charge, new Vector3(0.6f, 0.8f, 0.5f), 80, 0.2f);
-            // Swap: one spark burst where each prop changes, children of one panel object shown for the whole sequence.
-            var swap = Ref(Node("[VFX] prop swap"));
-            var cyan = palette.wattsonAccent;
-            Burst("Swap Sparks Ammeter", swap.transform, new Vector3(0.5f, 0.95f, 0.15f), cyan, new Vector3(0.4f, 0.3f, 0.35f), 60);     // galvanometer -> tray
-            Burst("Swap Sparks Voltmeter", swap.transform, new Vector3(0.84f, 0.95f, 0.21f), cyan, new Vector3(0.3f, 0.3f, 0.35f), 50);
-            Burst("Swap Sparks Wire", swap.transform, new Vector3(-0.1f, 0.86f, -0.2f), cyan, new Vector3(1.1f, 0.06f, 0.14f), 70);        // copper wires -> XY
-            Burst("Swap Sparks X", swap.transform, new Vector3(-0.306f, 0.865f, -0.168f), palette.current, Vector3.one * 0.08f, 30);
-            Burst("Swap Sparks Y", swap.transform, new Vector3(0.394f, 0.865f, -0.168f), palette.current, Vector3.one * 0.08f, 30);
-            Burst("Swap Sparks Source", swap.transform, new Vector3(-0.7f, 0.92f, 0.16f), cyan, new Vector3(0.45f, 0.3f, 0.35f), 60);      // thermoelectric -> DC
-            Burst("Swap Sparks Cups", swap.transform, new Vector3(-0.26f, 0.85f, 0.15f), cyan, new Vector3(0.45f, 0.1f, 0.1f), 40);        // mercury cups -> key
-            Burst("Swap Sparks Key", swap.transform, new Vector3(0.75f, 0.88f, -0.18f), cyan, new Vector3(0.3f, 0.2f, 0.15f), 40);
-            Burst("Swap Sparks Bench", swap.transform, new Vector3(0f, 0.82f, 0f), cyan, new Vector3(2.0f, 0.02f, 0.9f), 150, 0.25f);       // the top's material changes
-            swap.SetActive(false);
+            Effects();
         }
 
-        // A one-shot burst of soft additive sparks (Scene 4's recipe) inside a box, lifting slowly like dust in the light.
-        // Hidden until a cue shows it; the particle system plays once on activation.
-        GameObject Burst(string name, Transform parent, Vector3 position, Color color, Vector3 box, int count, float speed = 0.5f)
+        // Moves a built rig part to where its old counterpart stands, smaller by `scale`, and leaves a "<name> Goal" marker
+        // on its built pose (the 'settle' cue takes it back there).
+        void Interim(string name, Vector3 at, float scale)
+        {
+            var part = refs[name].transform;
+            Goal(name);
+            part.position = at;
+            part.localScale *= scale;
+        }
+
+        // "<name> Goal": the object's current world position, with its local scale stored on the marker (scene root).
+        GameObject Goal(string name)
+        {
+            var part = refs[name].transform;
+            var goal = Marker(name + " Goal", part.position);
+            goal.transform.localScale = part.localScale;
+            return goal;
+        }
+
+        // The restrained effects: cyan glowing dust swirling round each prop as it changes (one-shot "fx" objects, thinned
+        // under reduced motion), a slow glow over the desk while the instruments change, a gold dust as Ohm goes back to his
+        // time, and the wave of light that runs out from the bench across the floor as the room changes. The two "[VFX]"
+        // phases carry a soft shimmer (Scene 4's) on the effects bus, under the voice.
+        void Effects()
+        {
+            var cyan = palette.wattsonAccent;
+            Burst("[VFX] freeze (Ohm holds still)", null, refs["Georg Ohm"].transform.position + new Vector3(0f, 1.0f, -0.12f), palette.charge, new Vector3(0.6f, 0.8f, 0.5f), 80, 0.2f);
+
+            Burst("Dust Galvanometer", null, ApparatusC + Vector3.up * 0.1f, cyan, new Vector3(0.28f, 0.22f, 0.28f), 70, 0.12f, swirl: 2.2f);
+            Burst("Dust Source", null, SourceStudyC + Vector3.up * 0.08f, cyan, new Vector3(0.36f, 0.18f, 0.24f), 70, 0.12f, swirl: 2.2f);
+            Burst("Dust Wires", null, (TestWiresStudyC + WireStudyC) / 2 + Vector3.up * 0.04f, cyan, new Vector3(0.95f, 0.1f, 0.5f), 110, 0.12f, swirl: 1.2f);
+            Burst("Dust Cups", null, CupsStudyC + Vector3.up * 0.05f, cyan, new Vector3(0.42f, 0.1f, 0.14f), 60, 0.12f, swirl: 2.2f);
+            Burst("Dust Desk", null, OhmDeskC + Vector3.up * 0.06f, cyan, new Vector3(1.7f, 0.12f, 0.7f), 170, 0.15f, swirl: 1.0f);
+            Burst("Dust Voltmeter", null, refs["VOLTMETER"].transform.position + Vector3.up * 0.12f, cyan, new Vector3(0.26f, 0.22f, 0.36f), 60, 0.12f, swirl: 2.2f);
+            var wire = refs[Wire].transform;
+            Burst("Spark X", null, wire.TransformPoint(new Vector3(-0.35f, 0.01f, 0f)), palette.current, Vector3.one * 0.08f, 30);
+            Burst("Spark Y", null, wire.TransformPoint(new Vector3(0.35f, 0.01f, 0f)), palette.current, Vector3.one * 0.08f, 30);
+            var ohm = refs["Georg Ohm"].transform.position;
+            Burst("Ohm Farewell Dust", null, ohm + new Vector3(0f, 0.9f, 0f), new Color(1f, 0.8f, 0.48f), new Vector3(0.6f, 1.8f, 0.5f), 180, 0.25f, swirl: 1.2f, lifetime: 1.6f);
+
+            // Phase panels: a slow glow over the desk while the instruments change; the wave runs from the bench.
+            var apparatusFx = Ref(Node(ApparatusFx, null, OhmDeskC + new Vector3(0f, 0.2f, 0.05f)));
+            Emitter("Glow Dust", apparatusFx.transform, Vector3.zero, Glow("Glow_TransformDust", Hdr(cyan, 2.2f)), ps =>
+            {
+                var main = ps.main;
+                main.startLifetime = new ParticleSystem.MinMaxCurve(1.2f, 2.4f);
+                main.startSpeed = new ParticleSystem.MinMaxCurve(0.01f, 0.05f);
+                main.startSize = new ParticleSystem.MinMaxCurve(0.006f, 0.018f);
+                main.maxParticles = 120;
+                main.simulationSpace = ParticleSystemSimulationSpace.World;
+                main.gravityModifier = -0.01f;
+                var emission = ps.emission;
+                emission.rateOverTime = 40f;
+                var shape = ps.shape;
+                shape.shapeType = ParticleSystemShapeType.Box;
+                shape.scale = new Vector3(1.6f, 0.35f, 0.7f);
+            });
+            Shimmer(apparatusFx.transform, loop: true);
+            apparatusFx.SetActive(false);
+
+            var roomFx = Ref(Node(RoomFx, null, new Vector3(0f, 0.03f, 0f)));
+            Shimmer(roomFx.transform, loop: false);
+            roomFx.SetActive(false);
+            var wave = Ref(Emitter("Room Wave", null, new Vector3(0f, 0.03f, 0f), Glow("Glow_RoomWave", Hdr(cyan, 3f)), ps =>
+            {
+                var main = ps.main;
+                main.loop = false;
+                main.duration = 1f;
+                main.startLifetime = new ParticleSystem.MinMaxCurve(1.3f, 1.5f);
+                main.startSpeed = new ParticleSystem.MinMaxCurve(2.4f, 2.8f);
+                main.startSize = new ParticleSystem.MinMaxCurve(0.02f, 0.05f);
+                main.maxParticles = 420;
+                main.simulationSpace = ParticleSystemSimulationSpace.World;
+                main.gravityModifier = -0.04f;
+                var emission = ps.emission;
+                emission.rateOverTime = 0;
+                emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 260), new ParticleSystem.Burst(0.25f, 160) });
+                var shape = ps.shape;
+                shape.shapeType = ParticleSystemShapeType.Circle;
+                shape.radius = 0.7f;
+                shape.radiusThickness = 0f;            // from the rim, outward along the floor
+                shape.rotation = new Vector3(90f, 0f, 0f);
+            }).gameObject);
+            wave.SetActive(false);
+        }
+
+        // Scene 4's soft shimmer on the effects bus, quiet under the voice, playing whenever its "[VFX]" object is shown.
+        void Shimmer(Transform parent, bool loop)
+        {
+            var source = Audio("Transformation Sound", parent, AudioBus.Kind.Sfx);
+            source.clip = sounds.TryGetValue("Shimmer", out var clip) ? clip : null;
+            source.playOnAwake = true;
+            source.loop = loop;
+            source.GetComponent<AudioBus>().gain = 0.32f;
+        }
+
+        // A one-shot burst of soft additive sparks (Scene 4's recipe) inside a box, lifting slowly like dust in the light;
+        // `swirl` turns it round its centre (glowing dust round a prop). Hidden until a cue shows it ("fx" replays it).
+        GameObject Burst(string name, Transform parent, Vector3 position, Color color, Vector3 box, int count, float speed = 0.5f, float swirl = 0f, float lifetime = 0.9f)
         {
             var ps = Emitter(name, parent, position, Glow("Glow_Burst_" + ColorUtility.ToHtmlStringRGB(color), Hdr(color, 4f)), p =>
             {
                 var main = p.main;
                 main.loop = false;
                 main.duration = 1f;
-                main.startLifetime = new ParticleSystem.MinMaxCurve(0.4f, 0.9f);   // done before the 1 s freeze cue hides it
+                main.startLifetime = new ParticleSystem.MinMaxCurve(lifetime * 0.45f, lifetime);
                 main.startSpeed = new ParticleSystem.MinMaxCurve(speed * 0.3f, speed);
                 main.startSize = new ParticleSystem.MinMaxCurve(0.012f, 0.04f);
                 main.gravityModifier = -0.06f;
@@ -112,50 +221,117 @@ namespace OhmsLaw.Editor
                 var shape = p.shape;
                 shape.shapeType = ParticleSystemShapeType.Box;
                 shape.scale = box;
+                if (swirl == 0f) return;
+                var velocity = p.velocityOverLifetime;
+                velocity.enabled = true;
+                velocity.space = ParticleSystemSimulationSpace.Local;
+                velocity.orbitalY = swirl;
             });
             ps.gameObject.SetActive(false);
             return Ref(ps.gameObject);
         }
 
+        // One old prop becomes its modern equivalent where it stands: dust swirls round it, the old prop shrinks out while
+        // the new one grows in (they overlap, so something solid is always there), and its label comes up.
+        void Becomes(string dust, string[] old, string modern, string callout)
+        {
+            Cue("fx " + dust);
+            foreach (var prop in old) Cue("vanish 0.7 " + prop);
+            Cue("appear 0.7 " + modern, "", 0.25);
+            Cue("callout show " + callout, "", 0.8);
+            Visual(string.Join(" + ", old) + " → " + modern + ", in its own place", 1.0);
+        }
+
         protected override void Beats()
         {
-            Shot("Bench Wide");                                            // Scene 7's last frame: Ohm at work, Wattson at home
+            const double Act = WattsonController.TransformActionDelay;
+
+            // Scene 7's last frame: Ohm at work in his study, the two clues on the slate, Wattson beside the group.
+            // (The scene is built in the study look; the only look cue is the room's, so a replay never relights the study.)
+            Shot("Study Wide");
             Gesture(WattsonController.Gesture.RaiseGadget, point: "Georg Ohm", gadget: true);
+            Cue("ohm.pose Examine", "Ohm straightens with a copper wire, face to the room, so he freezes upright");
             Wait(0.5);
             Cue("ohm.freeze 1", "Wattson freezes the historical experiment; Ohm holds the pose he is in");
             Show("[VFX] freeze (Ohm holds still)");
             Visual("Wattson freezes Ohm's experiment", 1.0);
             Hide("[VFX] freeze (Ohm holds still)");
-            Gesture(WattsonController.Gesture.Talking);
+
+            // Attention on the apparatus: in to Ohm's desk while L01 plays; Wattson flies to his spot beside it, in frame.
+            Shot("Study Desk");
+            Gesture(WattsonController.Gesture.Talking, moveTo: "Transform Point");
             Line("S08_L01");
 
-            Shot("Bench Present");                                         // push in (1 s blend): instrument row, Ohm's head, the board
-            Gesture(WattsonController.Gesture.Point, point: "Bench Point", gadget: true);
-            Wait(0.6);
-            Show("Circuit Rig");
-            Show("[VFX] prop swap");
-            Show("Board Instruments");
-            Visual("Wattson's gadget starts the transformation; the board heading 'Our instruments today' appears", 0.4);
-            // One item every 0.8 s: the old prop goes in a burst of sparks, the new one pops up with its callout and its chalk line.
-            Hide("torsion galvanometer"); Show("Swap Sparks Ammeter"); Show("AMMETER"); Cue("callout show ammeter"); Show("Board Ammeter");
-            Visual("galvanometer → AMMETER (in the parts tray) with its label", 0.8);
-            Show("Swap Sparks Voltmeter"); Show("VOLTMETER"); Cue("callout show voltmeter"); Show("Board Voltmeter");
-            Visual("VOLTMETER appears with its label", 0.8);
-            Hide("Copper Test Wires"); Show("Swap Sparks Wire"); Show("NICHROME WIRE — XY"); Cue("callout show wire"); Show("Board Nichrome");
-            Show("Card X", 0.35); Show("Card Y", 0.35); Show("Swap Sparks X", 0.35); Show("Swap Sparks Y", 0.35);
-            Visual("copper wires fade; one straight NICHROME WIRE — XY appears, X and Y light up", 0.8);
-            Hide("Thermoelectric Source"); Show("Swap Sparks Source"); Show("cells / controllable DC source"); Cue("callout show source");
-            Visual("cells / controllable DC source appears", 0.8);
-            Hide("Mercury Cups"); Show("Swap Sparks Cups"); Show("Swap Sparks Key"); Show("switch / key"); Cue("callout show key");
-            Visual("switch / key appears", 0.8);
-            Hide("Old Table"); Show("Bench"); Show("Swap Sparks Bench"); Hide("Ohm Apparatus");
-            Cue("ohm.pose Present", "Ohm comes out of the freeze and presents the modern apparatus (the reference frame)");
-            Visual("wooden table → clean modern bench; the lab around stays historical", 0.8);
-            Hide("[VFX] prop swap");
+            // Wattson's gesture starts it; each instrument changes in its own place, one at a time.
+            Show(ApparatusFx);
+            Gesture(WattsonController.Gesture.Transform, point: "torsion galvanometer", gadget: true);
+            Wait(Act);
+            Becomes("Dust Galvanometer", new[] { "torsion galvanometer" }, "AMMETER", "ammeter");
+            Gesture(WattsonController.Gesture.Point, point: "Thermoelectric Source", gadget: true);
+            Becomes("Dust Source", new[] { "Thermoelectric Source" }, Source, "source");
+            Gesture(WattsonController.Gesture.Point, point: "Copper Test Wires", gadget: true);
+            Cue("fx Spark X", "X and Y light up at the ends of the new wire", 0.9);
+            Cue("fx Spark Y", "", 0.9);
+            Becomes("Dust Wires", new[] { "Loose Test Wires", "Wire Mount" }, Wire, "wire");
+            Wait(0.2);
+            Gesture(WattsonController.Gesture.Point, point: "Mercury Cups", gadget: true);
+            Becomes("Dust Cups", new[] { "Mercury Cups" }, Key, "key");
 
+            // Ohm's desk becomes today's bench where it stood (the landmark), the instruments settle into the circuit and
+            // the voltmeter joins; Ohm steps back and presents it (Scene08_modern_apparatus_presented).
+            Gesture(WattsonController.Gesture.Transform, point: "Bench Point", gadget: true);
+            Wait(Act);
+            Cue("fx Dust Desk");
+            for (int i = 0; i < Dressing.Length; i++) Cue("vanish 0.5 " + Dressing[i], "", i * 0.04);
+            Hide("Study Desk", 0.35);
+            Show("Bench", 0.35);
+            Cue("glide 0.9 Bench", "the bench widens from the desk's footprint to 2.0 x 0.9 m", 0.4);
+            Cue("glide 0.6 Georg Ohm", "Ohm steps back from the wider bench", 0.35);
+            Cue("ohm.pose Present", "Ohm comes out of the freeze and presents the modern apparatus", 0.4);
+            Cue("settle 0.9 " + Source, "", 0.5);
+            Cue("settle 0.9 AMMETER", "", 0.5);
+            Cue("appear 0.5 Parts Tray", "", 0.65);
+            Cue("fx Dust Voltmeter", "", 1.0);
+            Cue("appear 0.6 VOLTMETER", "the voltmeter joins, in the tray", 1.1);
+            Cue("callout show voltmeter", "", 1.6);
+            Show("Lead Key → Source", 1.45);
+            Visual("Ohm's desk becomes today's bench in its place; the instruments settle into the circuit; the voltmeter joins", 1.8);
+            Hide(ApparatusFx);
+
+            // Hold the final composition and tie it to the lesson.
+            Gesture(WattsonController.Gesture.Point, point: "Bench Point");
+            Line("S08_P01");
+            Cue("callout hideall", "labels fade before the pull-back", -0.3);
+
+            // Ohm goes back to his time: in the wide, Wattson waves him off as he dissolves into gold dust.
+            Shot("Bench Wide");
+            Gesture(WattsonController.Gesture.Greet, look: "Georg Ohm", moveTo: "Wattson Home");
+            Wait(1.0);
+            Cue("fx Ohm Farewell Dust", "", 0.8);
+            Cue("vanish 1.0 Georg Ohm", "Ohm dissolves back to 1826", 1.0);
+            Line("S08_P02", 0.2);
+
+            // The room, with the camera on it the whole time: the study becomes the classroom lab, sweeping out from the bench.
+            Show(RoomFx);
+            Cue("look 2.8 classroom", "light, ambient, fog, background, post and reflections crossfade to the classroom");
+            Cue("fx Room Wave");
+            Cue("vanish 0.6 Study Easel");
+            Cue("spread 1.2 Classroom Floor", "", 0.1);
+            Cue("retract 0.9 Study Back", "", 0.35);
+            Cue("rise 1.0 Classroom Back", "", 0.55);
+            Cue("retract 0.9 Study Window Side", "", 0.7);
+            Cue("retract 0.9 Study Door Side", "", 0.7);
+            Cue("rise 1.0 Classroom Left", "", 0.9);
+            Cue("rise 1.0 Classroom Right", "", 0.9);
+            Cue("vanish 0.8 Study Ceiling", "", 1.2);
+            Cue("spread 0.9 Classroom Ceiling", "", 1.3);
+            Hide("Study Floor", 1.4);
+            Hide("Historical Lab", 2.9);
+            Hide("Ohm Apparatus", 2.9);
+            Hide(RoomFx, 2.9);
+            Visual("Ohm's study sweeps away from the bench into today's classroom lab", 1.2);
             Gesture(WattsonController.Gesture.Talking);
             Line("S08_L02", 0.2);
-            Cue("callout hideall", "labels fade before the match-cut", -0.5);
             Cue("handoff", "SceneHandoffState: camera pose + CircuitState");
             Handoff("Scene08Complete", cut: true, afterSeconds: 0.3);
         }

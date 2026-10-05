@@ -95,3 +95,13 @@ MonoBehaviour:
   lean: 22
   writeSeconds: 5.5
   checkSeconds: 3.5
+  mode: 0
+  frozen: 0
+  blendSpeed: 3
+  lookTarget: {fileID: 0}
+  handWire: {fileID: 0}
+  needle: {fileID: 0}
+  needleSwing: 35
+  swingCue: {fileID: 0}
+  swingCueName: '[VFX] galvanometer needle swing'
+  swingRepeat: 3

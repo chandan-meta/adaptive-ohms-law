@@ -26,20 +26,13 @@ namespace OhmsLaw.Editor
         public static readonly Vector3 Hover = new Vector3(-1.5f, 0.2f, -0.45f);        // where Wattson settled in Scene 4
         public static readonly Vector3 OhmFeet4 = new Vector3(-2.4f, -1.08f, -2.36f);   // Ohm, facing +Z into the room
         public static readonly Vector3 OhmHead = new Vector3(-2.4f, 0.45f, -2.2f);
-        public static readonly Vector3 Wire4 = new Vector3(-2.71f, -0.18f, -1.9f);      // the copper test wire on the desk
-        public static readonly Vector3 Notebook4 = new Vector3(-2.22f, -0.252f, -2.03f);
-        public static readonly Vector3 Galvanometer4 = new Vector3(-2.6f, -0.26f, -2.02f);
-        public static readonly Vector3 Pile4 = new Vector3(-2.9f, -0.26f, -2.03f);
+        public static readonly Vector3 Wire4 = new Vector3(-2.71f, -0.18f, -1.9f);      // the copper test wire on the desk (the 1826 apparatus's, Lab.cs)
         public static readonly Vector3 DeskTop = new Vector3(-2.42f, DeskY, -1.77f);     // Victorian desk top centre, 1.61 x 0.66 m
-        // The modern bench (Scene 8 onward) stands where the desk was: 2.0 x 0.9 m, top at DeskY, between the -X wall and the room.
-        public static readonly Vector3 BenchCentre = new Vector3(-2.3f, DeskY, -1.8f);
+        // The modern bench (Scene 8 onward, classroom frame): 2.0 x 0.9 m.
         public const float BenchWidth = 2.0f, BenchDepth = 0.9f;
-        // Study-frame camera and marker positions shared by Scenes 7-13 so match-cuts line up.
-        public static readonly Vector3 StudyWideCam = new Vector3(-1.2f, 0.85f, 0.75f), StudyWideLook = new Vector3(-2.35f, -0.15f, -1.85f);
-        public static readonly Vector3 StudyBenchCam = new Vector3(-1.75f, 0.55f, -0.25f), StudyBenchLook = new Vector3(-2.35f, -0.2f, -1.8f);
-        public static readonly Vector3 StudyCloseCam = new Vector3(-2.1f, 0.25f, -0.75f), StudyCloseLook = new Vector3(-2.4f, -0.2f, -1.85f);
+        // Free-floating boards (SceneBuilderBase.Boards.cs) in the study frame. Scenes 7-8 place the study in the classroom
+        // frame instead (SceneBuilderBase.Lab.cs StudyPoint).
         public static readonly Vector3 StudyBoardsCam = new Vector3(-1.1f, 0.65f, 0.4f), StudyBoardsLook = new Vector3(-1.5f, 0.55f, -1.9f);
-        public static readonly Vector3 StudyWattsonHome = new Vector3(-1.25f, 0.3f, -1.05f);
         public static readonly Vector3 BoardsAnchor = new Vector3(-1.35f, 0.75f, -2.25f); // table + graph float above the right end of the bench
 
         protected VolumeProfile lensWide, lensMedium, lensShallow, lensTracking, lensDive;
@@ -213,8 +206,9 @@ namespace OhmsLaw.Editor
             return lab;
         }
 
-        // Scene 4's lighting rig: window light, flickering flames, fill, probes, god rays, and the global ACES/bloom volume.
-        protected void StudyLighting()
+        // Scene 4's lighting rig: window light, flickering flames, fill, probes, god rays, and the global ACES/bloom volume,
+        // under a root "Lighting" at the origin (returned), in the study's own frame.
+        protected Transform StudyLighting()
         {
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Trilight;
@@ -265,6 +259,7 @@ namespace OhmsLaw.Editor
 
             GodRays(root, window.transform.forward * 3.4f);
             GlobalPost(root, "Study_Global", bloom: 0.85f, vignette: 0.26f, exposure: 0.25f);
+            return root;
         }
 
         // Realtime "OnAwake" probes show URP's flat default reflection until they have rendered, which can take many

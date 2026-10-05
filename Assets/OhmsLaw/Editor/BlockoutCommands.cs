@@ -67,14 +67,15 @@ namespace OhmsLaw.Editor
                 Application.logMessageReceived += capture;
                 try
                 {
-                    if (request == "all") BuildAll();
+                    if (request == "refresh") { AssetDatabase.Refresh(); UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation(); } // an unfocused editor skips its own refresh
+                    else if (request == "all") BuildAll();
                     else if (request == "report") BlockoutReport.Write();
                     else if (request == "flow") FlowDocument.Write();
                     else if (request == "inventory") AssetInventory.Write();
                     else if (request == "player") ModulePlayerBuilder.Build();
                     else if (request.StartsWith("hierarchy ")) AssetInventory.Hierarchy(request.Substring(10).Trim());
                     else if (request.StartsWith("menu ")) { if (!EditorApplication.ExecuteMenuItem(request.Substring(5).Trim())) throw new ArgumentException("No menu item " + request.Substring(5)); } // editor self-checks
-                    else if (request.StartsWith("vo ")) { if (request == "vo all") BakeBlockoutVO.All(); else BakeBlockoutVO.Bake(BlockoutAssets.Builders().First(b => b.SceneId == request.Substring(3))); }
+                    else if (request.StartsWith("vo ")) { if (request == "vo all") BakeBlockoutVO.All(); else BakeBlockoutVO.Bake(request.Substring(3).Trim()); } // Scene 4 has no SceneBuilderBase
                     else Build(request);
                 }
                 finally { Application.logMessageReceived -= capture; }

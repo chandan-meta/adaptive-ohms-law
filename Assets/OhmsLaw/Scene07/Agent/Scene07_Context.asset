@@ -18,6 +18,8 @@ MonoBehaviour:
   covered:
   - 'Everything from Scenes 5 and 6: free electrons, voltage (V, volt) as the push,
     current (I, ampere) as charge per second, the learner''s prediction.'
+  - We are back in Georg Ohm's study from Scene 4, at the same desk and the same
+    copper wire we zoomed into.
   - In 1826 Georg Ohm investigated by changing the potential difference and observing
     the current, many times, looking for a pattern rather than one reading.
   - 'His apparatus: a copper-bismuth thermoelectric source (hot and cold junctions),

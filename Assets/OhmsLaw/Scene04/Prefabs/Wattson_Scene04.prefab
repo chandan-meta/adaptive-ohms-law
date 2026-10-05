@@ -6271,6 +6271,7 @@ MonoBehaviour:
   bobSpeed: 1.6
   bank: 14
   motionScale: 1
+  moveTime: 0.22
   visual: {fileID: 2463591928162092241}
   rightShoulder: {fileID: 4485932781222704795}
   rightElbow: {fileID: 974222396753424633}

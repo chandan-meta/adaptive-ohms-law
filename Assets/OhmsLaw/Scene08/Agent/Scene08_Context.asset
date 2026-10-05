@@ -18,6 +18,10 @@ MonoBehaviour:
   covered:
   - 'Everything from Scenes 5 to 7: voltage as the push (V, volt), current as charge
     per second (I, ampere), Ohm''s repeated 1826 investigation and his apparatus.'
+  - 'Ohm''s instruments turned into today''s: his torsion galvanometer into an ammeter,
+    his thermoelectric source into a controllable DC source, his copper test wires
+    into the nichrome wire XY, his mercury cups into a key; a voltmeter joined them.
+    The relationship being tested is the same.'
   - An ammeter measures current (I, ampere). A voltmeter measures potential difference
     (V, volt).
   - The nichrome wire XY is the test conductor; X and Y are its two ends.

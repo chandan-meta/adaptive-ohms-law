@@ -29,8 +29,8 @@ namespace OhmsLaw
         [Tooltip("Scene 9: add \"Your prediction: ...\" from Scene 6 under the reminder card.")] public bool showLearnerPrediction;
         [Tooltip("Scene 12: the tunnel narrows while the material opposes the flow (a metaphor, not real geometry).")] public bool narrowingMetaphor = true;
         [Tooltip("Scene 12: keep the table and graph inside the wire instead of cutting back to the bench.")] public bool tableInWire;
-        [Tooltip("Scene 13: run the adaptive checkpoint.")] public bool checkpointEnabled = true;
-        [TextArea] public string checkpointPlacement = "Scene 13 beat 4: after the OHM'S LAW title card, before S13_L07.";
+        [Tooltip("Scenes 12-13: ask the storyboard's adaptive questions (S12_AQ1 = AQ1 / AQ_EASY, S13_AQ2 = AQ2).")] public bool checkpointEnabled = true;
+        [TextArea] public string checkpointPlacement = "AQ1: Scene 12 gate S12_AQ1, after resistance is defined. AQ2: Scene 13 gate S13_AQ2, after V = IR. (The end-of-module S13_Checkpoint cluster is gone.)";
 
         [Header("Scene parts")]
         public WattsonController wattson;
@@ -43,6 +43,7 @@ namespace OhmsLaw
         public AudioClip click, pop;
 
         RectTransform prompt;
+        string promptText = "";
         Slider slider;
         CalloutLayer callouts; // screen-space callouts; created under the module canvas on first use, persists across scenes
 
@@ -54,7 +55,7 @@ namespace OhmsLaw
             Speaking = null;
             Gate = null;
             bool matchCut = !string.IsNullOrEmpty(matchCutFrom) && SceneHandoffState.fromScene == matchCutFrom;
-            if (matchCut && rig) rig.state = SceneHandoffState.circuit; // readings carry across 9 -> 10 -> 11 -> 12 -> 13
+            if (matchCut && rig) rig.Restore(SceneHandoffState.circuit); // readings carry across 9 -> 10 -> 11 -> 12 -> 13
             if (entryCamera && SceneHandoffState.hasCamera && matchCut)
             {
                 entryCamera.transform.SetPositionAndRotation(SceneHandoffState.cameraPosition, SceneHandoffState.cameraRotation);
@@ -64,9 +65,13 @@ namespace OhmsLaw
             }
         }
 
+        // The slider mirrors the rig (cues and Ask Wattson move the knob too) and takes input only while an activity has
+        // opened the controls.
         void Update()
         {
-            if (slider && rig) slider.SetValueWithoutNotify(rig.state.voltage);
+            if (!slider || !rig) return;
+            slider.SetValueWithoutNotify(rig.state.voltage);
+            if (slider.interactable != rig.controlsOpen) slider.interactable = rig.controlsOpen;
         }
 
         public void OnNotify(Playable origin, INotification notification, object context)
@@ -81,6 +86,7 @@ namespace OhmsLaw
             Gate = gate.gateId;
             if (Flow) Flow.SetPaused(ModuleFlow.PauseReason.Hold, true);
             yield return RunGate(gate);
+            if (rig) { rig.controlsOpen = false; rig.targetAmps = -1f; } // whatever the gate did, cue-driven time follows
             Gate = null;
             if (Flow) Flow.SetPaused(ModuleFlow.PauseReason.Hold, false);
         }
@@ -108,6 +114,16 @@ namespace OhmsLaw
             if (SubtitleUI.Instance) SubtitleUI.Instance.Hide(this);
             Speaking = null;
             yield return new WaitForSeconds(0.3f);
+        }
+
+        // Cuts a line started with StartCoroutine(Say(line)) short, e.g. a question the learner has already answered.
+        void StopSaying(Coroutine saying, DialogueLine line)
+        {
+            if (saying == null || Speaking != line) return;
+            StopCoroutine(saying);
+            if (voice) voice.Stop();
+            if (SubtitleUI.Instance) SubtitleUI.Instance.Hide(this);
+            Speaking = null;
         }
 
         // ------------------------------------------------------------------ Timeline cues
@@ -198,7 +214,7 @@ namespace OhmsLaw
             // The cue runs under the white: Wattson is already beside the board when it clears (the spring flight back
             // from the wire would still be crossing the table).
             var spot = Ref("Boards Point");
-            if (wattson && spot) { wattson.MoveTo(spot.transform); wattson.transform.position = spot.transform.position; }
+            if (wattson && spot) wattson.Warp(spot.transform); // settled, no leftover spring velocity from the flight
         }
 
         // Scene 9 reminder card, with the learner's own prediction when that toggle is on.
@@ -317,6 +333,7 @@ namespace OhmsLaw
         // An empty text clears the prompt; the pill fades out by itself.
         void Prompt(string text)
         {
+            promptText = text ?? "";
             if (prompt) { if (prompt.TryGetComponent(out UIFade fade)) fade.Dismiss(); else Destroy(prompt.gameObject); }
             prompt = null;
             if (string.IsNullOrEmpty(text) || !Flow) return;
@@ -375,8 +392,8 @@ namespace OhmsLaw
             slider.maxValue = 5;
             slider.wholeNumbers = false; // the carried 0.5 V sits between the ticks; the listener snaps to whole volts
             slider.SetValueWithoutNotify(rig.state.voltage);
-            slider.onValueChanged.AddListener(volts => slider.SetValueWithoutNotify(rig.SetVoltage(Mathf.Round(volts))));
-            rig.VoltageChanged += v => { if (slider) slider.SetValueWithoutNotify(v); }; // Ask Wattson and cues move the knob too
+            slider.interactable = rig.controlsOpen;
+            slider.onValueChanged.AddListener(volts => slider.SetValueWithoutNotify(rig.controlsOpen ? rig.SetVoltage(Mathf.Round(volts)) : rig.state.voltage));
         }
 
         // Record / x2: a UI.Button in the blue accent.
@@ -426,6 +443,7 @@ namespace OhmsLaw
         {
             if (prompt) Destroy(prompt.gameObject);
             if (slider) Destroy(slider.gameObject);
+            if (readings) Destroy(readings.gameObject); // the HUD variant lives on the module canvas, which outlives the scene
         }
     }
 }

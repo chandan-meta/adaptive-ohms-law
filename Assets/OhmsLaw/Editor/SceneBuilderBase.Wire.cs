@@ -5,15 +5,17 @@ using TMPro;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace OhmsLaw.Editor
 {
     // Stage kit: the electron space (Scenes 5, 6, 12), built to Docs/Polish/References/Scene05_terminals_electrons_L04.png.
-    // A dark-blue void with a reflective, faintly gridded floor; a translucent conduit (the wire, r 0.6 m, 9.8 m along +X)
-    // slightly above eye level between two brushed-metal terminal blocks: − with a cyan-lit disc at the −X end, + with a
-    // red-lit disc at the +X end. Electrons are glowing cyan "−" spheres: carriers inside the conduit plus ambient ones in
-    // three depth layers of the "Wire Inside" frame. Wattson stands lower-left on the floor at "Platform Point". Scene 12
-    // reuses the set in nichrome grey-green with the ion lattice inside the conduit.
+    // A dark-blue void with a reflective, faintly gridded floor; a translucent conduit (the inside of the wire, r 0.6 m,
+    // 9.8 m along +X) slightly above eye level between two brushed-metal terminal blocks: − with a cyan-lit disc at the
+    // −X end, + with a red-lit disc at the +X end, each labelled in words too. The free electrons are a small sample of
+    // glowing "−" spheres inside the conduit only (none in the empty space around it), two of them with a short trail.
+    // Wattson stands lower-left on the floor at "Platform Point". Scene 12 reuses the set in nichrome grey-green with
+    // the ion lattice inside the conduit.
     public abstract partial class SceneBuilderBase
     {
         // ------------------------------------------------------------------ the set
@@ -51,40 +53,34 @@ namespace OhmsLaw.Editor
             return WireCamPos + forward * depth + right * (x * depth * tanHalfFov * aspect) + up * (y * depth * tanHalfFov);
         }
 
-        // Concept cards above the conduit: side -1 (VOLTAGE, upper-left) or +1 (CURRENT, upper-right, under the HUD), one depth so they read at one size.
-        protected static Vector3 WireCardPosition(int side, float depth = WireCardDepth) => WireFramePoint(side * 0.5f, side < 0 ? 0.58f : 0.5f, depth);
+        // Depth of a point along the "Wire Inside" view, and the cap that reads at `px` there.
+        protected static float WireDepth(Vector3 world) => Vector3.Dot(world - WireCamPos, (WireCamLook - WireCamPos).normalized);
+        protected static float WireCap(float px, Vector3 world) => WorldText.CapForScreenPx(px, WireDepth(world), WireFov);
+
+        // Concept cards above the conduit: side -1 (VOLTAGE, upper-left, clear of the − badge) or +1 (CURRENT, upper-right,
+        // under the HUD row), one depth so they read at one size.
+        protected static Vector3 WireCardPosition(int side, float depth = WireCardDepth) => WireFramePoint(side < 0 ? -0.4f : 0.5f, side < 0 ? 0.58f : 0.44f, depth);
         protected static Vector3 WireQuestionPos => WireFramePoint(0, 0.56f, WireQuestionDepth);     // "WHAT MAKES CHARGE FLOW?", above the conduit
         protected static Vector3 WireResistancePos => WireFramePoint(0.08f, -0.1f, 4.5f);            // "RESISTANCE" (Scene 12), under the conduit right of Wattson; "Symbol: R" goes 0.5 m under it
+        protected static Vector3 WireReadoutPos => WireFramePoint(0.32f, -0.3f, 4.5f);               // Scene 12's bench readings: under the conduit, right of Wattson, above the subtitles
 
-        // terminalsOn: the badges start lit (Scenes 6 and 12); Scene 5 shows them with its "terminals appear" beat.
+        // terminalsOn: the badges and their labels start lit (Scenes 6 and 12); Scene 5 shows them with its "terminals" beat.
         protected WireInterior WireStage(Color tint, bool lattice, bool active = true, bool terminalsOn = false)
         {
             string hex = ColorUtility.ToHtmlStringRGB(tint);
             bool nichrome = lattice; // Scene 12's wire: nichrome grey-green tints the glass, the void and the grid
-            Color glass = Color.Lerp(ConduitBlue, tint, nichrome ? 0.7f : 0f);
-            glass.a = nichrome ? 0.16f : 0.12f;
-            Color space = Color.Lerp(SpaceBlue, tint * 0.3f, nichrome ? 0.5f : 0f);
-            Color grid = Color.Lerp(ConduitBlue, tint, nichrome ? 0.6f : 0f);
+            Color glass = Color.Lerp(ConduitBlue, tint, nichrome ? 0.85f : 0f);
+            glass.a = nichrome ? 0.22f : 0.12f;
+            Color space = Color.Lerp(SpaceBlue, tint * 0.45f, nichrome ? 0.7f : 0f);
+            Color grid = Color.Lerp(ConduitBlue, tint, nichrome ? 0.85f : 0f);
 
             var section = Node("Wire Section", null, WireOrigin);
             var wire = section.AddComponent<WireInterior>();
-            wire.materialTint = tint;
             wire.conduitColor = glass;
             wire.latticeVisibility = lattice ? 1 : 0;
             wire.tunnelRadius = TunnelRadius;
             wire.length = TunnelLength;
-            wire.count = 150;
-            wire.floorY = SpaceFloorY;
-            wire.spaceEye = WireCamPos - WireOrigin;
-            wire.spaceForward = (WireCamLook - WireCamPos).normalized;
-            wire.spaceFov = WireFov;
-            // Ambient electrons: few and large near the lens (DoF blurs them), many and small far away; perspective does the rest.
-            wire.spaceLayers = new[]
-            {
-                new WireInterior.SpaceLayer { near = 1.0f, far = 2.4f, count = 16, size = 0.3f },
-                new WireInterior.SpaceLayer { near = 2.4f, far = 6.0f, count = 84, size = 0.26f },
-                new WireInterior.SpaceLayer { near = 6.0f, far = 14f, count = 150, size = 0.24f },
-            };
+            wire.count = 49; // 5 per metre: a sample small enough to follow one electron; the counter reads whole numbers
 
             // Atmosphere and lights (the lighting node joins the section so Scene 12 shows and hides it with the dive; the
             // RenderSettings live on WireInterior, applied in OnEnable and restored in OnDisable). A scene that opens in
@@ -119,11 +115,11 @@ namespace OhmsLaw.Editor
             wire.bands = new[] { -3.6f, 2.0f }.Select(x => WireRing("Band", set.transform, new Vector3(x, 0, 0), 1.04f, bandMesh, steel)).ToArray();
 
             // Terminals: − near-left with its disc on the front face at the conduit's height, + far-right with its disc on the
-            // face the conduit enters, below it (so the "boost" cue can grow it 1.5× without touching the glass).
+            // face the conduit enters, below it. The − disc is no bigger than it must be: at 0.72 m it read as a giant electron.
             var minus = WireTerminal(set.transform, "−", MinusBlock - WireOrigin, new Vector3(1.8f, 3.4f, 1.8f),
-                new Vector3(0, 0, -0.9f), Vector3.back, 0.72f, MinusTint, 4f, steel, trim);
+                new Vector3(0, 0, -0.9f), Vector3.back, 0.52f, MinusTint, 2.5f, steel, trim);
             var plus = WireTerminal(set.transform, "+", PlusBlock - WireOrigin, new Vector3(1.6f, 2.7f, 1.6f),
-                new Vector3(-0.8f, -0.9f, 0), Vector3.left, 0.4f, PlusTint, 3.5f, steel, trim);
+                new Vector3(-0.8f, -0.9f, 0), Vector3.left, 0.45f, PlusTint, 3.5f, steel, trim);
             minus.SetActive(terminalsOn);
             plus.SetActive(terminalsOn);
             var cableDark = Lit("Wire_CableDark", new Color(0.05f, 0.06f, 0.09f), 0.1f, 0.7f);
@@ -133,12 +129,20 @@ namespace OhmsLaw.Editor
             Polyline("Cable", set.transform, cableRed, 0.1f, false, false, p + new Vector3(0.5f, 1.42f, 0.3f), p + new Vector3(1.3f, 1.75f, 0.1f), p + new Vector3(2.8f, 1.6f, -0.4f), p + new Vector3(4.4f, 0.9f, -1.2f), p + new Vector3(5.6f, -0.4f, -2.0f));
             foreach (var t in set.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = ReflectedLayer;
 
-            // Electrons: one particle system for the carriers and the space layers (they depth-sort together); lattice ions apart.
-            wire.carriers = Particles("Carriers", section.transform, BlockoutAssets.ChargeMaterial(ElectronTint), 400);
-            wire.lattice = Particles("Lattice Ions", section.transform, BlockoutAssets.ChargeMaterial(Color.white, ion: true), 200);
-            Ref(wire.lattice.gameObject);
+            // Each terminal is named in words as well as by its sign and colour: "− negative" under the − disc on the block's
+            // front; "+ positive" on the + block's front beside the conduit's entry (its disc sits low on the side face,
+            // just over the floor), above Scene 6's gauge and right of the CURRENT card. Dark backings keep them readable.
+            WireTerminalLabel(section.transform, "−", "− negative", MinusTint, MinusBlock + new Vector3(0, -0.85f, -0.96f), terminalsOn);
+            WireTerminalLabel(section.transform, "+", "+ positive", PlusTint, PlusBlock + new Vector3(-0.3f, 0.35f, -0.86f), terminalsOn);
 
-            // Cross-section: a thin glowing ring around the conduit; carriers flash white as they pass through it.
+            // Electrons: the carriers, two of them traced; the lattice ions apart, drawn first so the electrons stay on top.
+            wire.carriers = Particles("Carriers", section.transform, BlockoutAssets.ChargeMaterial(ElectronTint), 64);
+            wire.lattice = Particles("Lattice Ions", section.transform, BlockoutAssets.ChargeMaterial(Color.white, ion: true), 200);
+            wire.lattice.GetComponent<ParticleSystemRenderer>().sortingFudge = 5f;
+            Ref(wire.lattice.gameObject);
+            wire.trails = WireTrails(section.transform, 2);
+
+            // Cross-section: a thin glowing ring around the conduit; counted electrons flash as they pass through it.
             var cross = WireRing("Cross Section", section.transform, new Vector3(CrossSectionX, 0, 0), 1.1f, Torus("WireCrossRing", 0.014f), Glow("Glow_WireCrossRing", Hdr(ElectronTint, 3f), softTexture: false));
             cross.gameObject.SetActive(false);
             wire.crossSection = Ref(cross.gameObject).transform;
@@ -149,6 +153,7 @@ namespace OhmsLaw.Editor
             Face(Marker("Concept Right", WireCardPosition(+1)));
             Marker("Platform Point", PlatformPoint);
             Marker("Wall Point", WallPoint);
+            Marker("Electrons Point", WireOrigin + new Vector3(-1.8f, 0f, -TunnelRadius)); // the near side of the stream, up and right of Wattson
             Marker("Wire Focus Point", PlatformPoint + new Vector3(0.3f, 0.2f, 0));
             Vcam("Wire Inside", WireCamPos, WireCamLook, WireFov, refs["Platform Point"].transform, lensMedium);
             Vcam("Wire Wattson", WireWattsonCam, WireWattsonLook, 44, refs["Platform Point"].transform, lensMedium);
@@ -165,11 +170,74 @@ namespace OhmsLaw.Editor
             return wire;
         }
 
-        // Turns a card toward the wire camera so it reads correctly.
-        protected void Face(GameObject card, Vector3? from = null)
+        // Wire cards stand parallel to the "Wire Inside" screen (aimed at the lens, an off-centre card was keystoned ~8°);
+        // with `from`, the card turns toward that eye instead.
+        protected void Face(GameObject card, Vector3? from = null) =>
+            card.transform.rotation = from.HasValue ? Quaternion.LookRotation(card.transform.position - from.Value) : Quaternion.LookRotation(WireCamLook - WireCamPos);
+
+        // "Card Terminal Label <sign>": the terminal's name, with its sign, on a dark backing, in the section (it shows and
+        // hides with the electron space); shown with its badge.
+        void WireTerminalLabel(Transform section, string sign, string text, Color tint, Vector3 position, bool shown)
         {
-            Vector3 eye = from ?? WireCamPos;
-            card.transform.rotation = Quaternion.LookRotation(card.transform.position - eye);
+            var label = Card("Terminal Label " + sign, text, Color.Lerp(tint, Color.white, 0.35f), section, position - WireOrigin, WireCap(WorldText.Px.Small, position), WorldText.Look.Panel, shown, sparks: false);
+            Face(label);
+        }
+
+        // The tracer electrons' trails: thin, fading toward the tail, in the section's space (WireInterior feeds the points).
+        LineRenderer[] WireTrails(Transform section, int count)
+        {
+            var material = Glow("Glow_WireTrail", Hdr(ElectronTint, 1.6f), softTexture: false);
+            var gradient = new Gradient();
+            gradient.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) },
+                new[] { new GradientAlphaKey(0f, 0), new GradientAlphaKey(0.7f, 1) });
+            var lines = new LineRenderer[count];
+            for (int k = 0; k < count; k++)
+            {
+                var line = Polyline("Trail " + (k + 1), section, material, 0.06f, false, false);
+                line.widthCurve = AnimationCurve.Linear(0, 0.15f, 1, 1f);
+                line.colorGradient = gradient;
+                line.numCapVertices = 0;
+                lines[k] = line;
+            }
+            return lines;
+        }
+
+        // Scene 12: the bench's live readings beside the stream ("Wire Readout"), V in voltage blue and I in current
+        // amber over "bench meters", on a dark panel; WireInterior writes the rig's values. Starts hidden.
+        protected GameObject WireReadout(WireInterior wire, CircuitRig rig)
+        {
+            Vector3 at = WireReadoutPos;
+            float cap = WireCap(WorldText.Px.Medium, at), small = WireCap(WorldText.Px.Small, at);
+            float advance = WorldText.LineAdvance(palette.font, cap, WorldText.ProseLineSpacing);
+            var root = Node("Wire Readout", refs["Wire Section"].transform, at - WireOrigin); // shows and hides with the section
+            Face(root);
+            wire.rig = rig;
+            wire.readoutVolts = WorldText.Card("Volts", "V = 0.0 V", palette.voltage, root.transform, new Vector3(0, advance * 0.5f, 0), cap);
+            wire.readoutAmps = WorldText.Card("Amps", "I = 0.00 A", palette.current, root.transform, new Vector3(0, -advance * 0.5f, 0), cap);
+            var caption = WorldText.Card("Caption", "bench meters", Color.white, root.transform, new Vector3(0, -advance * 0.5f - cap * 0.6f - small * 1.4f, 0), small);
+            foreach (var text in new[] { wire.readoutVolts, wire.readoutAmps, caption }) text.sortingOrder = 1;
+            float width = Mathf.Max(wire.readoutAmps.textBounds.size.x, wire.readoutVolts.textBounds.size.x) + cap * 1.6f;
+            float top = advance * 0.5f + cap * 0.9f, bottom = -advance * 0.5f - cap * 0.6f - small * 2.2f;
+            WirePanel(root.transform, new Vector3(0, (top + bottom) / 2, 0.02f), new Vector2(width, top - bottom), cap);
+            root.SetActive(false);
+            return Ref(root);
+        }
+
+        // Scene 5, after the drift question: one faint arrow just under the conduit, pointing from the − end toward the +
+        // end, captioned "electron drift" (electrons, never conventional current). "Drift Arrow"; starts hidden.
+        protected GameObject WireDriftArrow()
+        {
+            float y = -TunnelRadius - 0.32f, z = -0.25f;
+            var root = Node("Drift Arrow", null, WireOrigin + new Vector3(-0.2f, y, z));
+            var glow = Glow("Glow_WireDriftArrow", Hdr(ElectronTint, 1.3f), softTexture: false);
+            Vector3 tail = new Vector3(-2.2f, 0, 0), tip = new Vector3(2.2f, 0, 0);
+            Polyline("Shaft", root.transform, glow, 0.035f, false, false, tail, tip);
+            Polyline("Head", root.transform, glow, 0.035f, false, false, tip + new Vector3(-0.28f, 0.17f, 0), tip, tip + new Vector3(-0.28f, -0.17f, 0));
+            Vector3 labelAt = root.transform.position + new Vector3(0, -0.3f, 0);
+            var label = WorldText.Card("Label", "electron drift", Color.Lerp(ElectronTint, Color.white, 0.4f), root.transform, new Vector3(0, -0.3f, 0), WireCap(WorldText.Px.Small, labelAt));
+            label.transform.rotation = Quaternion.LookRotation(WireCamLook - WireCamPos);
+            root.SetActive(false);
+            return Ref(root);
         }
 
         // Static particle system whose particles a script places (carriers, lattice ions).
@@ -192,26 +260,29 @@ namespace OhmsLaw.Editor
             return ps;
         }
 
-        // Scene 5: two points on the conduit light up with a dashed glowing line between them at the conduit's height (the
-        // potential difference between them). Registered as `name` with "Point A" / "Point B" children; starts hidden.
-        // The defaults sit on the near surface right of the cross-section, clear of Wattson and of both concept cards.
+        // Scene 5: two points on the conduit light up, with a dashed bracket between them just under the conduit and a tick
+        // up to each point (the potential difference between them). Voltage blue at a glow that keeps its hue under the
+        // bloom; the line sits below the stream so the electrons never hide it. Registered as `name` with "Point A" /
+        // "Point B" children; starts hidden. The defaults sit on the near surface right of the cross-section, clear of
+        // Wattson and of both concept cards.
         protected GameObject WireBracket(Vector3? a = null, Vector3? b = null, string name = "Bracket")
         {
-            float z = -TunnelRadius - 0.04f;
+            float z = -TunnelRadius - 0.04f, below = -TunnelRadius - 0.15f;
             Vector3 pa = a ?? WireOrigin + new Vector3(0.6f, 0, z), pb = b ?? WireOrigin + new Vector3(3.6f, 0, z);
             var root = Node(name, null, (pa + pb) / 2);
-            var glow = Glow("Glow_WireBracket", Hdr(palette.voltage, 2.6f), softTexture: false);
+            var glow = Glow("Glow_WireBracket", Hdr(palette.voltage, 1.3f), softTexture: false);
             var halo = Glow("Glow_WireBracketHalo", new Color(palette.voltage.r, palette.voltage.g, palette.voltage.b, 0.5f));
             Vector3 Local(Vector3 world) => world - root.transform.position;
+            Vector3 Under(Vector3 world) => Local(new Vector3(world.x, WireOrigin.y + below, world.z));
             foreach (var (label, pt) in new[] { ("Point A", pa), ("Point B", pb) })
             {
-                var point = Ref(Prim(PrimitiveType.Sphere, label, root.transform, Local(pt), Vector3.one * 0.14f, glow));
-                Face(Prim(PrimitiveType.Quad, "Halo", point.transform, Vector3.zero, Vector3.one * 4f, halo));
-                Polyline("Tick", root.transform, glow, 0.025f, false, false, Local(pt) + Vector3.up * 0.28f, Local(pt) - Vector3.up * 0.28f);
+                var point = Ref(Prim(PrimitiveType.Sphere, label, root.transform, Local(pt), Vector3.one * 0.22f, glow));
+                Face(Prim(PrimitiveType.Quad, "Halo", point.transform, Vector3.zero, Vector3.one * 3f, halo));
+                Polyline("Tick", root.transform, glow, 0.05f, false, false, Local(pt), Under(pt));
             }
             int dashes = Mathf.Max(2, Mathf.RoundToInt((pb - pa).magnitude / 0.25f));
             for (int i = 0; i < dashes; i++)
-                Polyline("Dash", root.transform, glow, 0.025f, false, false, Local(Vector3.Lerp(pa, pb, (i + 0.15f) / dashes)), Local(Vector3.Lerp(pa, pb, (i + 0.6f) / dashes)));
+                Polyline("Dash", root.transform, glow, 0.05f, false, false, Under(Vector3.Lerp(pa, pb, (i + 0.15f) / dashes)), Under(Vector3.Lerp(pa, pb, (i + 0.6f) / dashes)));
             root.SetActive(false);
             return Ref(root);
         }
@@ -219,6 +290,7 @@ namespace OhmsLaw.Editor
         // Real effect for a "[VFX] <name>" cue: plays when the object is enabled, so the scene's show/hide cues drive it.
         // Known names get their designed effect, anything else a spark burst. Position is local to `parent` (world when
         // none; the set's own default when omitted). The field wave always starts at the − end and sweeps the whole conduit.
+        // Kept restrained (one effect at a time, few sparks), and calmer still with reduced motion (ReducedMotionFx).
         protected GameObject WireFx(string name, Vector3? position = null, Transform parent = null)
         {
             string full = "[VFX] " + name;
@@ -259,14 +331,13 @@ namespace OhmsLaw.Editor
             {
                 // Electrons gather onto the question card's plane (faced to the camera, so the box is wide in X).
                 Face(go);
-                WireGather(t, glyph, new Vector3(WireQuestionWidth, 1.4f, 0.6f), new ParticleSystem.MinMaxCurve(0.08f, 0.16f));
-                WireBurst(t, "Sparks", spark, 60, 1.2f, 0.3f);
+                WireGather(t, glyph, new Vector3(WireQuestionWidth, 1.4f, 0.6f), new ParticleSystem.MinMaxCurve(0.08f, 0.16f), 70);
             }
             else if (name.StartsWith("field wave"))
             {
-                // ONE ring of light sweeps − → + along the whole conduit in 0.4 s while the whole volume shimmers at once:
-                // the field is set up everywhere together, nothing is pushed from one end.
-                Emitter("Ring", t, Vector3.zero, Glow("Glow_WireWave", Hdr(charge, 4f), softTexture: false), ps =>
+                // ONE faint ring of light sweeps − → + along the whole conduit in 0.4 s while a light shimmer covers the whole
+                // volume at once: the field is set up everywhere together, nothing is pushed from one end.
+                Emitter("Ring", t, Vector3.zero, Glow("Glow_WireWave", Hdr(charge, 2.2f), softTexture: false), ps =>
                 {
                     ps.transform.localRotation = Quaternion.Euler(0, 90, 0); // emits along +X; the torus lies across the conduit
                     var main = ps.main;
@@ -293,11 +364,11 @@ namespace OhmsLaw.Editor
                     main.duration = 0.5f;
                     main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.6f);
                     main.startSpeed = 0;
-                    main.startSize = new ParticleSystem.MinMaxCurve(0.06f, 0.16f);
-                    main.maxParticles = 200;
+                    main.startSize = new ParticleSystem.MinMaxCurve(0.05f, 0.12f);
+                    main.maxParticles = 80;
                     var emission = ps.emission;
                     emission.rateOverTime = 0;
-                    emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 160) });
+                    emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 60) });
                     var shape = ps.shape;
                     shape.shapeType = ParticleSystemShapeType.Box;
                     shape.scale = new Vector3(TunnelLength, TunnelRadius * 1.9f, TunnelRadius * 1.9f);
@@ -332,9 +403,9 @@ namespace OhmsLaw.Editor
                     main.startLifetime = new ParticleSystem.MinMaxCurve(1f, 2f);
                     main.startSpeed = 0.05f;
                     main.startSize = new ParticleSystem.MinMaxCurve(0.02f, 0.06f);
-                    main.maxParticles = 160;
+                    main.maxParticles = 80;
                     var emission = ps.emission;
-                    emission.rateOverTime = 50;
+                    emission.rateOverTime = 25;
                     var shape = ps.shape;
                     shape.shapeType = ParticleSystemShapeType.Box;
                     shape.scale = new Vector3(TunnelLength, TunnelRadius * 2.8f, TunnelRadius * 2.8f);
@@ -361,7 +432,7 @@ namespace OhmsLaw.Editor
                     size.enabled = true;
                     size.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0, 1, 1, 0.2f));
                 });
-                WireBurst(t, "Sparks", flash, 90, 0f, 0.15f, 1.5f, 4.5f);
+                WireBurst(t, "Sparks", flash, 40, 0f, 0.15f, 1.5f, 4.5f);
             }
             else if (name.StartsWith("carriers impeded"))
             {
@@ -371,10 +442,10 @@ namespace OhmsLaw.Editor
                     var main = ps.main;
                     main.startLifetime = new ParticleSystem.MinMaxCurve(0.12f, 0.3f);
                     main.startSpeed = new ParticleSystem.MinMaxCurve(0.15f, 0.45f);
-                    main.startSize = new ParticleSystem.MinMaxCurve(0.03f, 0.08f);
-                    main.maxParticles = 120;
+                    main.startSize = new ParticleSystem.MinMaxCurve(0.05f, 0.12f);
+                    main.maxParticles = 80;
                     var emission = ps.emission;
-                    emission.rateOverTime = 70;
+                    emission.rateOverTime = 45;
                     var shape = ps.shape;
                     shape.shapeType = ParticleSystemShapeType.Box;
                     shape.scale = new Vector3(TunnelLength * 0.95f, TunnelRadius * 1.6f, TunnelRadius * 1.6f);
@@ -384,11 +455,12 @@ namespace OhmsLaw.Editor
             {
                 Face(go);
                 var coral = Glow("Glow_WireCollide", Hdr(palette.resistance, 3.5f));
-                WireGather(t, coral, new Vector3(3.2f, 0.9f, 0.6f), new ParticleSystem.MinMaxCurve(0.05f, 0.12f));
-                WireBurst(t, "Sparks", coral, 60, 1.2f, 0.3f);
+                WireGather(t, coral, new Vector3(3.2f, 0.9f, 0.6f), new ParticleSystem.MinMaxCurve(0.05f, 0.12f), 100);
+                WireBurst(t, "Sparks", coral, 30, 1.2f, 0.3f);
             }
             else WireBurst(t, "Burst", spark, 60, 0f, 0.3f);
 
+            go.AddComponent<ReducedMotionFx>();
             go.SetActive(false);
             return Ref(go);
         }
@@ -405,7 +477,7 @@ namespace OhmsLaw.Editor
         }
 
         // Particles drift inward from a box onto its centre for 2.4 s: "the word forms from them".
-        void WireGather(Transform parent, Material material, Vector3 box, ParticleSystem.MinMaxCurve size) =>
+        void WireGather(Transform parent, Material material, Vector3 box, ParticleSystem.MinMaxCurve size, float rate) =>
             Emitter("Gather", parent, Vector3.zero, material, ps =>
             {
                 var main = ps.main;
@@ -416,7 +488,7 @@ namespace OhmsLaw.Editor
                 main.startSize = size;
                 main.maxParticles = 400;
                 var emission = ps.emission;
-                emission.rateOverTime = 140;
+                emission.rateOverTime = rate;
                 var shape = ps.shape;
                 shape.shapeType = ParticleSystemShapeType.Box;
                 shape.scale = box;
@@ -446,9 +518,11 @@ namespace OhmsLaw.Editor
 
         // ------------------------------------------------------------------ the set's pieces
 
-        // Dark-blue void: fog, flat ambient and background in the space colour; a cool directional key from the front-left
-        // (soft shadows: Wattson's contact shadow on the floor, the highlight along the glass), a warm fill by Wattson, the
-        // global ACES/bloom volume (bloom 1.0). The terminal glow lights live in the badges so they switch on with them.
+        // Dark-blue void: fog and flat ambient in the space colour, the background a little lighter so the far slabs read as
+        // silhouettes; a cool directional key from the front-left (soft shadows: Wattson's contact shadow on the floor, the
+        // highlight along the glass; warm grey in nichrome), a warm fill on Wattson only (on the floor it was a hot spot in
+        // the subtitle band), the global ACES/bloom volume (bloom 1.0, light grain). The terminal glow lights live in the
+        // badges so they switch on with them.
         void WireLights(Transform section, Color space, bool nichrome)
         {
             RenderSettings.skybox = null;
@@ -458,12 +532,12 @@ namespace OhmsLaw.Editor
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogColor = space;
             RenderSettings.fogDensity = 0.07f;
-            camera.backgroundColor = space;
+            camera.backgroundColor = space * 1.3f;
             var root = Node("Lighting", section).transform;
             var key = Node("Space Key", root).AddComponent<Light>();
             key.type = LightType.Directional;
             key.transform.rotation = Quaternion.Euler(50, -20, 0);
-            key.color = new Color(0.72f, 0.82f, 1f);
+            key.color = nichrome ? new Color(0.86f, 0.85f, 0.78f) : new Color(0.72f, 0.82f, 1f);
             key.intensity = nichrome ? 0.4f : 0.55f;
             key.shadows = LightShadows.Soft;
             key.shadowStrength = 0.75f;
@@ -473,7 +547,14 @@ namespace OhmsLaw.Editor
             warm.intensity = 1.4f;
             warm.range = 4f;
             warm.shadows = LightShadows.None;
+            warm.cullingMask = ~(1 << ReflectedLayer); // Wattson, not the glossy floor
             GlobalPost(root, "Electron_Global", bloom: 1.0f, vignette: 0.3f, exposure: 0.1f);
+            Profile("Electron_Global", p => // less grain: it crawled over the dark void and the glows
+            {
+                var grain = Override<FilmGrain>(p);
+                grain.type.Override(FilmGrainLookup.Thin1);
+                grain.intensity.Override(0.1f);
+            });
             foreach (var volume in root.GetComponentsInChildren<Volume>(true)) volume.priority = 1; // beats a lab volume while the section is active
         }
 
@@ -486,11 +567,11 @@ namespace OhmsLaw.Editor
             {
                 mat.SetColor("_BaseColor", Color.Lerp(new Color(0.03f, 0.055f, 0.11f), space, 0.3f));
                 mat.SetFloat("_Metallic", 0.15f);
-                mat.SetFloat("_Smoothness", 0.9f);
+                mat.SetFloat("_Smoothness", 0.8f);
                 mat.SetTextureScale("_BaseMap", new Vector2(44, 44)); // the 44 m plane: one grid cell per metre
                 mat.EnableKeyword("_EMISSION");
                 mat.SetTexture("_EmissionMap", texture);
-                mat.SetColor("_EmissionColor", grid * 0.45f);
+                mat.SetColor("_EmissionColor", grid * 0.2f); // a faint grid, not a bright Tron floor under the action
                 mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             });
             Prim(PrimitiveType.Plane, "Floor", section, new Vector3(0, SpaceFloorY, 2f), new Vector3(4.4f, 1, 4.4f), floor);
@@ -515,14 +596,14 @@ namespace OhmsLaw.Editor
         // Far, matte slabs in the fog: the faint architecture behind the set that gives the void depth.
         void WireSilhouettes(Transform section, Color space)
         {
-            var slab = Lit("Wire_Silhouette", Color.Lerp(space, Color.white, 0.12f), 0.2f, 0.35f);
+            var slab = Lit("Wire_Silhouette", Color.Lerp(space, Color.white, 0.2f), 0.2f, 0.35f);
             foreach (var (x, z, w, h) in new[] { (-9.5f, 10f, 2.2f, 5.4f), (-5.5f, 12.5f, 3.0f, 7.4f), (-1.2f, 11f, 1.4f, 4.2f), (3.5f, 13f, 2.6f, 6.6f), (8f, 10.5f, 2f, 5f), (12.5f, 12.5f, 3.4f, 8f) })
                 Prim(PrimitiveType.Cube, "Silhouette", section, new Vector3(x, SpaceFloorY + h / 2, z), new Vector3(w, h, w * 0.7f), slab);
         }
 
         // A terminal: brushed-steel block standing on the floor with a dark cap and a glowing edge line, and its badge: a
-        // steel puck on `face` (local centre on the block's surface, `normal` outward) with a lit disc, a dark glyph, a soft
-        // halo and the glow light. The badge is the GameObject "Card Terminal <sign>" so the scenes' show/boost cues and the
+        // steel puck on `face` (local centre on the block's surface, `normal` outward) with a saturated lit disc, a bright
+        // white sign, a soft halo behind the disc and the glow light. The badge is the GameObject "Card Terminal <sign>" so the scenes' show/boost cues and the
         // point gesture work on it; it starts hidden unless WireStage lights it.
         GameObject WireTerminal(Transform section, string sign, Vector3 centre, Vector3 size, Vector3 face, Vector3 normal, float radius, Color tint, float light, Material steel, Material trim)
         {
@@ -531,7 +612,7 @@ namespace OhmsLaw.Editor
             Prim(PrimitiveType.Cube, "Block", block.transform, Vector3.zero, size, steel);
             Prim(PrimitiveType.Cube, "Cap", block.transform, new Vector3(0, size.y / 2 + 0.05f, 0), new Vector3(size.x + 0.12f, 0.1f, size.z + 0.12f), trim);
             Prim(PrimitiveType.Cube, "Edge Light", block.transform, new Vector3(0, size.y / 2 + 0.1f, -(size.z / 2 + 0.06f)), new Vector3(size.x + 0.12f, 0.025f, 0.025f),
-                Glow("Glow_WireEdge", Hdr(ElectronTint, 1.6f), softTexture: false)); // neutral: the block is lit before its terminal "appears"
+                Glow("Glow_WireEdge", Hdr(ElectronTint, 0.6f), softTexture: false)); // neutral and faint: the block is lit before its terminal "appears"
 
             var badge = Node("Card Terminal " + sign, block.transform, face);
             badge.transform.localRotation = Quaternion.LookRotation(normal); // local +Z = outward
@@ -539,13 +620,13 @@ namespace OhmsLaw.Editor
             var rim = WireMesh("Rim", badge.transform, Torus("WireBadgeRim", 0.05f), Lit("Wire_SteelBright", new Color(0.6f, 0.65f, 0.72f), 1f, 0.7f));
             rim.transform.localPosition = new Vector3(0, 0, 0.235f);
             rim.transform.localScale = Vector3.one * radius;
-            var disc = WireMesh("Face", badge.transform, WireDisc(), Lit("Wire_BadgeFace_" + hex, tint * 0.6f, 0f, 0.6f, Hdr(tint, 2.0f)));
+            var disc = WireMesh("Face", badge.transform, WireDisc(), Lit("Wire_BadgeFace_" + hex, tint * 0.6f, 0f, 0.6f, Hdr(tint, 0.9f))); // saturated, not blown to white
             disc.transform.SetLocalPositionAndRotation(new Vector3(0, 0, 0.245f), Quaternion.Euler(0, 180, 0)); // WireDisc faces −Z; the viewer is along +Z
             disc.transform.localScale = Vector3.one * (radius * 0.92f);
-            var glyph = Lit("Wire_GlyphNavy", new Color(0.05f, 0.08f, 0.16f), 0f, 0.3f);
+            var glyph = Glow("Glow_WireGlyph", Hdr(Color.white, 2f), softTexture: false); // a bright sign on the coloured disc: never an electron's navy "−"
             Prim(PrimitiveType.Cube, "Glyph", badge.transform, new Vector3(0, 0, 0.255f), new Vector3(radius * 0.9f, radius * 0.2f, 0.02f), glyph);
             if (sign == "+") Prim(PrimitiveType.Cube, "Glyph", badge.transform, new Vector3(0, 0, 0.255f), new Vector3(radius * 0.2f, radius * 0.9f, 0.02f), glyph);
-            var halo = Prim(PrimitiveType.Quad, "Halo", badge.transform, new Vector3(0, 0, 0.27f), Vector3.one * (radius * 3.2f), Glow("Glow_WireBadgeHalo_" + hex, new Color(tint.r, tint.g, tint.b, 0.35f)));
+            var halo = Prim(PrimitiveType.Quad, "Halo", badge.transform, new Vector3(0, 0, 0.2f), Vector3.one * (radius * 3.2f), Glow("Glow_WireBadgeHalo_" + hex, new Color(tint.r, tint.g, tint.b, 0.25f))); // behind the face: it no longer washes out the sign
             halo.transform.localRotation = Quaternion.Euler(0, 180, 0);
             var glow = Node("Glow Light", badge.transform, new Vector3(0, 0, 0.7f)).AddComponent<Light>();
             glow.type = LightType.Point;

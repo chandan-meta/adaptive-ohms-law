@@ -10,10 +10,10 @@ using UnityEngine.Rendering;
 
 namespace OhmsLaw.Editor
 {
-    // Stage kit for Scenes 7-13: the stylised classroom lab of the reference images (ART_DIRECTION §2, §3, §8),
-    // built from primitives and the project's wood texture. Its own frame: desk top centre at the origin, desk top
-    // y 0.80, Ohm behind the desk on +Z facing -Z, every camera on -Z (world text faces -Z and reads). The study
-    // kit's apparatus and the rig are built in Scene 4's frame; ToClassroom() turns them into this one.
+    // Stage kit for Scenes 8-13: the stylised classroom lab of the reference images (ART_DIRECTION §2, §3, §8),
+    // built from primitives and the project's wood texture. Its own frame: bench top centre at the origin, top
+    // y 0.80, every camera on -Z (world text faces -Z and reads). Scenes 7-8 place Scene 4's study in this same frame
+    // (SceneBuilderBase.Lab.cs HistoricalLab), so the match-cuts 7 -> 8 -> 9 share one world.
     public abstract partial class SceneBuilderBase
     {
         const string BenchWoodTexture = "Assets/AdaptiveLearning/Art/Interface/BenchWood.png";
@@ -51,15 +51,8 @@ namespace OhmsLaw.Editor
         public static float BoardsShotTitleCap => WorldText.CapAt(WorldText.Px.DataCard, BoardCentreC, BoardsCamC, BoardsLookC, BoardsFov);         // 0.112
         public static float BoardsShotCap => WorldText.CapAt(WorldText.Px.Small, BoardCentreC, BoardsCamC, BoardsLookC, BoardsFov);                 // 0.048
 
-        // Study frame -> classroom frame: a half turn about Y (Ohm and the cameras swap sides) plus a translation.
+        // A half turn about Y: a node with it faces -Z, toward the cameras.
         protected static readonly Quaternion ClassroomTurn = Quaternion.Euler(0f, 180f, 0f);
-        protected static Vector3 ClassroomPoint(Vector3 study, Vector3 studyPivot, Vector3 classroomPivot) => classroomPivot + ClassroomTurn * (study - studyPivot);
-        // Ohm's apparatus keeps Scene 4's offsets from his feet; the 0.9 m desk is 0.24 m deeper than the Victorian top,
-        // so the apparatus comes 6 cm toward him and the notebook stays on the desk (back edge z 0.45).
-        const float ApparatusPull = 0.06f;
-        protected static Vector3 StudyApparatusPivot => new Vector3(OhmFeet4.x, DeskY, OhmFeet4.z);
-        protected static Vector3 ClassroomApparatusPivot => new Vector3(OhmFeetC.x, DeskTopC.y, OhmFeetC.z - ApparatusPull);
-        public static Vector3 ApparatusC => Galvanometer7;      // the torsion galvanometer on the classroom desk
 
         protected VolumeProfile lensClassroom;
         protected Transform boardFace;                       // the chalk face node; Board*/BoardSurface need it
@@ -158,6 +151,18 @@ namespace OhmsLaw.Editor
             Plant(room, new Vector3(-2.95f, ClassroomDeskY, 2.25f)); // beside the window: at -2.5 it sat under Wattson's boots in Bench Wide
             Books(room, new Vector3(2.15f, ClassroomDeskY, 2.3f));
             Globe(room, new Vector3(2.75f, ClassroomDeskY, 2.25f));
+
+            // Region groups for Scene 8's sweep out from the bench (the floor spreads from under the bench, the back and side
+            // walls rise from the floor, the ceiling spreads); every other scene sees the same room. Refs "Classroom Floor",
+            // "Classroom Back" (wall, board, cabinets, posters, worktop props), "Classroom Left" (window), "Classroom Right",
+            // "Classroom Ceiling".
+            var parts = room.Cast<Transform>().Select(p => (part: p, at: RenderBounds(p.gameObject).center)).ToList();
+            PivotGroup("Classroom Floor", room, Vector3.zero, parts.Where(p => p.part.name == "Floor").Select(p => p.part));
+            PivotGroup("Classroom Ceiling", room, new Vector3(0f, ClassroomCeilingY, 0f), parts.Where(p => p.part.name == "Ceiling").Select(p => p.part));
+            var walls = parts.Where(p => p.part.name != "Floor" && p.part.name != "Ceiling").ToList();
+            PivotGroup("Classroom Back", room, new Vector3(0f, 0f, ClassroomWallZ), walls.Where(p => p.at.z > 1.95f).Select(p => p.part));
+            PivotGroup("Classroom Left", room, new Vector3(-ClassroomHalfWidth, 0f, -0.7f), walls.Where(p => p.at.z <= 1.95f && p.at.x < 0f).Select(p => p.part));
+            PivotGroup("Classroom Right", room, new Vector3(ClassroomHalfWidth, 0f, -0.7f), walls.Where(p => p.at.z <= 1.95f && p.at.x >= 0f).Select(p => p.part));
         }
 
         // Window on the left wall at the back (z 1.3-2.4): the part past z 1.65 shows at the Bench Wide frame's left edge.
@@ -703,35 +708,18 @@ namespace OhmsLaw.Editor
                 m.SetTexture("_BaseMap", texture);
             });
 
-        // ------------------------------------------------------------------ study-frame kits in the classroom
+        // ------------------------------------------------------------------ the historical apparatus in this frame
 
-        // Turns a group built in Scene 4's study frame into the classroom frame: the root is re-posed (half turn about Y,
-        // studyPivot -> classroomPivot), world-space LineRenderers under it are re-plotted, and the named markers move too.
-        protected void ToClassroom(GameObject root, Vector3 studyPivot, Vector3 classroomPivot, params string[] markers)
+        // Ohm's 1826 apparatus on the Victorian desk of the study placed in this frame (Scenes 7-8), Georg Ohm on Scene 4's
+        // spot behind it, and a contact shadow under every base.
+        protected GameObject ClassroomApparatus()
         {
-            var t = root.transform;
-            t.SetPositionAndRotation(ClassroomPoint(t.position, studyPivot, classroomPivot), ClassroomTurn * t.rotation);
-            foreach (var line in root.GetComponentsInChildren<LineRenderer>(true))
-            {
-                if (!line.useWorldSpace) continue;
-                var points = new Vector3[line.positionCount];
-                line.GetPositions(points);
-                for (int i = 0; i < points.Length; i++) points[i] = ClassroomPoint(points[i], studyPivot, classroomPivot);
-                line.SetPositions(points);
-            }
-            foreach (var name in markers)
-                if (refs.TryGetValue(name, out var marker)) marker.transform.position = ClassroomPoint(marker.transform.position, studyPivot, classroomPivot);
-        }
-
-        // Ohm's 1826 apparatus and Georg Ohm: OhmApparatus() already builds in the classroom frame (desk top at DeskTopC,
-        // Ohm at OhmFeetC facing the cameras); this only adds the contact shadows under every base.
-        protected void ClassroomApparatus()
-        {
-            OhmApparatus();
-            if (!refs.TryGetValue("Ohm Apparatus", out var apparatus)) return;
+            var apparatus = HistoricalApparatus(OhmDeskC, Quaternion.identity);
+            GeorgOhm(apparatus.transform);
             foreach (var part in apparatus.GetComponentsInChildren<Transform>(true))
-                if (part.name == "Galvanometer Base" || part.name == "Source Base" || part.name == "Post Block" || part.name.StartsWith("Mercury Cup ") || part.name == "Ohm Notebook")
+                if (part.name == "Galvanometer Base" || part.name == "Source Base" || part.name == "Post Base" || part.name.StartsWith("Mercury Cup ") || part.name == "Ohm Notebook")
                     ContactShadow(part);
+            return apparatus;
         }
 
         // The modern circuit: Rig() already builds in the classroom frame with its own contact shadows and markers.

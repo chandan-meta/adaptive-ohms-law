@@ -14,6 +14,9 @@ namespace OhmsLaw
         public string sceneId, sceneTitle, currentLine, question;
         public string[] covered, doNotSpoil;
         public ChatTurn[] history;
+        // Authoritative live context (WOW_PLAN.md section 6), plain text: the scene, activity, bench readings, recorded rows,
+        // whether resistance has been taught; and LearnerSession.Summary(). The model must ground answers in these.
+        public string state, learner;
     }
 
     public class AgentException : Exception { public AgentException(string message) : base(message) { } }
@@ -26,6 +29,8 @@ namespace OhmsLaw
     {
         public static UnityWebRequest Post(ProxyConfig config, string path, byte[] body, string contentType)
         {
+            // A build without a hosted proxy is simply offline (no request, no wait).
+            if (!config || string.IsNullOrEmpty(config.BaseUrl)) throw new AgentException("not_configured");
             var request = new UnityWebRequest(config.BaseUrl + path, "POST") { uploadHandler = new UploadHandlerRaw(body), timeout = config.requestTimeout };
             request.SetRequestHeader("Content-Type", contentType);
             request.SetRequestHeader("X-Session-Id", ProxyConfig.SessionId);

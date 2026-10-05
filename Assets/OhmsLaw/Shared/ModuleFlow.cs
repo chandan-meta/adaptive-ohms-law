@@ -62,6 +62,7 @@ namespace OhmsLaw
             safe.AddComponent<CinematicControlsUI>();
             safe.AddComponent<AskWattsonUI>();
             safe.AddComponent<FlowOverlay>();
+            gameObject.AddComponent<AudioDucker>(); // lowers music and effects while anyone speaks
 
             fade = UI.Stretch("WhiteFade", transform).gameObject.AddComponent<Image>();
             fade.color = Color.white;
@@ -93,11 +94,28 @@ namespace OhmsLaw
                 foreach (var light in FindObjectsByType<Light>(FindObjectsSortMode.None))
                     if (light.type != LightType.Directional) light.shadows = LightShadows.None;
             }
+            RegisterVoices();
             devNote.text = "";
             FadeTo(0);
         }
 
+        // Every voice joins the VoiceChannel, so speakers take turns and the ducker leaves voices alone: Wattson's scripted
+        // and live-answer sources, and any other source on the Voice bus (inactive ones too; Wattson may appear later).
+        static void RegisterVoices()
+        {
+            foreach (var wattson in FindObjectsByType<WattsonController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                VoiceChannel.Register(wattson.voice);
+                VoiceChannel.Register(wattson.liveVoice);
+            }
+            foreach (var bus in FindObjectsByType<AudioBus>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                if (bus.kind == AudioBus.Kind.Voice && bus.TryGetComponent(out AudioSource source)) VoiceChannel.Register(source);
+        }
+
         public bool IsPaused(PauseReason reason) => (paused & reason) != 0;
+
+        // The scene's Timeline is playing at normal speed (nothing holds it): its scripted voice is audible.
+        public bool TimelineRunning => paused == 0 && Director && Director.state == PlayState.Playing;
 
         // The Timeline is frozen by setting its speed to zero, so Cinemachine keeps the current shot on screen.
         public void SetPaused(PauseReason reason, bool on)

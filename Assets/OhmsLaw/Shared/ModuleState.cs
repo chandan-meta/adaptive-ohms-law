@@ -23,11 +23,13 @@ namespace OhmsLaw
     public static class LearnerSession
     {
         public static string prediction = "";        // Scene 6: "A" increase, "B" decrease, "C" stay the same
+        public static string s10Prediction2V = "";    // Scene 10 S10_Predict2V letter: A 0.40 A, B 0.20 A, C 0.10 A (graded at S10_Record2)
         public static string s10PatternAnswer = "";   // Scene 10 pattern question, final answer letter
         public static int s10PatternAttempts;
         public static string slopeAnswer = "";        // Scene 12 slope, the option text chosen last
-        public static readonly List<string> checkpoint = new List<string>(); // Scene 13, "AQ1 A correct", ...
+        public static readonly List<string> answers = new List<string>(); // every graded answer in order: "S12_Ratio B Incorrect"
         public static int tableRows;                  // observation table rows recorded so far
+        public static bool resistanceTaught;          // set when Scene 12 names R and the ohm (cue readings.r 1): before that, nobody may quote R = 5 Ω
 
         public static string PredictionText =>
             prediction == "A" ? "Increase" : prediction == "B" ? "Decrease" : prediction == "C" ? "Stay the same" : "";
@@ -79,6 +81,7 @@ namespace OhmsLaw
                 lines.Add(line);
             }
             if (prediction != "") lines.Add("Scene 6 prediction: " + PredictionText);
+            if (answers.Count > 0) lines.Add("Recent answers: " + string.Join(", ", answers.GetRange(Mathf.Max(0, answers.Count - 4), Mathf.Min(4, answers.Count))));
             return string.Join("\n", lines);
         }
     }

@@ -38,10 +38,7 @@ namespace OhmsLaw.Editor
         static readonly Vector3 Hover = new Vector3(-1.5f, 0.2f, -0.45f);      // where Wattson settles
         static readonly Vector3 OhmFeet = new Vector3(-2.4f, -1.08f, -2.36f);
         static readonly Vector3 OhmHead = new Vector3(-2.4f, 0.45f, -2.2f);
-        static readonly Vector3 Wire = new Vector3(-2.71f, -0.18f, -1.9f);
-        static readonly Vector3 Notebook = new Vector3(-2.22f, -0.252f, -2.03f);
-        static readonly Vector3 Galvanometer = new Vector3(-2.6f, -0.26f, -2.02f);
-        static readonly Vector3 Pile = new Vector3(-2.9f, -0.26f, -2.03f);
+        static readonly Vector3 Wire = new Vector3(-2.71f, -0.18f, -1.9f);       // = SceneBuilderBase.Wire4: the 1826 apparatus's test wire
         static readonly Vector3 WordsCamera = new Vector3(0.06f, 0.3f, 0.45f);
         const float FloorY = -1.08f, DeskY = -0.26f;
 
@@ -439,9 +436,11 @@ namespace OhmsLaw.Editor
             s.lab = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(LabModel), scene);
             s.lab.name = "Lab";
             foreach (var light in s.lab.GetComponentsInChildren<Light>(true)) light.gameObject.SetActive(false);
-            // Props that float in mid-air in the source model, and one book pile that sits where Ohm's apparatus goes.
-            foreach (string clutter in new[] { "chock_and_duster", "glass_and_ice_cube_", "Book_Pile_1" })
+            // Props that float in mid-air in the source model, and the desk dressing that stands where Ohm's 1826 apparatus
+            // goes (book piles, the open book, the magnifier, the top hat; the glasses stay). Scenes 5, 7 and 8 use this variant.
+            foreach (string clutter in new[] { "chock_and_duster", "glass_and_ice_cube_", "Book_Pile_1", "Book_Pile_4", "Open_Book", "magnify_glass" })
                 foreach (var t in s.lab.GetComponentsInChildren<Transform>(true).Where(t => t.name == clutter)) t.gameObject.SetActive(false);
+            Find(Find(s.lab, "hat_and_glass").gameObject, "Object_4").gameObject.SetActive(false);
             int flames = 0;
             foreach (var r in s.lab.GetComponentsInChildren<Renderer>(true))
             {
@@ -459,7 +458,7 @@ namespace OhmsLaw.Editor
             s.ohmPoint = Node("Ohm Point", null, OhmHead).transform;
             s.wirePoint = Node("Wire Point", null, Wire).transform;
 
-            BuildApparatus(s);
+            var apparatus = BuildApparatus(s);
 
             // Georg Ohm, working behind his desk and facing the room.
             var ohm = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(OhmModel), scene);
@@ -468,9 +467,10 @@ namespace OhmsLaw.Editor
             ohm.transform.localScale = Vector3.one * 1.55f;
             s.ohm = ohm.AddComponent<OhmWorker>();
             Variant(ohm, "Ohm_Scene04");
-            s.ohm.notebook = Node("Ohm Notebook Target", null, Notebook + Vector3.up * 0.02f).transform;
-            s.ohm.galvanometer = Node("Ohm Galvanometer Target", null, Galvanometer + new Vector3(0.02f, 0.08f, -0.02f)).transform;
-            s.ohm.wirePost = Node("Ohm Wire Target", null, Wire + new Vector3(0.21f, 0.03f, -0.03f)).transform;
+            s.ohm.notebook = apparatus["Ohm Notebook Target"];
+            s.ohm.galvanometer = apparatus["Ohm Galvanometer Target"];
+            s.ohm.wirePost = apparatus["Ohm Wire Target"];
+            s.ohm.needle = apparatus["Galvanometer Needle Pivot"];
             PrefabUtility.RecordPrefabInstancePropertyModifications(s.ohm); // scene references are instance overrides
 
             BuildWattson(s, context, sfx);
@@ -478,57 +478,6 @@ namespace OhmsLaw.Editor
             s.sfx = Audio("SFX", null, AudioBus.Kind.Sfx);
             s.music = Audio("Music", null, AudioBus.Kind.Music, 0.35f);
             return s;
-        }
-
-        // Ohm's bench experiment: voltaic pile, galvanometer and the copper wire Wattson aims at.
-        static void BuildApparatus(Stage s)
-        {
-            var copper = Lit("Copper", new Color(0.86f, 0.46f, 0.26f), 1f, 0.72f);
-            var brass = Lit("Brass", new Color(0.83f, 0.66f, 0.3f), 1f, 0.68f);
-            var zinc = Lit("Zinc", new Color(0.62f, 0.65f, 0.68f), 1f, 0.5f);
-            var wood = Lit("DarkWood", new Color(0.2f, 0.11f, 0.06f), 0f, 0.4f);
-            var paper = Lit("Paper", new Color(0.86f, 0.8f, 0.66f), 0f, 0.15f);
-            var ink = Lit("Ink", new Color(0.08f, 0.07f, 0.1f), 0f, 0.3f);
-            var root = Node("Ohm Apparatus").transform;
-
-            // Test wire stretched between two brass posts.
-            const float half = 0.21f;
-            s.wire = Prim(PrimitiveType.Cylinder, "Copper Wire", root, Wire, new Vector3(0.007f, half, 0.007f), copper, new Vector3(0, 0, 90)).transform;
-            foreach (float side in new[] { -1f, 1f })
-            {
-                var foot = new Vector3(Wire.x + side * half, DeskY, Wire.z);
-                Prim(PrimitiveType.Cube, "Post Base", root, foot + Vector3.up * 0.008f, new Vector3(0.05f, 0.016f, 0.05f), wood);
-                Prim(PrimitiveType.Cylinder, "Post", root, foot + Vector3.up * 0.05f, new Vector3(0.012f, 0.045f, 0.012f), brass);
-                Prim(PrimitiveType.Sphere, "Post Cap", root, foot + Vector3.up * 0.098f, Vector3.one * 0.02f, brass);
-            }
-
-            // Galvanometer: wooden base, brass drum, pale dial and a needle.
-            Prim(PrimitiveType.Cylinder, "Galvanometer Base", root, Galvanometer + Vector3.up * 0.01f, new Vector3(0.15f, 0.01f, 0.15f), wood);
-            Prim(PrimitiveType.Cylinder, "Galvanometer Drum", root, Galvanometer + Vector3.up * 0.04f, new Vector3(0.12f, 0.02f, 0.12f), brass);
-            Prim(PrimitiveType.Cylinder, "Galvanometer Dial", root, Galvanometer + Vector3.up * 0.061f, new Vector3(0.105f, 0.001f, 0.105f), paper);
-            Prim(PrimitiveType.Cube, "Galvanometer Needle", root, Galvanometer + Vector3.up * 0.065f, new Vector3(0.085f, 0.002f, 0.004f), ink, new Vector3(0, 35, 0));
-
-            // Voltaic pile: alternating copper and zinc discs between three rods.
-            for (int i = 0; i < 10; i++)
-                Prim(PrimitiveType.Cylinder, "Pile Disc", root, Pile + Vector3.up * (0.012f + i * 0.013f), new Vector3(0.055f, 0.006f, 0.055f), i % 2 == 0 ? copper : zinc);
-            for (int i = 0; i < 3; i++)
-            {
-                float a = i * Mathf.PI * 2 / 3;
-                Prim(PrimitiveType.Cylinder, "Pile Rod", root, Pile + new Vector3(Mathf.Cos(a) * 0.034f, 0.075f, Mathf.Sin(a) * 0.034f), new Vector3(0.005f, 0.075f, 0.005f), wood);
-            }
-            Prim(PrimitiveType.Cylinder, "Pile Base", root, Pile + Vector3.up * 0.004f, new Vector3(0.09f, 0.004f, 0.09f), wood);
-
-            // Leads joining pile, wire posts and galvanometer into one loop.
-            Vector3 postA = new Vector3(Wire.x - half, DeskY + 0.09f, Wire.z), postB = new Vector3(Wire.x + half, DeskY + 0.09f, Wire.z);
-            Vector3 sag = Vector3.down * 0.05f;
-            Lines("Lead Pile-Post", root, copper, 0.004f, false, true, Pile + Vector3.up * 0.14f, (Pile + postA) / 2 + Vector3.up * 0.1f + sag, postA);
-            Lines("Lead Post-Galvanometer", root, copper, 0.004f, false, true, postB, (postB + Galvanometer) / 2 + Vector3.up * 0.06f + sag, Galvanometer + new Vector3(0.05f, 0.04f, 0));
-            Lines("Lead Galvanometer-Pile", root, copper, 0.004f, false, true, Galvanometer + new Vector3(-0.05f, 0.04f, 0), (Galvanometer + Pile) / 2 + Vector3.up * 0.02f, Pile + Vector3.up * 0.01f);
-
-            // Ohm's notebook, with a few written lines.
-            var book = Prim(PrimitiveType.Cube, "Ohm Notebook", root, Notebook, new Vector3(0.2f, 0.01f, 0.14f), paper, new Vector3(0, 8, 0)).transform;
-            for (int i = 0; i < 4; i++)
-                Prim(PrimitiveType.Cube, "Ink Line", book, Vector3.zero, new Vector3(0.7f - i * 0.1f, 0.2f, 0.03f), ink).transform.localPosition = new Vector3(-0.05f * i, 0.55f, 0.3f - i * 0.18f);
         }
 
         static void BuildWattson(Stage s, SceneAgentContext context, Dictionary<string, AudioClip> sfx)
@@ -636,7 +585,7 @@ namespace OhmsLaw.Editor
             foreach (var knot in new[]
             {
                 new Vector3(-3.0f, -0.6f, -2.38f),   // hidden behind the desk and apparatus
-                new Vector3(-2.95f, 0.3f, -2.2f),    // pops up over the voltaic pile
+                new Vector3(-2.95f, 0.3f, -2.2f),    // pops up over the back of the desk
                 new Vector3(-2.6f, 0.8f, -1.3f),     // arcs over the desk
                 new Vector3(-1.75f, 0.62f, -0.95f),
                 new Vector3(-1.2f, 0.0f, -0.8f),     // playful dip

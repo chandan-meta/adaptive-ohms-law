@@ -30,6 +30,11 @@ MonoBehaviour:
     I, unit ampere (A).
   - "Conventional current is taken from + to \u2212; electrons drift from \u2212
     to +."
+  - 'The scene shows only a small, evenly spread sample of the free electrons so
+    one can be followed; a real wire has billions of billions. The drift shown is
+    a picture: real drift is very slow (fractions of a millimetre per second) and
+    much slower than the random motion, while the field is set up along the wire
+    almost at once.'
   doNotSpoil:
   - How V and I are related
   - V is proportional to I

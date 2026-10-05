@@ -3,17 +3,33 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace OhmsLaw
 {
-    // Wattson's live Q&A brain: question -> proxy chat (streamed) -> sentence-by-sentence speech in his own voice.
-    // Lives on the persistent module root, so the conversation carries across scenes.
+    // Wattson's live companion. A question (typed, or heard by speech-to-text) goes to the lab controls first
+    // (WattsonActions: no network, so it works offline and never waits on latency); anything else goes to the proxy chat
+    // with the live module state, streamed and spoken sentence by sentence in his voice. Offline, saved FAQ answers and
+    // the app's guidance are labelled as such, never passed off as live AI. Lives on the persistent module root, so the
+    // conversation carries across scenes; an AI answer never outlives the moment it was asked in (scene or activity).
     public class WattsonAgent : MonoBehaviour
     {
-        public enum State { Idle, Listening, Thinking, Talking }
+        public enum State { Idle, Listening, Thinking, Talking, Error }
+        // Who a message is from, shown as its label: the learner (typed, or as speech recognition heard it), Wattson's
+        // live AI answer, a saved offline answer, or the app's own lab-controls confirmation.
+        public enum Speaker { You, YouHeard, Wattson, Offline, LabControls }
 
-        const int MaxTurns = 6, MaxQuestionLength = 300;
+        public class Message
+        {
+            public Speaker speaker;
+            public string text;
+            public bool FromLearner => speaker == Speaker.You || speaker == Speaker.YouHeard;
+        }
+
+        const int MaxTurns = 6, MaxQuestionLength = 300, MaxLog = 40, RecentLines = 3, MaxState = 1500, MaxLearner = 800;
+        const float NarrationWait = 6f, ConfirmVoiceWait = 4f;
         static readonly Regex Sentence = new Regex(@"^\s*(.+?[.!?।…]+[""'’”)\]]*)(?=\s)", RegexOptions.Singleline);
 
         public IChatClient Chat;
@@ -21,19 +37,26 @@ namespace OhmsLaw
         public ISpeechToText Hearing;
 
         public State Current { get; private set; }
-        public bool Offline { get; private set; }
+        public bool Offline { get; private set; }            // the chat proxy did not answer last time
+        public bool VoiceInputDown { get; private set; }     // speech-to-text failed last time; typing still works
+        public string Problem { get; private set; } = "";    // what went wrong, shown while State.Error
+        public string Note { get; private set; } = "";       // a calm status line shown while Idle
         public bool Engaged { get; private set; }
         public IReadOnlyList<ChatTurn> History => history;
+        public IReadOnlyList<Message> Log => log;
 
         public event Action<State> StateChanged;
-        public event Action<string, string> BubbleChanged;              // role, text so far
-        public event Action<string> Notice;                             // friendly status for the student
-        public event Action<string[], Action<int>> LearnerQuestion;     // options, pick callback
+        public event Action<Message> MessageAdded, MessageChanged;
 
         readonly List<ChatTurn> history = new List<ChatTurn>();
+        readonly List<Message> log = new List<Message>();
+        readonly List<string> recentLines = new List<string>();
         CancellationTokenSource running;
+        bool runningIsAction;   // a lab-controls confirmation stays valid when the activity it completed ends
+        int momentScene;        // the scene and activity the running answer belongs to
+        string momentGate;
 
-        static ProxyConfig Config => ModuleFlow.Instance.proxy;
+        static ProxyConfig Config => ModuleFlow.Instance ? ModuleFlow.Instance.proxy : null;
         static WattsonController Wattson => WattsonController.Active;
         static SceneAgentContext Context => Wattson ? Wattson.agentContext : null;
 
@@ -42,13 +65,49 @@ namespace OhmsLaw
             Chat = new ProxyChatClient(Config);
             Speech = new ProxyTextToSpeech(Config);
             Hearing = new ProxySpeechToText(Config);
+            SubtitleTrack.LineStarted += OnLine;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        void OnDestroy()
+        {
+            SubtitleTrack.LineStarted -= OnLine;
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+        }
+
+        // The last few scripted lines, so "what did you mean by...?" can be answered.
+        void OnLine(DialogueLine line)
+        {
+            if (!line || string.IsNullOrEmpty(line.text)) return;
+            recentLines.Add(line.text);
+            while (recentLines.Count > RecentLines) recentLines.RemoveAt(0);
+        }
+
+        void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            recentLines.Clear();
+            Stop();
+        }
+
+        // The learner moved on (scene change, an activity opened or closed): a stale AI answer stops. A lab-controls
+        // confirmation keeps going, since its own action is often what completed the activity.
+        void Update()
+        {
+            int scene = SceneManager.GetActiveScene().handle;
+            if (scene == momentScene && SceneDirector.Gate == momentGate) return;
+            momentScene = scene;
+            momentGate = SceneDirector.Gate;
+            if (running == null || runningIsAction) return;
+            Stop();
+            Note = "The lesson moved on, so I stopped that answer. Ask again if you still want it.";
         }
 
         // The Ask panel opened or closed: Wattson turns to the student, or goes back to the cinematic.
         public void Engage(bool on)
         {
             Engaged = on;
-            if (!on) Stop();
+            Note = "";
+            if (!on || Current == State.Error) Stop();
             ApplyPose();
         }
 
@@ -56,35 +115,44 @@ namespace OhmsLaw
         {
             running?.Cancel();
             running = null;
+            runningIsAction = false;
             Mic.Stop();
             if (Wattson && Wattson.liveVoice) Wattson.liveVoice.Stop();
             if (SubtitleUI.Instance) SubtitleUI.Instance.Hide(this);
             SetState(State.Idle);
         }
 
-        public async void Ask(string question)
+        public async void Ask(string question) => await AskAsync(question, false);
+
+        async Awaitable AskAsync(string question, bool heard)
         {
             question = (question ?? "").Trim();
             if (question.Length == 0) return;
             if (question.Length > MaxQuestionLength) question = question.Substring(0, MaxQuestionLength);
-            Stop();
+            Stop(); // a new question interrupts the old answer
+            Note = "";
             var cancel = (running = new CancellationTokenSource()).Token;
-            BubbleChanged?.Invoke("user", question);
+            Add(heard ? Speaker.YouHeard : Speaker.You, question);
             try
             {
-                // While the proxy is down, the suggested questions answer from the local FAQ.
-                var local = Offline && Context && Context.faq ? Context.faq.Find(question) : null;
-                if (local)
+                if (WattsonActions.TryHandle(question, out string done))
                 {
-                    BubbleChanged?.Invoke("assistant", local.text);
-                    await Say(local, cancel);
+                    runningIsAction = true;
+                    Add(Speaker.LabControls, done);
+                    await Confirm(done, cancel);
                 }
                 else
                 {
-                    SetState(State.Thinking);
-                    string answer = await Answer(question, cancel);
-                    Offline = false;
-                    Remember(question, answer);
+                    // While the proxy is down, the suggested questions answer from the local FAQ without retrying it.
+                    var saved = Offline && Context && Context.faq ? Context.faq.Find(question) : null;
+                    if (saved) await SayOffline(saved, cancel);
+                    else
+                    {
+                        SetState(State.Thinking);
+                        string answer = await Answer(question, cancel);
+                        Offline = false;
+                        Remember(question, answer);
+                    }
                 }
             }
             catch (OperationCanceledException) { return; }
@@ -93,36 +161,74 @@ namespace OhmsLaw
                 if (cancel.IsCancellationRequested) return;
                 Debug.LogWarning("Wattson proxy: " + error.Message);
                 Offline = true;
-                await Fallback(question, cancel);
+                if (error.Message == "rate_limited" || error.Message == "busy") Note = "My radio needs a short rest: lots of questions just now. Saved answers still work.";
+                try { await Fallback(question, cancel); } catch (OperationCanceledException) { return; }
             }
-            if (!cancel.IsCancellationRequested) SetState(State.Idle);
+            if (cancel.IsCancellationRequested) return;
+            running = null;
+            runningIsAction = false;
+            SetState(State.Idle);
         }
 
+        // The app's lab-controls confirmation in Wattson's voice. The action has already happened, so a slow or missing
+        // voice never holds it up: after a short wait the text is shown and read silently instead.
+        async Awaitable Confirm(string text, CancellationToken cancel)
+        {
+            SetState(State.Talking);
+            AudioClip clip = null;
+            if (!Offline)
+            {
+                using var wait = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+                wait.CancelAfter(TimeSpan.FromSeconds(ConfirmVoiceWait));
+                try { clip = await Speech.SpeakAsync(WattsonActions.Spoken(text), wait.Token); }
+                catch (OperationCanceledException) { cancel.ThrowIfCancellationRequested(); }
+                catch (Exception error) { Debug.LogWarning("Wattson voice: " + error.Message); }
+            }
+            try { await Voice(text, clip, ReadingSeconds(text), cancel); }
+            finally { if (clip) Destroy(clip); }
+        }
+
+        // No live answer: the saved FAQ answer when the question matches one, otherwise the offline line plus the app's
+        // guidance from the real bench state. Both are labelled "Offline answer".
         async Awaitable Fallback(string question, CancellationToken cancel)
         {
-            var line = Context && Context.faq ? Context.faq.Find(question) : null;
-            if (!line) line = Config.offlineLine;
-            if (!line) return;
-            BubbleChanged?.Invoke("assistant", line.text);
-            try { await Say(line, cancel); } catch (OperationCanceledException) { }
+            var saved = Context && Context.faq ? Context.faq.Find(question) : null;
+            if (saved) { await SayOffline(saved, cancel); return; }
+            var line = Config ? Config.offlineLine : null;
+            string guidance = WattsonActions.Guidance();
+            Add(Speaker.Offline, ((line ? line.text + " " : "") + guidance).Trim());
+            SetState(State.Talking);
+            if (line) await Voice(line.text, line.vo, line.fallbackDuration, cancel);
+            await Voice(guidance, null, ReadingSeconds(guidance), cancel);
+        }
+
+        async Awaitable SayOffline(DialogueLine line, CancellationToken cancel)
+        {
+            Add(Speaker.Offline, line.text);
+            SetState(State.Talking);
+            await Voice(line.text, line.vo, line.fallbackDuration, cancel);
         }
 
         async Awaitable<string> Answer(string question, CancellationToken cancel)
         {
             var context = Context;
+            var speaking = SceneDirector.Speaking ? SceneDirector.Speaking : SubtitleTrack.CurrentLine;
             var request = new ChatRequest
             {
                 sceneId = context ? context.sceneId : "",
                 sceneTitle = context ? context.sceneTitle : "",
-                currentLine = SubtitleTrack.CurrentLine ? SubtitleTrack.CurrentLine.text : "",
+                currentLine = speaking ? speaking.text : "",
                 covered = context ? context.covered : new string[0],
                 doNotSpoil = context ? context.doNotSpoil : new string[0],
                 history = history.ToArray(),
                 question = question,
+                state = DescribeState(),
+                learner = Cap(LearnerSession.Summary().Replace("\n", "; "), MaxLearner),
             };
 
             var full = new StringBuilder();
             string unspoken = "";
+            Message message = null;
             var sentences = new List<string>();
             var clips = new List<AudioClip>();
             bool streamed = false;
@@ -135,9 +241,11 @@ namespace OhmsLaw
             {
                 await Chat.StreamAsync(request, text =>
                 {
+                    if (cancel.IsCancellationRequested) return; // a late chunk never grows an answer the learner moved past
                     full.Append(text);
                     unspoken += text;
-                    BubbleChanged?.Invoke("assistant", full.ToString());
+                    if (message == null) message = Add(Speaker.Wattson, full.ToString());
+                    else { message.text = full.ToString(); MessageChanged?.Invoke(message); }
                     for (var match = Sentence.Match(unspoken); match.Success; match = Sentence.Match(unspoken))
                     {
                         sentences.Add(match.Groups[1].Value.Trim());
@@ -151,9 +259,84 @@ namespace OhmsLaw
             // Let whatever was already said finish, even if the stream broke part-way.
             try { await fetching; } catch (OperationCanceledException) { }
             try { await playing; } catch (OperationCanceledException) { }
+            foreach (var clip in clips) if (clip) Destroy(clip); // fetched but never played (interrupted)
             cancel.ThrowIfCancellationRequested();
             if (failure != null && full.Length == 0) throw failure;
             return full.ToString();
+        }
+
+        // The live state the AI must ground its answer in (WOW_PLAN.md section 6): never invent a reading.
+        string DescribeState()
+        {
+            var parts = new List<string>();
+            var context = Context;
+            string sceneId = context ? context.sceneId : SceneManager.GetActiveScene().name;
+            int scene = WattsonActions.SceneNumber(sceneId);
+            parts.Add("Scene " + sceneId + (context && !string.IsNullOrEmpty(context.sceneTitle) ? " (" + context.sceneTitle + ")" : ""));
+            parts.Add(SceneDirector.Gate != null ? "Learner activity in progress: " + SceneDirector.Gate : "No learner activity right now; the story waits while the learner talks to you");
+            string prompt = ScreenText("SafeArea/Prompt");
+            if (prompt.Length > 0) parts.Add("On-screen instruction: " + prompt);
+            string question = OnScreenQuestion();
+            if (question.Length > 0) parts.Add("On-screen question the learner is answering (give a hint, never the answer): " + question);
+
+            var rig = CircuitRig.Active;
+            if (rig)
+            {
+                var bench = new StringBuilder("Bench: source set to " + WattsonActions.Volts(rig.state.voltage) + " V, key " + (rig.state.keyClosed ? "closed" : "open"));
+                bench.Append(rig.ammeterPlaced ? ", ammeter reads " + WattsonActions.Amps(rig.Amps) + " A" : ", ammeter not connected yet");
+                bench.Append(rig.voltmeterPlaced ? ", voltmeter reads " + WattsonActions.Volts(rig.Volts) + " V" : ", voltmeter not connected yet");
+                bench.Append(rig.controlsOpen ? ". The learner may change the voltage now (battery slider, or by asking you; whole volts 0-5 V)" : ". The voltage controls are locked right now");
+                if (rig.targetAmps >= 0) bench.Append(". Target activity: the learner must make the ammeter read " + WattsonActions.Amps(rig.targetAmps) + " A by choosing the voltage (hint the reasoning, never say the voltage)");
+                if (!Mathf.Approximately(rig.PreviousVoltage, rig.state.voltage)) bench.Append(". Previous source setting: " + WattsonActions.Volts(rig.PreviousVoltage) + " V");
+                parts.Add(bench.ToString());
+                if (WattsonActions.LastChange.Length > 0 && Mathf.Approximately((float)WattsonActions.LastChangeVolts, rig.state.voltage)) parts.Add(WattsonActions.LastChange.TrimEnd('.'));
+            }
+            else parts.Add("Bench: there is no circuit in this scene");
+
+            var data = ExperimentData.Main;
+            int rows = data ? Mathf.Min(LearnerSession.tableRows, data.Count) : 0;
+            if (rows > 0)
+            {
+                var recorded = new List<string>();
+                for (int i = 0; i < rows; i++) recorded.Add(WattsonActions.Volts(data.voltages[i]) + " V, " + WattsonActions.Amps(data.currents[i]) + " A");
+                parts.Add("Observation table rows recorded: " + string.Join("; ", recorded));
+            }
+            else parts.Add("No observation table rows recorded yet");
+            parts.Add(scene >= 12
+                ? "Resistance has been taught: the nichrome wire XY has R = " + WattsonActions.Volts(data ? data.resistance : 5) + " ohms"
+                : "Resistance and ohms have not been taught yet: do not mention them");
+            if (recentLines.Count > 0) parts.Add("Wattson's recent scripted lines: " + string.Join(" / ", recentLines));
+            parts.Add("The app itself changes the voltage when the learner asks; never say you changed, set or measured anything");
+
+            string state = string.Join(". ", parts) + ".";
+            return Cap(state, MaxState);
+        }
+
+        static string Cap(string text, int max) => text.Length > max ? text.Substring(0, max) : text;
+
+        static string ScreenText(string path)
+        {
+            var flow = ModuleFlow.Instance;
+            var found = flow ? flow.transform.Find(path) : null;
+            var label = found ? found.GetComponentInChildren<TMP_Text>() : null;
+            return label ? label.text.Trim() : "";
+        }
+
+        // The MCQ on screen: its question and options (MCQPanel: a "Label" child, then "Option A", "Option B", ...).
+        static string OnScreenQuestion()
+        {
+            var flow = ModuleFlow.Instance;
+            var panel = flow ? flow.transform.Find("SafeArea/MCQ Panel") : null;
+            if (!panel) return "";
+            var parts = new List<string>();
+            foreach (Transform child in panel)
+            {
+                var label = child.GetComponentInChildren<TMP_Text>();
+                if (!label || string.IsNullOrWhiteSpace(label.text)) continue;
+                if (child.name.StartsWith("Option ")) parts.Add(child.name.Substring(7) + ". " + label.text.Trim());
+                else if (child.name == "Label") parts.Insert(0, label.text.Trim());
+            }
+            return string.Join(" ", parts);
         }
 
         async Awaitable FetchSpeech(List<string> sentences, List<AudioClip> clips, Func<bool> streamed, CancellationToken cancel)
@@ -166,7 +349,7 @@ namespace OhmsLaw
                     await Awaitable.NextFrameAsync(cancel);
                 }
                 AudioClip clip = null;
-                // A voice failure still leaves the answer readable in the bubble and subtitles.
+                // A voice failure still leaves the answer readable in the panel and the subtitles.
                 try { clip = await Speech.SpeakAsync(sentences[i], cancel); }
                 catch (AgentException error) { Debug.LogWarning("Wattson voice: " + error.Message); }
                 clips.Add(clip);
@@ -188,17 +371,14 @@ namespace OhmsLaw
             }
         }
 
-        // Speaks a pre-written line: the offline message, a FAQ answer or an AskLearner prompt.
-        async Awaitable Say(DialogueLine line, CancellationToken cancel)
-        {
-            SetState(State.Talking);
-            await Voice(line.text, line.vo, line.fallbackDuration, cancel);
-        }
-
         // ponytail: clips are queued a frame apart; schedule on two sources with PlayScheduled if a sample-exact join is needed
         async Awaitable Voice(string text, AudioClip clip, float silentSeconds, CancellationToken cancel)
         {
             var source = Wattson ? Wattson.liveVoice : null;
+            // One voice at a time (ModuleFlow registers every voice source with VoiceChannel): wait for narration that is
+            // still playing, capped so a stuck source cannot mute him.
+            for (float waited = 0; waited < NarrationWait && VoiceChannel.Busy(source); waited += Time.unscaledDeltaTime)
+                await Awaitable.NextFrameAsync(cancel);
             float length = clip && source ? clip.length : silentSeconds;
             if (clip && source) { source.clip = clip; source.Play(); }
             try
@@ -216,18 +396,28 @@ namespace OhmsLaw
 
         void Remember(string question, string answer)
         {
-            // Memory only, last few turns, never written to disk.
+            // Memory only, last few turns, never written to disk. Lab-controls turns stay out: the live state carries them.
             history.Add(new ChatTurn { role = "user", text = question });
             history.Add(new ChatTurn { role = "assistant", text = answer });
             while (history.Count > MaxTurns * 2) history.RemoveRange(0, 2);
         }
 
+        Message Add(Speaker speaker, string text)
+        {
+            var message = new Message { speaker = speaker, text = text };
+            log.Add(message);
+            if (log.Count > MaxLog) log.RemoveAt(0);
+            MessageAdded?.Invoke(message);
+            return message;
+        }
+
         // Push-to-talk: call on press and on release.
         public void StartListening()
         {
-            Stop();
+            Stop(); // talking over Wattson cuts him off
+            Note = "";
             string problem = Mic.Start();
-            if (problem != null) { Notice?.Invoke(problem); return; }
+            if (problem != null) { Fail(problem); return; }
             SetState(State.Listening);
         }
 
@@ -235,52 +425,37 @@ namespace OhmsLaw
         {
             if (Current != State.Listening) return;
             byte[] wav = Mic.Stop();
-            if (wav == null) { SetState(State.Idle); Notice?.Invoke("I didn't catch that. Hold the button while you speak."); return; }
+            if (wav == null) { Fail("I didn't catch that. Hold the button while you speak, or type your question."); return; }
             SetState(State.Thinking);
             var cancel = (running = new CancellationTokenSource()).Token;
-            try
-            {
-                string heard = await Hearing.TranscribeAsync(wav, cancel);
-                if (string.IsNullOrWhiteSpace(heard)) { SetState(State.Idle); Notice?.Invoke("I didn't catch that. Try again, or type your question."); return; }
-                Ask(heard);
-            }
-            catch (OperationCanceledException) { }
+            runningIsAction = false;
+            string heard;
+            try { heard = await Hearing.TranscribeAsync(wav, cancel); }
+            catch (OperationCanceledException) { return; }
             catch (Exception error)
             {
+                if (cancel.IsCancellationRequested) return;
                 Debug.LogWarning("Wattson hearing: " + error.Message);
-                Offline = true;
-                await Fallback("", cancel);
-                if (!cancel.IsCancellationRequested) SetState(State.Idle);
+                // Only voice input is down: the chat, the lab controls and typing carry on as before.
+                running = null;
+                VoiceInputDown = true;
+                Fail(error.Message == "rate_limited"
+                    ? "Voice input is resting for a few minutes. Please type your question."
+                    : "Voice input needs the Wattson server, which isn't answering. Please type instead.");
+                return;
             }
+            if (cancel.IsCancellationRequested) return;
+            running = null;
+            VoiceInputDown = false;
+            if (string.IsNullOrWhiteSpace(heard)) { Fail("I didn't catch that. Try again, or type your question."); return; }
+            await AskAsync(heard, true);
         }
 
-        // Scripted, storyboard-driven question for later scenes. Nothing here is generated by the model:
-        // the question, the options and every response are authored lines.
-        public async void AskLearner(DialogueLine questionLine, string[] options, int correctIndex, DialogueLine[] responsesPerOption, Action<int, bool> answered = null)
+        void Fail(string problem)
         {
-            Stop();
-            var cancel = (running = new CancellationTokenSource()).Token;
-            try
-            {
-                BubbleChanged?.Invoke("assistant", questionLine.text);
-                await Say(questionLine, cancel);
-                SetState(State.Idle);
-                LearnerQuestion?.Invoke(options, async index =>
-                {
-                    if (index < 0 || index >= responsesPerOption.Length) return;
-                    Stop();
-                    var reply = (running = new CancellationTokenSource()).Token;
-                    answered?.Invoke(index, index == correctIndex);
-                    try
-                    {
-                        BubbleChanged?.Invoke("assistant", responsesPerOption[index].text);
-                        await Say(responsesPerOption[index], reply);
-                        SetState(State.Idle);
-                    }
-                    catch (OperationCanceledException) { }
-                });
-            }
-            catch (OperationCanceledException) { }
+            Problem = problem;
+            if (Current == State.Error) StateChanged?.Invoke(State.Error);
+            else SetState(State.Error);
         }
 
         void SetState(State state)

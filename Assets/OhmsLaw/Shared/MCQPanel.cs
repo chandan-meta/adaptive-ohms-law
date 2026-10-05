@@ -13,8 +13,12 @@ namespace OhmsLaw
         readonly float Width;
         const float OptionHeight = 92f, Badge = 60f, HintBand = 60f;
 
+        // Answer marks on the option tiles (white text stays readable on each).
+        public static readonly Color RightMark = new Color(0.2f, 0.5f, 0.25f), WrongMark = new Color(0.5f, 0.2f, 0.2f), PartMark = new Color(0.55f, 0.42f, 0.12f);
+
         readonly RectTransform panel;
         readonly Image[] options;
+        readonly bool[] disabled;
         readonly TextMeshProUGUI question;
         readonly TextMeshProUGUI hint;
         public int Picked { get; private set; } = -1;
@@ -40,6 +44,7 @@ namespace OhmsLaw
             // Rows stack with a fixed gap; an option that wraps grows its own tile instead of spilling into the gap.
             float y = Top + questionHeight + Gap, rowGap = Row - OptionHeight, labelWidth = Width - 2 * Pad - (16 + Badge + 20) - 14;
             options = new Image[optionTexts.Length];
+            disabled = new bool[optionTexts.Length];
             for (int i = 0; i < optionTexts.Length; i++)
             {
                 int index = i;
@@ -85,15 +90,16 @@ namespace OhmsLaw
             else { letter = fallbackLetter; text = option; }
         }
 
-        // Waits for a tap. With ReviewMode.autoAnswer the panel answers itself (autoPick) after the review delay.
-        public IEnumerator WaitForPick(int autoPick)
+        // Waits for a tap. With ReviewMode.autoAnswer the panel answers itself (autoPick) after the review delay; the delay
+        // starts once holdAuto (e.g. "the question is still being spoken") turns false.
+        public IEnumerator WaitForPick(int autoPick, System.Func<bool> holdAuto = null)
         {
             Picked = -1;
             Interactable(true);
             float waited = 0;
             while (Picked < 0)
             {
-                waited += Time.deltaTime;
+                if (holdAuto == null || !holdAuto()) waited += Time.deltaTime;
                 if (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay) Picked = Mathf.Max(0, autoPick);
                 yield return null;
             }
@@ -102,10 +108,19 @@ namespace OhmsLaw
 
         void Interactable(bool on)
         {
-            foreach (var option in options) option.GetComponent<Button>().interactable = on;
+            for (int i = 0; i < options.Length; i++) options[i].GetComponent<Button>().interactable = on && !disabled[i];
         }
 
         public void Mark(int index, Color color) { if (index >= 0 && index < options.Length) options[index].color = color; }
+
+        // A tried option keeps its mark and can no longer be picked (retries offer the others).
+        public void Disable(int index, Color mark)
+        {
+            if (index < 0 || index >= options.Length) return;
+            disabled[index] = true;
+            options[index].color = mark;
+            options[index].GetComponent<Button>().interactable = false;
+        }
 
         public void ClearMarks()
         {

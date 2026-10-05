@@ -113,15 +113,17 @@ namespace OhmsLaw.Editor
             return Directory.GetFiles(folder, "*.wav").ToDictionary(f => Path.GetFileNameWithoutExtension(f), f => AssetDatabase.LoadAssetAtPath<AudioClip>(f.Replace('\\', '/')));
         }
 
-        // Recorded clip for a line: "S05_L01.wav" (real voice) or "scratch_S05_L01.wav" (OS text-to-speech).
+        // Clip for a line, best first: the real voice "<id>.mp3" (the proxy bake, BakeBlockoutVO), a voice actor's
+        // "<id>.ogg" / "<id>.wav", then the stand-in "scratch_<id>.wav" (local text-to-speech).
+        static readonly string[] VoNames = { "{0}.mp3", "{0}.ogg", "{0}.wav", "scratch_{0}.wav", "scratch_{0}.mp3", "scratch_{0}.ogg" };
+
         public static AudioClip FindVo(string sceneFolder, string id)
         {
-            foreach (var name in new[] { id, "scratch_" + id })
-                foreach (var ext in new[] { ".wav", ".mp3", ".ogg" })
-                {
-                    var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(sceneFolder + "/Audio/VO/" + name + ext);
-                    if (clip) return clip;
-                }
+            foreach (var name in VoNames)
+            {
+                var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(sceneFolder + "/Audio/VO/" + string.Format(name, id));
+                if (clip) return clip;
+            }
             return null;
         }
 
@@ -238,7 +240,7 @@ namespace OhmsLaw.Editor
         }
 
         public static IEnumerable<SceneBuilderBase> Builders() =>
-            TypeCache.GetTypesDerivedFrom<SceneBuilderBase>().Where(t => !t.IsAbstract)
+            TypeCache.GetTypesDerivedFrom<SceneBuilderBase>().Where(t => !t.IsAbstract && !t.IsNested) // nested kits (Scene04Builder.ApparatusKit) are not scenes
                 .Select(t => (SceneBuilderBase)Activator.CreateInstance(t)).OrderBy(b => b.SceneId);
     }
 }

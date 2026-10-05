@@ -8,140 +8,304 @@ using UnityEngine.Rendering;
 
 namespace OhmsLaw.Editor
 {
-    // Stage kit for Scenes 7-13: Scene 4's study with its lighting and cameras, Ohm's 1826 apparatus at Scene 4's
-    // positions, the modern bench that replaces the desk from Scene 8 on, and the groups the cues show and hide.
+    // Stage kit for the historical lab: Ohm's 1826 apparatus (one layout, Scene 4 on), Scene 4's study placed in the
+    // classroom frame for Scenes 7-8 (same desk, same apparatus, Ohm on the same spot, same light, the same camera side),
+    // its chalk slate, and the pieces Scene 8's transformation turns into the classroom lab.
     public abstract partial class SceneBuilderBase
     {
-        const string WorkbenchPrefab = "Assets/AdaptiveLearning/Prefabs/ImportedLabEquipment/Workbench.prefab";
         const string OhmPrefab = Root + "/Scene04/Prefabs/Ohm_Scene04.prefab";
-        const float BenchCloseDepth = 1.8f;                                                   // StudyBenchCam to the desk
 
-        // ------------------------------------------------------------------ transitional names
-        // The blockout frame (bench at the origin, cameras on -Z) is gone; these keep the scene builders and Rig.cs
-        // compiling until they move to the Study* constants. Delete once nothing references them.
+        // ------------------------------------------------------------------ the study in the classroom frame
 
-        [Obsolete("Study frame: the bench top is DeskY")] protected const float BenchTop = DeskY;
-        [Obsolete("Use StudyWideCam / StudyWideLook")] protected static Vector3 BenchWideCam => StudyWideCam;
-        [Obsolete("Use StudyWideCam / StudyWideLook")] protected static Vector3 BenchWideLook => StudyWideLook;
-        [Obsolete("Use StudyBenchCam / StudyBenchLook")] protected static Vector3 BenchCloseCam => StudyBenchCam;
-        [Obsolete("Use StudyBenchCam / StudyBenchLook")] protected static Vector3 BenchCloseLook => StudyBenchLook;
-        [Obsolete("Use StudyBoardsCam / StudyBoardsLook")] protected static Vector3 BoardsCam => StudyBoardsCam;
-        [Obsolete("Use StudyBoardsCam / StudyBoardsLook")] protected static Vector3 BoardsLook => StudyBoardsLook;
-        [Obsolete("Use StudyWattsonHome")] protected static Vector3 WattsonHome => StudyWattsonHome;
-        [Obsolete("Use OhmFeet4")] protected static Vector3 OhmFeet => OhmFeet4;
-        [Obsolete("Use StudySet(modernBench)")] protected void LabGreybox(bool modernBench) => StudySet(modernBench);
-        [Obsolete("Use OhmApparatus()")] protected void OhmTable() => OhmApparatus();
+        // Scene 4's study turned half round about Y and shifted so the Victorian desk (1.61 x 0.66 m, top 0.80) sits 0.25 m
+        // right of the bench centre: the 2.0 m modern bench that replaces it in Scene 8 then still clears the window wall
+        // (inner face x 1.045). Ohm, the desk and Scene 4's wire keep their places in the room, the cameras stay on the
+        // room side (-Z) like Scene 4's, and the classroom shell (x ±3.2, z -4..2.6, ceiling 3.0) encloses the whole study,
+        // so Scenes 9-13 and every classroom-frame kit keep working. (Properties: static initializer order across the
+        // partial files is unspecified.)
+        public static readonly Vector3 StudyOrigin = new Vector3(-2.17f, 1.06f, -1.77f);
+        public static readonly Quaternion StudyTurn = Quaternion.Euler(0f, 180f, 0f);
+        public static Vector3 StudyPoint(Vector3 study) => StudyOrigin + StudyTurn * study;
+        public static Vector3 OhmDeskC => StudyPoint(DeskTop);                 // (0.25, 0.80, 0): the Victorian desk top centre
+        public static Vector3 WireStudyC => StudyPoint(Wire4);                 // (0.54, 0.88, 0.13): the wire we dived into
+        public static Vector3 HoverStudyC => StudyPoint(Hover);                // (-0.67, 1.26, -1.32): where Wattson settled in Scene 4
+        public static Vector3 OhmHeadStudyC => StudyPoint(OhmHead);
+        // Scene 4's shots mapped into this frame: SH01 (the group's view of the desk) and SH09b / SH11b on the dive axis.
+        static Vector3 DiveAxis => (Wire4 - Hover).normalized;                 // study frame
+        public static Vector3 StudyWideCamC => new Vector3(-1.6f, 1.65f, -2.6f);
+        public static Vector3 StudyWideLookC => new Vector3(0f, 0.95f, 0.3f);
+        public const float StudyWideFov = 46f;
+        public static Vector3 StudyAimCamC => StudyPoint(Wire4 - DiveAxis * 1.05f + Vector3.up * 0.12f);
+        public static Vector3 StudyMacroCamC => StudyPoint(Wire4 - DiveAxis * 0.12f);    // the wire ~11 % of the frame tall at 30°
+        // The desk straight on (Scene 8's transformation): the whole desk, the 2.0 m bench that replaces it, Ohm's head
+        // and Wattson beside the desk all in frame.
+        public static Vector3 StudyDeskCamC => new Vector3(0.05f, 1.5f, -2.05f);
+        public static Vector3 StudyDeskLookC => new Vector3(0.05f, 0.98f, 0.15f);
+        public const float StudyDeskFov = 46f;                                         // bench 10-87 % across, Ohm's head top at 89 %
+        public static Vector3 WattsonStudyC => new Vector3(-0.78f, 1.22f, -1.0f);     // in front of the desk's left half in Study Wide (48 %), under the slate
+        public static Vector3 TransformPointC => new Vector3(-0.9f, 1.35f, -0.35f);   // beside the desk's left end in Study Desk (17 %)
+        // The chalk slate: left of the desk in front of the fireplace (the fire still glows below it), turned to Study Wide,
+        // 3.0 m from that lens. The board's UV space at x0.6 (a 1.92 x 0.9 m slate) keeps the two clues' chalk at the pixel
+        // sizes they were set for on the classroom board (36 px headlines, 24 px question).
+        static readonly Vector3 EaselFoot = new Vector3(-1.05f, -0.02f, 0.75f);
+        const float SlateScale = 0.6f, SlateCentreY = 1.59f;
 
-        // ------------------------------------------------------------------ the set
-
-        // Scene 4's study, lit and framed, with the desk or the modern bench in place. Refs:
-        //   "Lab"        everything in the room (study, desk group, bench, lighting); Scene 12 hides it for the dive
-        //   "Old Table"  the Victorian desk with its dressing, the chair, the desk candle, the lamp and their lights
-        //   "Bench"      the modern bench (Workbench.prefab, 2.0 x 0.82 x 0.9 m, top at DeskY) with its cool spot
-        //   "Study"      the room itself (from Study()); "Study/<part>" refs stay valid
-        //   markers "Wattson Home", "Bench Point", "Boards Anchor", "Apparatus Point"
-        //   cameras "Bench Wide", "Bench Close", "Table Close", "Boards"
-        protected void StudySet(bool modernBench)
+        // Scene 4's study (Lab_Scene04 and its candle-and-window light) in the classroom frame, grouped for Scene 8's sweep.
+        // Refs: "Historical Lab" (root), "Study Lighting", pivot groups "Study Desk" (the Victorian desk and its extension),
+        // "Study Floor", "Study Back" (fireplace wall), "Study Window Side", "Study Door Side", "Study Ceiling", the desk
+        // dressing "Study Lamp" / "Study Candle" / "Study Inkstand" / "Study Papers" / "Study Globe" / "Study Eyewear" (each
+        // pivoted on itself, the lamp and candle lights inside), "Study Easel" with boardFace on its slate; markers "Wattson
+        // Study", "Transform Point", "Ohm Point", "Study Wire Point", "Bench Point"; cameras "Study Wide", "Study Aim",
+        // "Study Macro", "Study Desk". The wall behind the cameras is hidden. The study's reflection probe is baked here, so
+        // hide anything else that should not show in it (Scene 8's classroom) before calling.
+        protected GameObject HistoricalLab()
         {
+            var root = Ref(Node("Historical Lab"));
             var room = Study();
-            // Grouping the desk parts needs a plain hierarchy: children of a prefab instance cannot be re-parented.
+            // Grouping needs a plain hierarchy: children of a prefab instance cannot be re-parented.
             PrefabUtility.UnpackPrefabInstance(room, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
-            var lab = Ref(Node("Lab"));
-            room.transform.SetParent(lab.transform, true);
+            room.transform.SetParent(root.transform, false);
+            var lighting = StudyLighting();
+            lighting.name = "Study Lighting";
+            lighting.SetParent(root.transform, false);
+            Ref(lighting.gameObject);
 
-            // Paper_001 lies on the floor by the fireplace, not on the desk: it stays with the room.
+            // Room for the apparatus on the desk (Scene 4's variant hides the same pieces); the chair would stand in the
+            // desk shots and against the bench, and Ohm works standing.
+            foreach (var name in new[] { "Book_Pile_4", "Open_Book", "magnify_glass", "Chair" })
+                FindChild(room, name).gameObject.SetActive(false);
+            FindChild(FindChild(room, "hat_and_glass").gameObject, "Object_4").gameObject.SetActive(false); // the top hat; the glasses stay
+            // The paper on the floor by the fireplace belongs to the room, not the desk.
             FindChild(room, "Paper_001").SetParent(FindChild(room, "Interior"), true);
-            // The one book pile that stands in front of the apparatus corner and inside the bench footprint.
-            FindChild(room, "Book_Pile_4").gameObject.SetActive(false);
 
-            var oldTable = Ref(Node("Old Table", lab.transform));
-            foreach (var part in new[] { "Victorian_Desk", "Chair", "Candle_Holder_5", "hat_and_glass", "magnify_glass" })
-                FindChild(room, part).SetParent(oldTable.transform, true);
+            // Sort the room into regions while it still stands in Scene 4's own frame, then place it.
+            var regions = StudyRegions(room);
+            root.transform.SetPositionAndRotation(StudyOrigin, StudyTurn);
 
-            StudyLighting();
-            var lighting = scene.GetRootGameObjects().Last(g => g.name == "Lighting");
-            lighting.transform.SetParent(lab.transform, true);
-            // The flames that stand on the desk go with it.
-            foreach (var flame in new[] { "Desk Candle", "Oil Lamp" })
-                FindChild(lighting, flame).SetParent(oldTable.transform, true);
+            // The desk dressing, each piece pivoted on its own base so it shrinks in place (and out from under the desk, so
+            // hiding the desk does not cut it short); the lamp and candle take their flames' lights with them.
+            Transform Dress(string piece, string name, string light = null)
+            {
+                var wrap = PivotOn(FindChild(room, piece), name);
+                wrap.SetParent(room.transform, true);
+                if (light != null) FindChild(lighting.gameObject, light).SetParent(wrap, true);
+                return wrap;
+            }
+            Dress("Oil_Lamp_Large", "Study Lamp", "Oil Lamp");
+            Dress("Candle_Holder_5", "Study Candle", "Desk Candle");
+            Dress("Inkstand", "Study Inkstand");
+            Dress("Paper", "Study Papers");
+            Dress("Globe", "Study Globe");
+            Dress("hat_and_glass", "Study Eyewear");
 
-            var bench = Model(WorkbenchPrefab, "Bench", lab.transform, Vector3.zero, Vector3.zero, 1f, collider: false);
-            Fit(bench, new Vector3(BenchWidth, DeskY - FloorY, BenchDepth), new Vector3(BenchCentre.x, FloorY, BenchCentre.z));
-            Ref(bench);
-            // Cool-white work light over the instruments; the candle warmth stays in the room behind.
-            var spot = Node("Bench Lamp", bench.transform).AddComponent<Light>();
-            spot.transform.position = new Vector3(BenchCentre.x, 1.3f, BenchCentre.z);
-            spot.transform.rotation = Quaternion.Euler(90, 0, 0);
-            spot.type = LightType.Spot;
-            spot.color = new Color(1f, 0.95f, 0.88f);
-            spot.intensity = 5f;
-            spot.range = 3.2f;
-            spot.spotAngle = 75f;
-            spot.innerSpotAngle = 40f;
-            spot.shadows = LightShadows.Soft;
+            var top = ClassroomCeilingY - 0.25f;   // the study ceiling (y 2.75): walls lift away into it
+            PivotGroup("Study Desk", root.transform, OhmDeskC, regions["Desk"]);
+            PivotGroup("Study Floor", root.transform, new Vector3(0f, -0.02f, 0f), regions["Floor"]);
+            PivotGroup("Study Back", root.transform, new Vector3(-0.85f, top, 1.55f), regions["Back"]);
+            PivotGroup("Study Window Side", root.transform, new Vector3(1.05f, top, -0.7f), regions["Window"].Append(FindChild(lighting.gameObject, "God Rays")));
+            PivotGroup("Study Door Side", root.transform, new Vector3(-2.52f, top, -0.7f), regions["Door"]);
+            PivotGroup("Study Ceiling", root.transform, new Vector3(-0.72f, top, -0.72f), regions["Ceiling"]);
+            PivotGroup("Study North", root.transform, new Vector3(-0.72f, 0f, -3f), regions["North"]).gameObject.SetActive(false); // behind every camera
 
-            oldTable.SetActive(!modernBench);
-            bench.SetActive(modernBench);
+            StudyEasel(root.transform);
 
-            Marker("Wattson Home", StudyWattsonHome);
-            var benchPoint = Marker("Bench Point", BenchCentre + Vector3.up * 0.1f).transform;
-            var boardsAnchor = Marker("Boards Anchor", BoardsAnchor).transform;
-            var apparatusPoint = Marker("Apparatus Point", Galvanometer4 + Vector3.up * 0.08f).transform;
-            // The kids are the camera: all four shots stand in the room, on the +Z/+X side of the desk.
-            Vcam("Bench Wide", StudyWideCam, StudyWideLook, 46, benchPoint, lensWide, noise: 0.35f);
-            Vcam("Bench Close", StudyBenchCam, StudyBenchLook, 38, benchPoint, lensMedium);
-            Vcam("Table Close", StudyCloseCam, StudyCloseLook, 36, apparatusPoint, lensMedium);
-            Vcam("Boards", StudyBoardsCam, StudyBoardsLook, 44, boardsAnchor, lensMedium);
+            Marker("Wattson Study", WattsonStudyC);
+            Marker("Transform Point", TransformPointC);
+            var ohmPoint = Marker("Ohm Point", OhmHeadStudyC).transform;
+            var wirePoint = Marker("Study Wire Point", WireStudyC).transform;
+            var deskPoint = refs.TryGetValue("Bench Point", out var bench) ? bench.transform : Marker("Bench Point", OhmDeskC + Vector3.up * 0.1f).transform; // Scene 7: Ohm's desk
+            Vcam("Study Wide", StudyWideCamC, StudyWideLookC, StudyWideFov, ohmPoint, lensWide, noise: 0.5f);
+            Vcam("Study Aim", StudyAimCamC, WireStudyC, 30f, wirePoint, lensMedium);
+            Vcam("Study Macro", StudyMacroCamC, WireStudyC, 30f, wirePoint, lensMedium); // same lens as Aim: the pull-back is a dolly
+            Vcam("Study Desk", StudyDeskCamC, StudyDeskLookC, StudyDeskFov, deskPoint, lensMedium);
+
+            // Same room, same light as Scene 4, but the baked cubemap is sampled in world orientation: bake it again here.
+            var probe = lighting.GetComponentInChildren<ReflectionProbe>(true);
+            if (probe) BakeProbe(probe, "Study");
+            return root;
         }
 
-        // Scales a model so its render bounds measure `size` and stands it with the bottom centre of those bounds at `foot`.
-        protected static void Fit(GameObject go, Vector3 size, Vector3 foot)
+        // Region of every piece of the study, decided in Scene 4's frame by name, else by where its renderers stand:
+        // the window wall is -X, the fireplace wall -Z, the door wall +X, the wall behind the cameras +Z.
+        static Dictionary<string, List<Transform>> StudyRegions(GameObject room)
         {
-            var bounds = RenderBounds(go);
-            var s = go.transform.localScale;
-            go.transform.localScale = new Vector3(s.x * size.x / bounds.size.x, s.y * size.y / bounds.size.y, s.z * size.z / bounds.size.z);
-            bounds = RenderBounds(go);
-            go.transform.position += foot - new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
+            var regions = new[] { "Desk", "Floor", "Back", "Window", "Door", "Ceiling", "North" }.ToDictionary(r => r, r => new List<Transform>());
+            var units = new List<Transform>();
+            foreach (Transform child in room.transform)
+                if (child.name == "INTERIOR_") units.AddRange(FindChild(room, "Interior").Cast<Transform>());
+                else if (child.name == "walls") units.AddRange(child.Cast<Transform>());
+                else units.Add(child);
+            var wall = units.FirstOrDefault(u => u.name == "Wall");
+            if (wall) { units.Remove(wall); units.AddRange(wall.Cast<Transform>()); }
+
+            foreach (var unit in units)
+            {
+                string name = unit.name;
+                var renderers = unit.GetComponentsInChildren<Renderer>(true);
+                if (renderers.Length == 0) continue; // empty picture slots stay where they are
+                var bounds = renderers[0].bounds;
+                foreach (var r in renderers) bounds.Encapsulate(r.bounds);
+                Vector3 c = bounds.center;
+                string region =
+                    name == "Victorian_Desk" || name == "Chair" || name == "chock_and_duster" || name == "glass_and_ice_cube_" ? "Desk"
+                    : name == "floor" || name == "Interior_Interior_0" || name == "Interior_Interior_0__1_" || name == "Victorian_Rug" || name == "Paper_001" ? "Floor"
+                    : name == "ceilling_" || name == "Interior_Interior_0__2_" || name.StartsWith("ceiling_lamo") ? "Ceiling"
+                    : name == "mystery_board" || name.StartsWith("Point_Light") ? "North"
+                    : name.StartsWith("Floor_Book_Pile") ? "Back"
+                    : c.x < -3.0f ? "Window"
+                    : c.z < -2.9f ? "Back"
+                    : c.x > 0.1f ? "Door"
+                    : c.z > 1.0f ? "North"
+                    : null;
+                if (region != null) regions[region].Add(unit);
+            }
+            return regions;
         }
 
-        static Bounds RenderBounds(GameObject go)
+        // A pivot node at `pivot` (world) under `parent` holding `members` (world poses kept), registered by name: the cues
+        // scale the node, so the pivot is where the group collapses to or grows from.
+        protected Transform PivotGroup(string name, Transform parent, Vector3 pivot, IEnumerable<Transform> members)
         {
-            var renderers = go.GetComponentsInChildren<Renderer>().Where(r => r.enabled).ToArray();
-            if (renderers.Length == 0) return new Bounds(go.transform.position, Vector3.one);
-            var bounds = renderers[0].bounds;
-            foreach (var r in renderers) bounds.Encapsulate(r.bounds);
-            return bounds;
+            var group = Ref(Node(name, parent)).transform;
+            group.position = pivot;
+            group.rotation = Quaternion.identity;
+            foreach (var member in members.ToArray()) member.SetParent(group, true);
+            return group;
         }
 
-        // ------------------------------------------------------------------ Ohm's apparatus (classroom frame)
-
-        // ART_DIRECTION §2: the desk top centre is the origin at y 0.80, cameras stand on the -Z side and Ohm behind
-        // the desk (+Z) facing them. His model's arms are short (0.32 m shoulder to wrist at scale 1.55), so what he
-        // works with runs along the back of the desk, within reach of a 30° lean; the hero props sit toward the front.
-        public static readonly Vector3 Desk7 = new Vector3(0f, 0.80f, 0f);
-        public static readonly Vector3 OhmFeet7 = new Vector3(0f, 0f, 0.75f);
-        public static readonly Vector3 Galvanometer7 = Desk7 + new Vector3(0.45f, 0, 0.10f);   // base centre of the torsion galvanometer
-        public static readonly Vector3 Cups7 = Desk7 + new Vector3(-0.26f, 0, 0.15f);          // middle mercury cup; the row runs along X
-        public static readonly Vector3 Wire7 = Desk7 + new Vector3(0f, 0.09f, 0.40f);           // the mounted test wire, between its posts
-        public static readonly Vector3 Source7 = Desk7 + new Vector3(-0.62f, 0, 0.28f);         // copper-bismuth source, left-back
-        public static readonly Vector3 TestWires7 = Desk7 + new Vector3(-0.50f, 0, -0.22f);     // the loose test wires, front-left
-        public static readonly Vector3 Notebook7 = Desk7 + new Vector3(0.28f, 0, 0.30f);        // right of his hands, clear of the galvanometer
-        public static readonly Vector3 DeskEye7 = new Vector3(0.3f, 1.08f, -1.15f);             // the desk close-up's eye (= Classroom TableCloseCamC); faces the pages fan
-        const float WireHalf7 = 0.28f, GlassRadius = 0.09f, GlassHeight = 0.20f, NeedleHeight = 0.12f;
-
-        // Ohm's 1826 apparatus on the classroom desk, grouped for Scene 8's swap (each group's pivot is on its prop,
-        // so callouts and Wattson's pointing land on it):
-        //   "torsion galvanometer"  glass cylinder, dark base, brass cap, arc scale, needle, its two leads -> AMMETER
-        //   "Copper Test Wires"     the mounted wire between its posts, four loose wires, the source lead -> NICHROME WIRE — XY
-        //   "Thermoelectric Source" copper-bismuth junctions ("Hot Junction", "Cold Junction" for the callouts) -> cells / DC source
-        //   "Mercury Cups"          three brushed-metal cups                                 -> switch / key
-        //   "notebook" (+ pen), "Page 1..3", "Pages Fan", "Ohm Apparatus" (root), "Georg Ohm", "Ohm Hand Wire",
-        //   markers "Apparatus Point", "Ohm Notebook Target", "Ohm Galvanometer Target", "Ohm Wire Target"
-        // Names are the storyboard's; the callout layer labels them, so nothing here carries world text.
-        protected void OhmApparatus()
+        // Wraps one object in a node at the bottom centre of its render bounds (same parent), registered as `name`, so it
+        // can shrink or grow in place whatever its own pivot is.
+        protected Transform PivotOn(Transform item, string name)
         {
-            // Satin copper (its own asset: Scenes 4-5 keep the polished "Copper"): the polished metal caught the window and
-            // bloomed orange like a heated filament, and its shaded side went near-black.
+            var bounds = RenderBounds(item.gameObject);
+            var wrap = Ref(Node(name, item.parent)).transform;
+            wrap.position = new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
+            item.SetParent(wrap, true);
+            return wrap;
+        }
+
+        // A Victorian lecture slate in a wooden frame on a three-legged easel, turned to Study Wide. Its chalk face becomes
+        // boardFace, scaled so the classroom board's 3.2 x 1.5 m UV space maps onto the slate: Board(), BoardPanel() and
+        // TwoCluesBoard() write on it unchanged. Ref "Study Easel" (pivot at its feet).
+        void StudyEasel(Transform parent)
+        {
+            if (!chalkFace) chalkFace = ChalkMaterial();
+            var wood = Lit("DarkWood", new Color(0.2f, 0.11f, 0.06f), 0f, 0.4f);
+            var slate = Lit("Slate", new Color(0.075f, 0.09f, 0.085f), 0f, 0.22f);
+            var easel = Ref(Node("Study Easel", parent)).transform;
+            easel.position = EaselFoot;
+            var toCamera = Vector3.ProjectOnPlane(StudyWideCamC - EaselFoot, Vector3.up).normalized;
+            easel.rotation = Quaternion.LookRotation(-toCamera); // local +Z away from the camera: the slate's face looks along -Z
+
+            float w = BoardSizeC.x * SlateScale, h = BoardSizeC.y * SlateScale, y = SlateCentreY;
+            Prim(PrimitiveType.Cube, "Slate", easel, new Vector3(0f, y, 0f), new Vector3(w, h, 0.025f), slate);
+            const float rail = 0.045f;
+            foreach (float s in new[] { -1f, 1f })
+            {
+                Prim(PrimitiveType.Cube, "Rail", easel, new Vector3(0f, y + s * (h + rail) / 2, -0.004f), new Vector3(w + 2 * rail, rail, 0.035f), wood);
+                Prim(PrimitiveType.Cube, "Stile", easel, new Vector3(s * (w + rail) / 2, y, -0.004f), new Vector3(rail, h, 0.035f), wood);
+            }
+            float ledge = y - h / 2 - rail - 0.012f;
+            Prim(PrimitiveType.Cube, "Chalk Ledge", easel, new Vector3(0f, ledge, -0.04f), new Vector3(w + 2 * rail, 0.024f, 0.08f), wood);
+            Prim(PrimitiveType.Cylinder, "Chalk", easel, new Vector3(-0.35f, ledge + 0.017f, -0.05f), new Vector3(0.011f, 0.035f, 0.011f), Lit("Classroom_Chalk_" + ColorUtility.ToHtmlStringRGB(Chalk), Chalk, 0f, 0.1f), new Vector3(0f, 0f, 90f));
+            Prim(PrimitiveType.Cube, "Duster", easel, new Vector3(0.45f, ledge + 0.022f, -0.05f), new Vector3(0.12f, 0.022f, 0.045f), wood);
+            // Legs: two in front leaning back to the slate's top corners, one behind as a prop.
+            void Strut(string name, Vector3 a, Vector3 b, float radius)
+            {
+                var leg = Prim(PrimitiveType.Cylinder, name, easel, (a + b) / 2, new Vector3(radius * 2, Vector3.Distance(a, b) / 2, radius * 2), wood).transform;
+                leg.localRotation = Quaternion.FromToRotation(Vector3.up, b - a);
+            }
+            foreach (float s in new[] { -1f, 1f }) Strut("Leg", new Vector3(s * (w / 2 - 0.05f), 0.02f, -0.16f), new Vector3(s * (w / 2 - 0.12f), y + h / 2 + 0.12f, 0.03f), 0.018f);
+            Strut("Back Leg", new Vector3(0f, 0.02f, 0.62f), new Vector3(0f, y + h / 2 + 0.08f, 0.04f), 0.016f);
+            Strut("Peg", new Vector3(-w / 3, ledge - 0.01f, 0.02f), new Vector3(-w / 3, ledge - 0.01f, -0.07f), 0.01f);
+            Strut("Peg", new Vector3(w / 3, ledge - 0.01f, 0.02f), new Vector3(w / 3, ledge - 0.01f, -0.07f), 0.01f);
+
+            boardFace = Node("Board Face", easel, new Vector3(0f, y, -0.0135f)).transform;
+            boardFace.localScale = Vector3.one * SlateScale; // identity rotation: +Z into the slate, text reads from the camera side
+            Ref(Node("Board Anchor", easel, new Vector3(0f, y, -0.02f)));
+        }
+
+        // ------------------------------------------------------------------ Scene 8's two looks
+
+        // The lighting state the last *Lighting() call left (RenderSettings, the camera background) plus that rig's lights at
+        // their built intensities, its global volume, reflection probe and directional key, for the SceneDirector's 'look' cue.
+        protected SceneDirector.LabLook CaptureLook(string name, Transform lighting)
+        {
+            var lights = lighting.GetComponentsInChildren<Light>(true);
+            return new SceneDirector.LabLook
+            {
+                name = name,
+                lights = lights,
+                intensities = lights.Select(l => l.intensity).ToArray(),
+                volume = lighting.GetComponentInChildren<Volume>(true),
+                probe = lighting.GetComponentInChildren<ReflectionProbe>(true),
+                sun = lights.FirstOrDefault(l => l.type == LightType.Directional),
+                ambientSky = RenderSettings.ambientSkyColor,
+                ambientEquator = RenderSettings.ambientEquatorColor,
+                ambientGround = RenderSettings.ambientGroundColor,
+                background = camera.backgroundColor,
+                fog = RenderSettings.fog,
+                fogColor = RenderSettings.fogColor,
+                fogDensity = RenderSettings.fogDensity,
+            };
+        }
+
+        // Builds the scene in `look`: its lights on, every other look's lights off, volumes weighted, the right probe active.
+        // RenderSettings and the camera background must already be the look's (its *Lighting() ran last).
+        protected static void StartIn(SceneDirector.LabLook look, params SceneDirector.LabLook[] others)
+        {
+            foreach (var other in others)
+            {
+                foreach (var light in other.lights) if (light && !look.lights.Contains(light)) light.enabled = false;
+                if (other.volume) other.volume.weight = 0f;
+                if (other.probe) other.probe.gameObject.SetActive(false);
+            }
+            if (look.volume) look.volume.weight = 1f;
+            if (look.sun) RenderSettings.sun = look.sun;
+        }
+
+        // ------------------------------------------------------------------ Scenes 4-8: Ohm's 1826 apparatus
+
+        // The layout on the Victorian desk, in desk-local metres: origin at the desk top centre, +X to Ohm's left (frame
+        // right from the room), +Z toward Ohm. Scene 4's test wire stays exactly where Wattson's beam hits it (Scene 5's
+        // macro wire and Scene 7's opening copy it); the notebook is Scene 4's; the torsion galvanometer stands where the
+        // simple one stood, behind the wire; the source at his right; the mercury cups and the loose wires along the front.
+        // Each part sits near the modern instrument it becomes in Scene 8 (source left, galvanometer by the meter tray,
+        // loose wires where XY lies, cups where the key goes).
+        static readonly Vector3 AppWire = new Vector3(0.29f, 0.08f, 0.13f);
+        const float AppWireHalf = 0.21f;
+        static readonly Vector3 AppSource = new Vector3(-0.55f, 0f, 0.245f);
+        static readonly Vector3 AppNotebook = new Vector3(-0.21f, 0f, 0.26f);
+        static readonly Vector3 AppGalvanometer = new Vector3(0.17f, 0f, 0.235f);
+        const float AppGalvanometerScale = 0.75f;
+        static readonly Vector3 AppCups = new Vector3(0.46f, 0f, -0.17f);
+        static readonly Vector3 AppTestWires = new Vector3(-0.20f, 0f, -0.21f);
+        static readonly Vector3 AppOhmFeet = new Vector3(-0.02f, -0.82f, 0.59f);     // Scene 4's spot, 0.26 m behind the desk
+        // In the classroom frame (Scenes 7-8).
+        public static Vector3 ApparatusC => OhmDeskC + AppGalvanometer;              // the torsion galvanometer's base
+        public static Vector3 SourceStudyC => OhmDeskC + AppSource;
+        public static Vector3 NotebookStudyC => OhmDeskC + AppNotebook;
+        public static Vector3 CupsStudyC => OhmDeskC + AppCups;
+        public static Vector3 TestWiresStudyC => OhmDeskC + AppTestWires;
+        const float GlassRadius = 0.09f, GlassHeight = 0.20f, NeedleHeight = 0.12f, GlassBottom = 0.035f;
+
+        // Ohm's 1826 apparatus on the desk whose top centre is `deskTop`, `turn` taking desk-local axes to the world's
+        // (identity in the classroom frame, a half turn in Scene 4's study). Groups, each pivoted on its prop so callouts,
+        // pointing and Scene 8's shrink land on it:
+        //   "torsion galvanometer"  glass cylinder, base, brass cap, arc scale, needle, its leads             -> AMMETER
+        //   "Copper Test Wires"     "Wire Mount" (Scene 4's wire "Copper Wire" on its posts, the source lead) and
+        //                           "Loose Test Wires" (four lengths, "Test Wire 1..4")                       -> NICHROME WIRE — XY
+        //   "Thermoelectric Source" copper-bismuth junctions ("Hot Junction", "Cold Junction")                -> cells / DC source
+        //   "Mercury Cups"          three brushed-metal cups                                                  -> switch / key
+        //   "notebook" (+ pen, "Page 1..3"), "Pages Fan", "Ohm Apparatus" (root), "Ohm Hand Wire", "Galvanometer Needle Pivot";
+        //   markers "Apparatus Point", "Ohm Notebook Target", "Ohm Galvanometer Target", "Ohm Wire Target".
+        // Names are the storyboard's; the callout layer labels them, so nothing here carries world text. Leads are local-space
+        // lines, so they move and shrink with their group.
+        protected GameObject HistoricalApparatus(Vector3 deskTop, Quaternion turn)
+        {
+            // Scene 4's polished copper for its wire (and Scene 5's macro copy); satin copper elsewhere: polished metal
+            // caught the light and bloomed like a heated filament on the thicker loose wires.
+            var polished = Lit("Copper", new Color(0.86f, 0.46f, 0.26f), 1f, 0.72f);
             var copper = Lit("Classroom_Copper", new Color(0.88f, 0.5f, 0.3f), 0.6f, 0.5f);
             var brass = Lit("Brass", new Color(0.83f, 0.66f, 0.3f), 1f, 0.68f);
             var zinc = Lit("Zinc", new Color(0.62f, 0.65f, 0.68f), 1f, 0.5f);
@@ -155,20 +319,24 @@ namespace OhmsLaw.Editor
             var steel = Lit("BrushedSteel", new Color(0.7f, 0.72f, 0.74f), 1f, 0.45f);
             var needleSteel = Lit("NeedleSteel", new Color(0.2f, 0.21f, 0.24f), 1f, 0.6f);
             var glass = ApparatusGlass("GalvanometerGlass", new Color(0.8f, 0.9f, 1f, 0.18f));
+
             var root = Ref(Node("Ohm Apparatus")).transform;
-            Vector3 postA = Wire7 + Vector3.left * WireHalf7, postB = Wire7 + Vector3.right * WireHalf7; // A on his right (-X)
-            Vector3 sag = Vector3.down * 0.04f;
+            root.SetPositionAndRotation(deskTop, turn);
+            Vector3 W(Vector3 local) => root.TransformPoint(local);
+            // Groups start at the root's origin, so their local space is desk space until Pivot() moves their pivots.
+            Transform Part(string name, Transform parent = null) => Ref(Node(name, parent ? parent : root)).transform;
+            LineRenderer LeadLine(string name, Transform group, params Vector3[] points) => Polyline(name, group, copper, 0.004f, false, false, points);
 
             // Copper-bismuth source: two vessels, a junction block in the mouth of each, the bismuth bar across them,
             // steam over the hot side and ice on the cold side. The junctions are refs so the hot/cold callouts can aim at them.
-            var source = Ref(Node("Thermoelectric Source", root)).transform;
-            Vector3 hot = Source7 + Vector3.left * 0.09f, cold = Source7 + Vector3.right * 0.09f;
-            Prim(PrimitiveType.Cube, "Source Base", source, Source7 + Vector3.up * 0.007f, new Vector3(0.3f, 0.014f, 0.14f), wood);
+            var source = Part("Thermoelectric Source");
+            Vector3 hot = AppSource + Vector3.left * 0.09f, cold = AppSource + Vector3.right * 0.09f;
+            Prim(PrimitiveType.Cube, "Source Base", source, AppSource + Vector3.up * 0.007f, new Vector3(0.3f, 0.014f, 0.14f), wood);
             Prim(PrimitiveType.Cylinder, "Hot Vessel", source, hot + Vector3.up * 0.054f, new Vector3(0.09f, 0.04f, 0.09f), copper);
             Prim(PrimitiveType.Cylinder, "Cold Vessel", source, cold + Vector3.up * 0.054f, new Vector3(0.09f, 0.04f, 0.09f), zinc);
             Ref(Prim(PrimitiveType.Cube, "Hot Junction", source, hot + Vector3.up * 0.1f, Vector3.one * 0.03f, copper));
             Ref(Prim(PrimitiveType.Cube, "Cold Junction", source, cold + Vector3.up * 0.1f, Vector3.one * 0.03f, copper));
-            Prim(PrimitiveType.Cube, "Bismuth Bar", source, Source7 + Vector3.up * 0.108f, new Vector3(0.2f, 0.012f, 0.012f), bismuth);
+            Prim(PrimitiveType.Cube, "Bismuth Bar", source, AppSource + Vector3.up * 0.108f, new Vector3(0.2f, 0.012f, 0.012f), bismuth);
             for (int i = 0; i < 3; i++)
             {
                 float a = 0.6f + i * 2.2f;
@@ -196,120 +364,126 @@ namespace OhmsLaw.Editor
                 noise.strength = 0.02f;
                 noise.frequency = 0.6f;
             });
-            Pivot(source, Source7 + Vector3.up * 0.08f);
+            Pivot(source, W(AppSource + Vector3.up * 0.08f));
 
-            // Torsion galvanometer (Scene07_galvanometer_closeup): dark metal base with two brass terminals at the front,
-            // a brass ring, the glass cylinder with its brass cap and torsion knob, and inside it the needle hanging on
-            // its thread at mid-height in front of the arc scale, which curves round the back half of the glass.
-            var galvanometer = Ref(Node("torsion galvanometer", root)).transform;
-            Vector3 g = Galvanometer7;
-            float glassBottom = 0.035f, glassTop = glassBottom + GlassHeight;
-            Prim(PrimitiveType.Cylinder, "Galvanometer Base", galvanometer, g + Vector3.up * 0.0125f, new Vector3(0.26f, 0.0125f, 0.26f), gunmetal);
-            Prim(PrimitiveType.Cylinder, "Galvanometer Ring", galvanometer, g + Vector3.up * 0.03f, new Vector3(0.2f, 0.005f, 0.2f), brass);
-            Prim(PrimitiveType.Cylinder, "Galvanometer Glass", galvanometer, g + Vector3.up * (glassBottom + GlassHeight / 2), new Vector3(GlassRadius * 2, GlassHeight / 2, GlassRadius * 2), glass);
-            Prim(PrimitiveType.Cylinder, "Galvanometer Cap", galvanometer, g + Vector3.up * (glassTop + 0.0075f), new Vector3(0.19f, 0.0075f, 0.19f), brass);
-            Prim(PrimitiveType.Cylinder, "Torsion Head", galvanometer, g + Vector3.up * (glassTop + 0.021f), new Vector3(0.04f, 0.006f, 0.04f), brass);
-            Prim(PrimitiveType.Sphere, "Torsion Knob", galvanometer, g + Vector3.up * (glassTop + 0.034f), Vector3.one * 0.018f, brass);
-            Prim(PrimitiveType.Cylinder, "Torsion Thread", galvanometer, g + Vector3.up * ((NeedleHeight + glassTop) / 2), new Vector3(0.0016f, (glassTop - NeedleHeight) / 2, 0.0016f), ink);
-            var pivot = Node("Galvanometer Needle Pivot", galvanometer, g + Vector3.up * NeedleHeight).transform;
-            Prim(PrimitiveType.Cube, "Galvanometer Needle", pivot, Vector3.zero, new Vector3(0.14f, 0.0025f, 0.005f), needleSteel);
-            Prim(PrimitiveType.Sphere, "Needle Hub", pivot, Vector3.zero, Vector3.one * 0.012f, brass);
-            var scale = Node("Galvanometer Scale", galvanometer, g + Vector3.up * NeedleHeight);
+            // Scene 4's test wire between its brass posts on dark-wood blocks; the source lead runs along the desk's back edge.
+            var wires = Part("Copper Test Wires");
+            var mount = Part("Wire Mount", wires);
+            Ref(Prim(PrimitiveType.Cylinder, "Copper Wire", mount, AppWire, new Vector3(0.007f, AppWireHalf, 0.007f), polished, new Vector3(0, 0, 90)));
+            Vector3 postA = new Vector3(AppWire.x - AppWireHalf, 0f, AppWire.z), postB = new Vector3(AppWire.x + AppWireHalf, 0f, AppWire.z); // A on his right (-X)
+            foreach (var foot in new[] { postA, postB })
+            {
+                Prim(PrimitiveType.Cube, "Post Base", mount, foot + Vector3.up * 0.008f, new Vector3(0.05f, 0.016f, 0.05f), wood);
+                Prim(PrimitiveType.Cylinder, "Post", mount, foot + Vector3.up * 0.05f, new Vector3(0.012f, 0.045f, 0.012f), brass);
+                Prim(PrimitiveType.Sphere, "Post Cap", mount, foot + Vector3.up * 0.098f, Vector3.one * 0.02f, brass);
+            }
+            LeadLine("Lead Source-Post", mount, cold + new Vector3(0f, 0.115f, 0f), cold + new Vector3(0.05f, 0.004f, 0.07f), new Vector3(-0.05f, 0.004f, 0.305f),
+                new Vector3(0.06f, 0.004f, 0.28f), postA + new Vector3(0f, 0.016f, 0.025f));
+            Pivot(mount, W(AppWire));
+            // Four loose test wires of different lengths resting on the front of the desk (Scene07_ohm_copper_wires).
+            var loose = Part("Loose Test Wires", wires);
+            for (int i = 0; i < 4; i++)
+            {
+                float length = 0.40f - i * 0.06f;
+                var centre = AppTestWires + new Vector3(0.03f * i, 0.007f, 0.08f - i * 0.06f);
+                Prim(PrimitiveType.Cylinder, "Test Wire " + (i + 1), loose, centre, new Vector3(0.014f, length / 2, 0.014f), copper, new Vector3(0, -4.5f + i * 3f, 90)); // 14 mm reads at the hero lens
+            }
+            Pivot(loose, W(AppTestWires + Vector3.up * 0.01f));
+            Pivot(wires, W(AppTestWires + Vector3.up * 0.01f));
+
+            // Torsion galvanometer (Scene07_galvanometer_closeup), at 3/4 size so it stands behind the wire on the desk: dark
+            // metal base with two brass terminals at the front, a brass ring, the glass cylinder with its brass cap and
+            // torsion knob, and inside it the needle hanging on its thread in front of the arc scale.
+            var galvanometer = Part("torsion galvanometer");
+            var body = Node("Galvanometer Body", galvanometer, AppGalvanometer).transform;
+            body.localScale = Vector3.one * AppGalvanometerScale;
+            float glassTop = GlassBottom + GlassHeight;
+            Prim(PrimitiveType.Cylinder, "Galvanometer Base", body, Vector3.up * 0.0125f, new Vector3(0.26f, 0.0125f, 0.26f), gunmetal);
+            Prim(PrimitiveType.Cylinder, "Galvanometer Ring", body, Vector3.up * 0.03f, new Vector3(0.2f, 0.005f, 0.2f), brass);
+            Prim(PrimitiveType.Cylinder, "Galvanometer Glass", body, Vector3.up * (GlassBottom + GlassHeight / 2), new Vector3(GlassRadius * 2, GlassHeight / 2, GlassRadius * 2), glass);
+            Prim(PrimitiveType.Cylinder, "Galvanometer Cap", body, Vector3.up * (glassTop + 0.0075f), new Vector3(0.19f, 0.0075f, 0.19f), brass);
+            Prim(PrimitiveType.Cylinder, "Torsion Head", body, Vector3.up * (glassTop + 0.021f), new Vector3(0.04f, 0.006f, 0.04f), brass);
+            Prim(PrimitiveType.Sphere, "Torsion Knob", body, Vector3.up * (glassTop + 0.034f), Vector3.one * 0.018f, brass);
+            Prim(PrimitiveType.Cylinder, "Torsion Thread", body, Vector3.up * ((NeedleHeight + glassTop) / 2), new Vector3(0.0016f, (glassTop - NeedleHeight) / 2, 0.0016f), ink);
+            var needlePivot = Ref(Node("Galvanometer Needle Pivot", body, Vector3.up * NeedleHeight)).transform;
+            Prim(PrimitiveType.Cube, "Galvanometer Needle", needlePivot, Vector3.zero, new Vector3(0.14f, 0.0025f, 0.005f), needleSteel);
+            Prim(PrimitiveType.Sphere, "Needle Hub", needlePivot, Vector3.zero, Vector3.one * 0.012f, brass);
+            var scale = Node("Galvanometer Scale", body, Vector3.up * NeedleHeight);
             scale.AddComponent<MeshFilter>().sharedMesh = TorsionScaleMesh(GlassRadius - 0.01f, 0.03f);
             scale.AddComponent<MeshRenderer>().sharedMaterials = new[]
             {
                 TwoSided("ScaleCard", new Color(0.93f, 0.9f, 0.82f), 0.2f),
                 TwoSided("ScaleInk", new Color(0.1f, 0.09f, 0.1f), 0.3f),
             };
-            Vector3 terminalA = g + new Vector3(-0.07f, 0.025f, -0.1f), terminalB = g + new Vector3(0.07f, 0.025f, -0.1f);
+            Vector3 terminalA = new Vector3(-0.07f, 0.025f, -0.1f), terminalB = new Vector3(0.07f, 0.025f, -0.1f); // body space
             foreach (var terminal in new[] { terminalA, terminalB })
             {
-                Prim(PrimitiveType.Cylinder, "Galvanometer Terminal", galvanometer, terminal + Vector3.up * 0.012f, new Vector3(0.012f, 0.012f, 0.012f), brass);
-                Prim(PrimitiveType.Sphere, "Terminal Cap", galvanometer, terminal + Vector3.up * 0.026f, Vector3.one * 0.014f, brass);
+                Prim(PrimitiveType.Cylinder, "Galvanometer Terminal", body, terminal + Vector3.up * 0.012f, new Vector3(0.012f, 0.012f, 0.012f), brass);
+                Prim(PrimitiveType.Sphere, "Terminal Cap", body, terminal + Vector3.up * 0.026f, Vector3.one * 0.014f, brass);
             }
-            Polyline("Lead Post-Galvanometer", galvanometer, copper, 0.004f, false, true, postB + Vector3.up * 0.01f, (postB + terminalA) / 2 + Vector3.up * 0.03f + sag, terminalA + Vector3.up * 0.03f);
-            // The return lead runs along the desk in front of the cups and climbs to the cold junction.
-            Polyline("Lead Galvanometer-Source", galvanometer, copper, 0.004f, false, true,
-                terminalB + Vector3.up * 0.03f, g + new Vector3(0.05f, 0.004f, -0.17f), Desk7 + new Vector3(-0.1f, 0.004f, -0.03f),
-                Desk7 + new Vector3(-0.52f, 0.004f, 0.02f), Source7 + new Vector3(0.12f, 0.06f, -0.12f), cold + Vector3.up * 0.115f);
-            Pivot(galvanometer, g + Vector3.up * NeedleHeight);
-            // The close-up's focus target: the set may have registered it already (it is a camera's FocusTarget), so move that one.
-            if (refs.TryGetValue("Apparatus Point", out var apparatusPoint)) apparatusPoint.transform.position = g + Vector3.up * NeedleHeight;
-            else Marker("Apparatus Point", g + Vector3.up * NeedleHeight);
+            // Desk space: post B to the right terminal in front of the base; the left terminal back to the hot junction
+            // round the left of the base and along the back edge, behind the candle and under the notebook's far edge.
+            Vector3 Terminal(Vector3 t) => AppGalvanometer + (t + Vector3.up * 0.03f) * AppGalvanometerScale;
+            LeadLine("Lead Post-Galvanometer", galvanometer, postB + new Vector3(0f, 0.016f, 0.025f), new Vector3(0.40f, 0.004f, 0.16f), Terminal(terminalB));
+            LeadLine("Lead Galvanometer-Source", galvanometer, Terminal(terminalA), new Vector3(0.05f, 0.004f, 0.17f), new Vector3(0.04f, 0.004f, 0.32f),
+                new Vector3(-0.45f, 0.004f, 0.32f), hot + new Vector3(-0.06f, 0.004f, 0.05f), hot + new Vector3(0f, 0.115f, 0f));
+            Pivot(galvanometer, W(AppGalvanometer + Vector3.up * NeedleHeight * AppGalvanometerScale));
+            // The hero close-up's focus target: the set may have registered it already (it is a camera's FocusTarget), so move that one.
+            var needleAt = W(AppGalvanometer + Vector3.up * NeedleHeight * AppGalvanometerScale);
+            if (refs.TryGetValue("Apparatus Point", out var apparatusPoint)) apparatusPoint.transform.position = needleAt;
+            else Marker("Apparatus Point", needleAt);
 
-            // The test wire mounted between two posts in front of him (Scene 7's loop), its lead from the source, and
-            // four loose test wires of different lengths fanned out at the front-left (Scene07_ohm_copper_wires).
-            var wires = Ref(Node("Copper Test Wires", root)).transform;
-            Prim(PrimitiveType.Cylinder, "Copper Wire", wires, Wire7, new Vector3(0.01f, WireHalf7, 0.01f), copper, new Vector3(0, 0, 90));
-            foreach (var post in new[] { postA, postB })
-            {
-                var foot = new Vector3(post.x, Desk7.y, post.z);
-                Prim(PrimitiveType.Cube, "Post Block", wires, foot + Vector3.up * 0.015f, new Vector3(0.06f, 0.03f, 0.06f), gunmetal);
-                Prim(PrimitiveType.Cylinder, "Post", wires, foot + Vector3.up * 0.065f, new Vector3(0.016f, 0.035f, 0.016f), brass);
-                Prim(PrimitiveType.Sphere, "Post Cap", wires, foot + Vector3.up * 0.1f, Vector3.one * 0.024f, brass);
-            }
-            Polyline("Lead Source-Post", wires, copper, 0.004f, false, true, hot + Vector3.up * 0.115f, (hot + postA) / 2 + Vector3.up * 0.09f + sag, postA + Vector3.up * 0.01f);
-            for (int i = 0; i < 4; i++)
-            {
-                float length = 0.56f - i * 0.08f;
-                var centre = TestWires7 + new Vector3(0.04f * i, 0.007f, 0.12f - i * 0.08f); // resting on the desk
-                Prim(PrimitiveType.Cylinder, "Test Wire " + (i + 1), wires, centre, new Vector3(0.014f, length / 2, 0.014f), copper, new Vector3(0, -4.5f + i * 3f, 90)); // 14 mm reads at the hero lens
-            }
-            Pivot(wires, TestWires7 + Vector3.up * 0.01f);
-
-            // Mercury cups: three brushed-metal cups filled to the brim, in a row at mid-depth.
-            var cups = Ref(Node("Mercury Cups", root)).transform;
+            // Mercury cups: three brushed-metal cups filled to the brim, in a row along the front right.
+            var cups = Part("Mercury Cups");
             for (int i = 0; i < 3; i++)
             {
-                var cup = Cups7 + Vector3.right * ((i - 1) * 0.16f);
+                var cup = AppCups + Vector3.right * ((i - 1) * 0.12f);
                 Prim(PrimitiveType.Cylinder, "Mercury Cup " + (i + 1), cups, cup + Vector3.up * 0.025f, new Vector3(0.06f, 0.025f, 0.06f), steel);
                 Prim(PrimitiveType.Cylinder, "Mercury", cups, cup + Vector3.up * 0.0502f, new Vector3(0.048f, 0.0006f, 0.048f), mercury);
             }
-            Pivot(cups, Cups7 + Vector3.up * 0.05f);
+            Pivot(cups, W(AppCups + Vector3.up * 0.05f));
 
             // Ohm's notebook with its written lines and a pen; the pages that pile onto it one per cycle, and the fan above.
-            var notebook = Ref(Node("notebook", root)).transform;
-            var book = Prim(PrimitiveType.Cube, "Ohm Notebook", notebook, Notebook7 + Vector3.up * 0.006f, new Vector3(0.22f, 0.012f, 0.16f), paper, new Vector3(0, -12, 0)).transform;
+            var notebook = Part("notebook");
+            var book = Prim(PrimitiveType.Cube, "Ohm Notebook", notebook, AppNotebook + Vector3.up * 0.006f, new Vector3(0.2f, 0.012f, 0.14f), paper, new Vector3(0, -8, 0)).transform;
             for (int i = 0; i < 4; i++)
                 Prim(PrimitiveType.Cube, "Ink Line", book, Vector3.zero, new Vector3(0.7f - i * 0.1f, 0.2f, 0.03f), ink).transform.localPosition = new Vector3(-0.05f * i, 0.55f, 0.3f - i * 0.18f);
-            var pen = Node("Pen", notebook, Notebook7 + new Vector3(0.09f, 0.021f, -0.03f));
+            var pen = Node("Pen", notebook, AppNotebook + new Vector3(0.085f, 0.021f, -0.025f));
             pen.transform.localRotation = Quaternion.Euler(0, 55, 90);
             Prim(PrimitiveType.Cylinder, "Pen Barrel", pen.transform, Vector3.zero, new Vector3(0.008f, 0.065f, 0.008f), ink);
             Prim(PrimitiveType.Sphere, "Pen Tip", pen.transform, Vector3.up * 0.065f, Vector3.one * 0.007f, brass);
-            var pages = Node("Pages", notebook, Notebook7);
-            pages.transform.localRotation = Quaternion.Euler(0, -12, 0);
+            var pages = Node("Pages", notebook, AppNotebook);
+            pages.transform.localRotation = Quaternion.Euler(0, -8, 0);
             for (int i = 0; i < 3; i++)
             {
-                // Flat on the book, written for a reader on the camera side (top of the page toward +Z).
-                var page = Prim(PrimitiveType.Quad, "Page " + (i + 1), pages.transform, new Vector3(0.004f * i, 0.0135f + 0.0008f * i, -0.003f * i), new Vector3(0.17f, 0.12f, 1), paper, new Vector3(90, 0, 0));
+                // Flat on the book, written for a reader on the room side (top of the page toward Ohm).
+                var page = Prim(PrimitiveType.Quad, "Page " + (i + 1), pages.transform, new Vector3(0.004f * i, 0.0135f + 0.0008f * i, -0.003f * i), new Vector3(0.16f, 0.11f, 1), paper, new Vector3(90, 0, 0));
                 Ink(page.transform, InkPages[i], ink.GetColor("_BaseColor"));
                 page.AddComponent<PopIn>();
                 page.SetActive(false);
                 Ref(page);
             }
-            Pivot(notebook, Notebook7 + Vector3.up * 0.012f);
-            var fan = Ref(Node("Pages Fan", root, Notebook7 + Vector3.up * 0.25f));
+            Pivot(notebook, W(AppNotebook + Vector3.up * 0.012f));
+            var fan = Ref(Node("Pages Fan", root, AppNotebook + Vector3.up * 0.25f));
             for (int i = 0; i < 5; i++)
             {
                 var page = Prim(PrimitiveType.Quad, "Fanned Page", fan.transform, new Vector3((i - 2) * 0.1f, Mathf.Abs(i - 2) * -0.025f, 0.002f * i), new Vector3(0.17f, 0.12f, 1), paper, new Vector3(0, 0, (2 - i) * 12f));
                 Ink(page.transform, InkPages[i % InkPages.Length], ink.GetColor("_BaseColor"));
             }
-            Face(fan, DeskEye7);
+            Face(fan, W(new Vector3(0f, 0.4f, -1.2f)));
             fan.AddComponent<PopIn>();
             fan.SetActive(false);
 
             // The copper wire he examines (Examine mode): OhmWorker holds it between his hands, hidden otherwise.
-            var handWire = Ref(Node("Ohm Hand Wire", null, OhmFeet7 + new Vector3(0, 1.02f, -0.28f)));
+            var handWire = Ref(Node("Ohm Hand Wire", null, W(AppOhmFeet + new Vector3(0, 1.02f, -0.28f))));
             Prim(PrimitiveType.Cylinder, "Held Copper Wire", handWire.transform, Vector3.zero, new Vector3(0.009f, 0.21f, 0.009f), copper, new Vector3(0, 0, 90));
             handWire.SetActive(false);
 
-            // Georg Ohm behind the desk. The targets are wrist positions: the hand slopes on from there, so with a 30°
-            // lean the pen lands on the page centre and the fingers on post A's cap (both within his 0.32 m reach); the
-            // torsion knob is 0.5 m from his shoulder, so that arm straightens toward it and stops behind the cap.
-            var notebookTarget = Marker("Ohm Notebook Target", Notebook7 + new Vector3(-0.01f, 0.12f, 0.15f)).transform;
-            var galvanometerTarget = Marker("Ohm Galvanometer Target", g + new Vector3(-0.03f, glassTop + 0.02f, 0.1f)).transform;
-            var wireTarget = Marker("Ohm Wire Target", postA + new Vector3(0.05f, 0.1f, 0.1f)).transform;
-            GeorgOhm(notebookTarget, galvanometerTarget, wireTarget, pivot, handWire.transform);
+            // Ohm's work targets (wrist positions, Scene 4's): the page, the torsion knob, post A's cap.
+            Marker("Ohm Notebook Target", W(AppNotebook + Vector3.up * 0.02f));
+            Marker("Ohm Galvanometer Target", W(AppGalvanometer + new Vector3(0f, (glassTop + 0.02f) * AppGalvanometerScale, 0.07f)));
+            Marker("Ohm Wire Target", W(postA + new Vector3(0f, 0.11f, 0.03f)));
+            return root.gameObject;
         }
 
         // Moves a group's pivot without moving its contents, so a callout or a pointing gesture at the group lands on the prop.
@@ -320,6 +494,25 @@ namespace OhmsLaw.Editor
             foreach (var child in children) child.SetParent(null, true);
             group.position = pivot;
             foreach (var child in children) child.SetParent(group, true);
+        }
+
+        // Scales a model so its render bounds measure `size` and stands it with the bottom centre of those bounds at `foot`.
+        protected static void Fit(GameObject go, Vector3 size, Vector3 foot)
+        {
+            var bounds = RenderBounds(go);
+            var s = go.transform.localScale;
+            go.transform.localScale = new Vector3(s.x * size.x / bounds.size.x, s.y * size.y / bounds.size.y, s.z * size.z / bounds.size.z);
+            bounds = RenderBounds(go);
+            go.transform.position += foot - new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
+        }
+
+        static Bounds RenderBounds(GameObject go)
+        {
+            var renderers = go.GetComponentsInChildren<Renderer>().Where(r => r.enabled).ToArray();
+            if (renderers.Length == 0) return new Bounds(go.transform.position, Vector3.one);
+            var bounds = renderers[0].bounds;
+            foreach (var r in renderers) bounds.Encapsulate(r.bounds);
+            return bounds;
         }
 
         // Transparent URP Lit for the glass: alpha-blended, no depth write, polished so the highlight shows the cylinder.
@@ -386,44 +579,36 @@ namespace OhmsLaw.Editor
         {
             var label = WorldText.Card("Ink", "<mspace=0.6em>" + text + "</mspace>", ink, page, new Vector3(0, 0, -0.001f), WorldText.Cap.Ink, null, 0, WorldText.ProseLineSpacing);
             label.alignment = TextAlignmentOptions.Left;
-            label.rectTransform.sizeDelta = new Vector2(0.16f, label.rectTransform.sizeDelta.y);
+            label.rectTransform.sizeDelta = new Vector2(0.15f, label.rectTransform.sizeDelta.y);
             // The quad is scaled to the page size; the text keeps metre units.
             label.transform.localScale = new Vector3(1 / page.localScale.x, 1 / page.localScale.y, 1);
         }
 
-        // A storyboard prop name over a prop: Bench Close size, turned toward that camera and kept on screen size by
-        // billboarding in the other shots. Line breaks are explicit (the two-line source label).
-        protected TextMeshPro PropLabel(string text, Transform parent, Vector3 position)
+        // Georg Ohm (Scene 4's variant: scale 1.55, OhmWorker, Scene 4's lean) on Scene 4's spot behind the desk the
+        // apparatus stands on, facing the room, working with its notebook, torsion knob, wire post, needle and hand wire.
+        protected GameObject GeorgOhm(Transform apparatus)
         {
-            var label = WorldText.Card("Label " + text.Replace("\n", " "), text, Color.white, parent, position, WorldText.Cap.PropLabel, null, 0, WorldText.ProseLineSpacing);
-            Face(label.gameObject, StudyBenchCam);
-            WorldText.Billboard(label, BenchCloseDepth);
-            return label;
-        }
-
-        // Georg Ohm: the Scene 4 variant (scale 1.55, OhmWorker attached) behind the classroom desk, facing the cameras.
-        GameObject GeorgOhm(Transform notebook, Transform galvanometer, Transform wirePost, Transform needle, Transform handWire)
-        {
+            Transform At(string name) => refs[name].transform;
+            var feet = apparatus.TransformPoint(AppOhmFeet);
+            var facing = apparatus.rotation * Vector3.back; // desk-local -Z: toward the room
             OhmWorker worker;
             GameObject ohm;
             if (AssetDatabase.LoadAssetAtPath<GameObject>(OhmPrefab))
             {
-                ohm = Model(OhmPrefab, "Georg Ohm", null, OhmFeet7, new Vector3(0, 180, 0), 1.55f, collider: false);
-                worker = ohm.GetComponent<OhmWorker>() ?? ohm.AddComponent<OhmWorker>();
+                ohm = Model(OhmPrefab, "Georg Ohm", null, feet, Quaternion.LookRotation(facing).eulerAngles, 1.55f, collider: false);
+                if (!ohm.TryGetComponent(out worker)) worker = ohm.AddComponent<OhmWorker>();
                 Ref(ohm);
             }
             else
             {
-                ohm = Ohm(OhmFeet7, Vector3.back, notebook, galvanometer, wirePost);
-                worker = ohm.GetComponent<OhmWorker>();
-                if (!worker) return ohm; // capsule stand-in
+                ohm = Ohm(feet, facing, At("Ohm Notebook Target"), At("Ohm Galvanometer Target"), At("Ohm Wire Target"));
+                if (!ohm.TryGetComponent(out worker)) return ohm; // capsule stand-in
             }
-            worker.notebook = notebook;
-            worker.galvanometer = galvanometer;
-            worker.wirePost = wirePost;
-            worker.needle = needle;
-            worker.handWire = handWire;
-            worker.lean = 30f; // reaches ~0.36 m (OhmWorker: 22 -> 0.3, 36 -> 0.4), past the notebook and wire targets; at 40 his face hid under his hair
+            worker.notebook = At("Ohm Notebook Target");
+            worker.galvanometer = At("Ohm Galvanometer Target");
+            worker.wirePost = At("Ohm Wire Target");
+            worker.needle = At("Galvanometer Needle Pivot");
+            worker.handWire = At("Ohm Hand Wire");
             worker.mode = OhmWorker.Mode.Work;
             if (PrefabUtility.IsPartOfPrefabInstance(worker)) PrefabUtility.RecordPrefabInstancePropertyModifications(worker); // scene references are instance overrides
             return ohm;

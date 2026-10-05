@@ -19,6 +19,9 @@ MonoBehaviour:
   - "Everything from Scenes 5 to 11: voltage (V, volt), current (I, ampere), the
     five readings, V \u221D I for the nichrome wire at constant temperature, the
     straight-line graph through the origin."
+  - 'Inside the nichrome wire Wattson set the bench to 1 V (0.20 A), then 2 V (0.40
+    A): every electron''s drift doubled and so did the charges crossing the ring
+    each second. The counter shows a small sample, not the real number of electrons.'
   - The material of a conductor opposes the flow of current. That opposition is electrical
     resistance, symbol R.
   - "For the nichrome wire XY, V/I is the same for every reading (1.0 \xF7 0.20 =

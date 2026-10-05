@@ -15,6 +15,7 @@ MonoBehaviour:
   voltage: {r: 0.24705882, g: 0.6627451, b: 1, a: 1}
   current: {r: 1, g: 0.72156864, b: 0.1882353, a: 1}
   resistance: {r: 1, g: 0.3529412, b: 0.37254903, a: 1}
+  charge: {r: 0.8392157, g: 0.98039216, b: 1, a: 1}
   wattsonAccent: {r: 0.7490196, g: 0.9647059, b: 1, a: 1}
   panel: {r: 0.07, g: 0.09, b: 0.13, a: 0.82}
   font: {fileID: 11400000, guid: 2213567c461ecbd479818b63bbf90b18, type: 2}

@@ -7,15 +7,15 @@ using UnityEngine.UI;
 
 namespace OhmsLaw
 {
-    // Top-right playback controls: pause, replay line, subtitles, volume and (long-press) skip. Always visible (HideAfter),
-    // except while Ask Wattson is open.
+    // Top-right playback controls: reduced motion, pause, replay line, subtitles, volume and (long-press) skip. Always
+    // visible (HideAfter), except while Ask Wattson is open. Toggles say their state in words (CC ON / MOTION REDUCED).
     public class CinematicControlsUI : MonoBehaviour
     {
         const float HideAfter = float.PositiveInfinity, SkipHold = 1f, ButtonWidth = 150f; // always visible, like the reference HUD
 
         CanvasGroup group;
         RectTransform volumePanel;
-        TextMeshProUGUI pauseLabel, subtitleLabel, skipLabel;
+        TextMeshProUGUI pauseLabel, subtitleLabel, skipLabel, motionLabel;
         float lastActivity, skipPressed = -1;
 
         void Awake()
@@ -23,6 +23,10 @@ namespace OhmsLaw
             var root = UI.Stretch("Controls", transform);
             group = root.gameObject.AddComponent<CanvasGroup>();
 
+            // Reduced motion (ReducedMotion.On): fewer flashes, no camera shake, calmer particles, no sliding panels.
+            motionLabel = Add(root, 5, "MOTION\nFULL", () => ReducedMotion.On = !ReducedMotion.On);
+            motionLabel.fontSize = 22;
+            motionLabel.transform.parent.name = "Reduced Motion";
             pauseLabel = Add(root, 4, "PAUSE", TogglePause);
             Add(root, 3, "REPLAY", () => { if (SubtitleTrack.LastLineStart >= 0) ModuleFlow.Instance.JumpTo(SubtitleTrack.LastLineStart); });
             subtitleLabel = Add(root, 2, "CC ON", () => SubtitleUI.Enabled = !SubtitleUI.Enabled);
@@ -95,6 +99,7 @@ namespace OhmsLaw
             bool userPaused = flow.IsPaused(ModuleFlow.PauseReason.User);
             pauseLabel.text = userPaused ? "PLAY" : "PAUSE";
             subtitleLabel.text = SubtitleUI.Enabled ? "CC ON" : "CC OFF";
+            motionLabel.text = ReducedMotion.On ? "MOTION\nREDUCED" : "MOTION\nFULL";
 
             // Long-press guards Skip so a stray tap cannot jump the scene.
             skipLabel.text = skipPressed >= 0 ? "HOLD..." : "SKIP";

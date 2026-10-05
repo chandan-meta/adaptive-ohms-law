@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace OhmsLaw
 {
     // V-I graph on a world-space canvas: V on the vertical axis, I on the horizontal axis, points from ExperimentData,
-    // the straight line through the origin, two highlighted points and the ΔV/ΔI triangle.
+    // the straight line through the origin, two highlighted points, the ΔV/ΔI triangle and the live point that follows the rig.
     // Layout in canvas px (WorldCanvasScale 0.0015 on the Boards shot): 40 px ticks read ~20 px on screen, titles ~24.
     // Point labels sit up-left of their point (the line runs up-right), tags down-right, so nothing crosses the line.
     public class GraphUI : MonoBehaviour
@@ -22,6 +22,11 @@ namespace OhmsLaw
         TextMeshProUGUI[] tags;
         RectTransform pulseTarget;
         float pulse = -1;
+        // The live point: an amber ring labelled "now" at (rig.Amps, rig.Volts), easing like the meter needles; the faint
+        // ring is where it was before the last change. Recorded points are white discs, so the two never read alike.
+        const float LiveSize = 56f;
+        RectTransform live, ghost;
+        float liveVolts = float.NaN;
 
         static ExperimentData Data => ExperimentData.Main;
         static Color Voltage => UI.Theme ? UI.Theme.voltage : Color.cyan;
@@ -126,12 +131,59 @@ namespace OhmsLaw
 
         public void Pulse() { pulse = 0; pulseTarget = plot; }
 
+        // "graph.live 1": the live point follows CircuitRig.Active from now on (it lives on the plot, so it shows with the axes).
+        public void Live(bool on)
+        {
+            if (on && !live)
+            {
+                ghost = Ring("Live Point Was", UI.Alpha(Current, 0.35f), "");
+                live = Ring("Live Point", Current, "now");
+                ghost.gameObject.SetActive(false);
+                liveVolts = float.NaN;
+            }
+            else if (!on && live)
+            {
+                Destroy(live.gameObject);
+                Destroy(ghost.gameObject);
+                live = ghost = null;
+            }
+        }
+
+        RectTransform Ring(string name, Color color, string label)
+        {
+            var ring = UI.Rect(name, plot, Vector2.zero, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * LiveSize);
+            var image = ring.gameObject.AddComponent<Image>();
+            image.sprite = UI.Circle(0.6f);
+            image.color = color;
+            image.raycastTarget = false;
+            // Right of and below the point: the line runs up-right and the recorded labels sit up-left, so "now" is clear of both.
+            if (label != "") Text(ring, label, new Vector2(70, -40), PointFont, color, new Vector2(120, 60));
+            return ring;
+        }
+
         void Update()
         {
+            if (live) FollowRig();
             if (pulse < 0) return;
             pulse += Time.deltaTime;
             pulseTarget.localScale = Vector3.one * (1 + 0.05f * Mathf.Sin(pulse * Mathf.PI * 3) * (1 - pulse / 1.2f));
             if (pulse > 1.2f) { pulse = -1; pulseTarget.localScale = Vector3.one; }
+        }
+
+        void FollowRig()
+        {
+            var rig = CircuitRig.Active;
+            if (live.gameObject.activeSelf != (bool)rig) live.gameObject.SetActive(rig);
+            if (!rig) return;
+            Vector2 target = At(rig.Amps, rig.Volts);
+            if (!Mathf.Approximately(rig.state.voltage, liveVolts))
+            {
+                // The ghost marks the reading at the previous voltage; the first reading has no ghost.
+                if (!float.IsNaN(liveVolts)) { ghost.anchoredPosition = At(rig.AmpsAt(liveVolts), rig.VoltsAt(liveVolts)); ghost.gameObject.SetActive(true); }
+                else live.anchoredPosition = target;
+                liveVolts = rig.state.voltage;
+            }
+            live.anchoredPosition = ReducedMotion.On ? target : Vector2.Lerp(live.anchoredPosition, target, 1 - Mathf.Exp(-6f * Time.deltaTime));
         }
     }
 }

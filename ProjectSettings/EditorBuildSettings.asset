@@ -62,6 +62,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/AdaptiveLearning/Scenes/Scene_13_OhmsLaw.unity
     guid: b5d9b766037f8cf4591884a7f10eb5aa
+  - enabled: 1
+    path: Assets/OhmsLaw/Scenes/Scene00_FrameworkTest.unity
+    guid: 38500e6f7f58323499a1dacda37f2963
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

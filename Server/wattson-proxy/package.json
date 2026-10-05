@@ -1,0 +1,18 @@
+{
+  "name": "wattson-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend proxy for Wattson: chat (Claude), voice (ElevenLabs) and speech-to-text (OpenAI). Keeps every API key off the Unity client.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "express": "^5.2.1"
+  }
+}

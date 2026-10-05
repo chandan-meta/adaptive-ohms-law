@@ -33,6 +33,7 @@ namespace OhmsLaw
         public static CircuitRig Active { get; private set; }
         public event Action<float> VoltageChanged;
         [Tooltip("The learner (slider) and Ask Wattson may change the voltage now. Activities open it; cue-driven runs close it.")] public bool controlsOpen;
+        [Tooltip("Current the running target activity asks for (S11_Target, S13_Apply), in amperes; negative when none. The readings panel shows it; Ask Wattson hints toward it.")] public float targetAmps = -1f;
         public float PreviousVoltage { get; private set; }
         public float StartVoltage { get; private set; }
 
@@ -87,8 +88,11 @@ namespace OhmsLaw
         bool moving;
         Coroutine pulsing;
 
-        public float Volts => state.keyClosed && ammeterPlaced && voltmeterPlaced ? state.voltage : 0;
-        public float Amps => state.keyClosed && ammeterPlaced ? ExperimentData.Main.CurrentAt(state.voltage) : 0;
+        public float Volts => VoltsAt(state.voltage);
+        public float Amps => AmpsAt(state.voltage);
+        // What the meters would read at another source voltage with the circuit as it is now ("was" readings, previews).
+        public float VoltsAt(float volts) => state.keyClosed && ammeterPlaced && voltmeterPlaced ? volts : 0;
+        public float AmpsAt(float volts) => state.keyClosed && ammeterPlaced ? ExperimentData.Main.CurrentAt(volts) : 0;
 
         public void Place(string part)
         {
@@ -120,6 +124,17 @@ namespace OhmsLaw
 
         // Back to the voltage the scene started with (the match-cut value).
         public float ResetVoltage() => SetVoltage(StartVoltage);
+
+        // Match-cut: take over the previous scene's circuit as this scene's starting state, settled (no needle swing-up).
+        public void Restore(CircuitState carried)
+        {
+            state.keyClosed = carried.keyClosed;
+            SetVoltage(carried.voltage);
+            StartVoltage = PreviousVoltage = state.voltage;
+            shownVolts = Volts;
+            shownAmps = Amps;
+            shownKnob = state.voltage;
+        }
 
         public void CloseKey()
         {

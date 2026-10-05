@@ -1,31 +1,63 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.UI;
+using UnityEngine.Playables;
+using UnityEngine.Timeline;
+using Grade = OhmsLaw.LearnerSession.Grade;
 
 namespace OhmsLaw
 {
     // Every learner interaction in the module, by gate id. Each one works with mouse and touch, never traps the
-    // learner, and completes by itself when ReviewMode.autoAnswer is on.
+    // learner, and completes by itself when ReviewMode.autoAnswer is on. The line ids each gate speaks are listed in
+    // Docs/Polish/WOW_PLAN.md, "Gate contract"; a missing line is skipped. The bench activities (set, record, target
+    // readings) live in SceneDirector.Experiment.cs.
     public partial class SceneDirector
     {
-        DialogueLine Line(InteractionGate gate, string id) => gate.lines.FirstOrDefault(l => l && l.id == id);
+        Dictionary<string, DialogueLine> sceneLines;
+        QuestionRun lastRun; // the last Ask(): its final grade, pick and answer count
+
+        // A gate's line by id; a line declared on another gate of this scene is found too (S10_Record2 speaks
+        // S10_Predict2V's feedback).
+        DialogueLine Line(InteractionGate gate, string id)
+        {
+            var line = gate ? gate.lines.FirstOrDefault(l => l && l.id == id) : null;
+            if (line) return line;
+            if (sceneLines == null)
+            {
+                sceneLines = new Dictionary<string, DialogueLine>();
+                if (TryGetComponent(out PlayableDirector director) && director.playableAsset is TimelineAsset timeline && timeline.markerTrack)
+                    foreach (var other in timeline.markerTrack.GetMarkers().OfType<InteractionGate>())
+                        foreach (var l in other.lines)
+                            if (l && !sceneLines.ContainsKey(l.id)) sceneLines[l.id] = l;
+            }
+            return sceneLines.TryGetValue(id, out line) ? line : null;
+        }
 
         IEnumerator RunGate(InteractionGate gate)
         {
             switch (gate.gateId)
             {
                 case "Test_MCQ": yield return TestMcq(gate); break;
+                case "S05_Drift": yield return Ask(gate, QuestionBank.S05Drift); break;
                 case "S06_Prediction": yield return Prediction(gate); break;
                 case "S09_PlaceAmmeter": yield return PlacePart(gate, "ammeter"); break;
                 case "S09_PlaceVoltmeter": yield return PlacePart(gate, "voltmeter"); break;
                 case "S09_CloseKey": yield return CloseKey(); break;
-                case "S10_Set1V": yield return SetVoltage(1); break;
-                case "S10_Record": yield return Record(); break;
+                case "S10_Set1V": yield return SetVoltage(gate, 1); break;
+                case "S10_Record": yield return Record(gate, 0); break;
+                case "S10_Predict2V": yield return Predict2V(gate); break;
+                case "S10_Set2V": yield return SetVoltage(gate, 2); break;
+                case "S10_Record2": yield return Record(gate, 1); yield return ComparePrediction(gate); break;
                 case "S10_Pattern": yield return Pattern(gate); break;
-                case "S10_Discover": yield return Discover(); break;
+                case "S10_Discover": yield return Discover(gate); break;
+                case "S11_Target": yield return Target(gate, Concepts.Graph, 0.60f, bonusAmps: 0.80f); break;
+                case "S12_Ratio": yield return Ratio(gate); break;
                 case "S12_Slope": yield return Slope(gate); break;
-                case "S13_Checkpoint": if (checkpointEnabled) yield return Checkpoint(gate); break;
+                case "S12_AQ1": if (checkpointEnabled) yield return AQ1(gate); break;
+                case "S13_AQ2": if (checkpointEnabled) yield return AQ2(gate); break;
+                case "S13_Apply": yield return Target(gate, Concepts.OhmsLaw, 0.80f); break;
+                case "S13_Checkpoint": break; // retired: AQ1 moved to S12_AQ1, AQ2 to S13_AQ2 (an older Scene 13 build still has the marker)
                 default: Debug.LogWarning($"{sceneId}: no handler for gate '{gate.gateId}'", this); break;
             }
         }
@@ -83,74 +115,154 @@ namespace OhmsLaw
             // CircuitRig.CloseKey applies the small default voltage (0.5 V) so the needles move; Scene 10 starts from it.
         }
 
-        // Scene 10: the learner sets the source with the slider. autoAnswer sets it after the review delay.
-        IEnumerator SetVoltage(float volts)
+        // ------------------------------------------------------------------ graded questions
+
+        // Puts the panel up while `spoken` plays (cut short if the learner answers first); autoAnswer waits for the line.
+        IEnumerator Pick(MCQPanel panel, DialogueLine spoken)
         {
-            if (!slider) Slider(true);
-            float waited = 0;
-            while (!Mathf.Approximately(rig.state.voltage, volts))
-            {
-                waited += Time.deltaTime;
-                if (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay) rig.SetVoltage(volts);
-                yield return null;
-            }
-            yield return new WaitForSeconds(1.2f); // let the needles settle on the reading
+            var saying = spoken ? StartCoroutine(Say(spoken)) : null;
+            yield return panel.WaitForPick(0, () => spoken && Speaking == spoken);
+            StopSaying(saying, spoken);
         }
 
-        // Scene 10: tap Record (or the ammeter) to write row 1.
-        IEnumerator Record()
+        // A graded, adaptive question (QuestionRun records every answer). The question line plays while the panel is up;
+        // each answer gets its option's feedback line (<gate>_FA/_FB/_FC) and a mark. Correct: the reasoning shows on the
+        // panel. Partial: acknowledged, and the correct option is shown with the reasoning. Incorrect: the option is marked
+        // and disabled, the panel shakes and shows the hint, `scaffold` runs if the learner is now Struggling with the concept,
+        // the spoken hint plays unless they came in Confident, and they try again, on `easier` when `simplify` says so. When
+        // the retries are used up: the answer is marked, and Wattson shows it with `reveal` (an experiment, with the panel
+        // out of the way) or says <gate>_X.
+        IEnumerator Ask(InteractionGate gate, Question question, System.Action<MCQPanel> scaffold = null,
+            Question easier = null, System.Func<bool> simplify = null, System.Func<IEnumerator> reveal = null)
         {
-            bool recorded = false;
-            var button = ScreenButton("Record", "RECORD", new Vector2(720, 250), () => recorded = true);
-            StartCoroutine(TapHint(rig.ammeter, () => recorded, new Vector2(0, -130))); // ring under the meter, finger up to it: the reading stays clear
-            float waited = 0;
-            while (!recorded)
+            string id = gate.gateId;
+            bool confident = LearnerSession.Confident(question.concept);
+            var hinted = new HashSet<DialogueLine>(); // each spoken hint plays once per question; later retries keep the panel hint
+            var run = lastRun = new QuestionRun(question);
+            var spoken = Line(gate, question.questionLine ?? id + "_Q");
+            MCQPanel panel = null;
+            while (true)
             {
-                waited += Time.deltaTime;
-                if (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay) recorded = true;
-                var pointer = UnityEngine.InputSystem.Pointer.current;
-                if (pointer != null && pointer.press.wasPressedThisFrame && Camera.main &&
-                    Physics.Raycast(Camera.main.ScreenPointToRay(pointer.position.ReadValue()), out var hit, 50f) && hit.transform.IsChildOf(rig.ammeter))
-                    recorded = true;
-                yield return null;
+                var q = run.Question;
+                if (panel == null) panel = new MCQPanel(q.text, q.Texts, dockRight: true, width: q.width);
+                yield return Pick(panel, spoken);
+                spoken = null;
+                int pick = panel.Picked;
+                var step = run.Answer(pick);
+
+                var feedback = Line(gate, id + "_F" + LearnerSession.Letter(pick));
+                if (!feedback && step.grade == Grade.Correct && q.correctFallbackLine != null) feedback = Line(gate, q.correctFallbackLine);
+                if (step.grade == Grade.Incorrect)
+                {
+                    panel.Disable(pick, MCQPanel.WrongMark);
+                    yield return panel.Shake();
+                }
+                else
+                {
+                    panel.Mark(pick, step.grade == Grade.Correct ? MCQPanel.RightMark : MCQPanel.PartMark);
+                    panel.Mark(q.CorrectIndex, MCQPanel.RightMark);
+                    panel.Hint(q.reveal);
+                }
+                yield return Say(feedback);
+                if (step.grade != Grade.Incorrect) { yield return new WaitForSeconds(1f); break; }
+
+                if (step.retry)
+                {
+                    panel.Hint(q.hint);
+                    if (scaffold != null && LearnerSession.Struggling(question.concept)) scaffold(panel);
+                    if (easier != null && run.Question != easier && simplify != null && simplify())
+                    {
+                        panel.Close();
+                        panel = null;
+                        run.Simplify(easier);
+                        spoken = Line(gate, easier.questionLine ?? id + "_E");
+                    }
+                    var hint = Line(gate, q.hintLine ?? id + "_H");
+                    if (!confident && hint && hinted.Add(hint)) yield return Say(hint);
+                    continue;
+                }
+
+                panel.Mark(q.CorrectIndex, MCQPanel.RightMark);
+                panel.Hint(q.reveal);
+                if (reveal != null)
+                {
+                    yield return new WaitForSeconds(1.2f);
+                    panel.Close();
+                    panel = null;
+                    yield return reveal();
+                }
+                else
+                {
+                    yield return Say(Line(gate, id + "_X"));
+                    yield return new WaitForSeconds(1f);
+                }
+                break;
             }
-            Destroy(button.gameObject);
-            if (sfx && pop) sfx.PlayOneShot(pop);
-            table.ShowRows(1);
-            LearnerSession.tableRows = 1;
-            yield return new WaitForSeconds(0.8f);
+            if (panel != null) panel.Close();
         }
 
-        // Scene 10 pattern question. Wrong: a proposed nudge, then the same question again; second wrong: the V column
-        // then the I column light up row by row and it is asked once more; the third attempt accepts any answer.
+        // Speaks `line` while `show` plays; done when both are.
+        IEnumerator SayWhile(DialogueLine line, IEnumerator show)
+        {
+            bool spoken = false;
+            StartCoroutine(Then(Say(line), () => spoken = true));
+            yield return show;
+            while (!spoken) yield return null;
+        }
+
+        static IEnumerator Then(IEnumerator first, System.Action after)
+        {
+            yield return first;
+            after();
+        }
+
+        // Scene 10, after row 1: predict the 2 V reading. Not graded here: S10_Record2 compares it with the meter.
+        IEnumerator Predict2V(InteractionGate gate)
+        {
+            var q = QuestionBank.S10Predict2V;
+            var panel = new MCQPanel(q.text, q.Texts, dockRight: true, width: q.width);
+            yield return Pick(panel, Line(gate, gate.gateId + "_Q"));
+            LearnerSession.s10Prediction2V = LearnerSession.Letter(panel.Picked);
+            panel.Mark(panel.Picked, UI.AccentFill); // "your prediction", neither right nor wrong yet
+            yield return Say(Line(gate, gate.gateId + "_OK"));
+            yield return new WaitForSeconds(0.6f);
+            panel.Close();
+        }
+
+        // Scene 10, after row 2 is recorded at 2 V: the prediction against the meter (S10_Predict2V_FA/_FB/_FC).
+        IEnumerator ComparePrediction(InteractionGate gate)
+        {
+            string letter = LearnerSession.s10Prediction2V;
+            if (letter == "") yield break; // the scene was entered by a jump past the prediction
+            var grade = QuestionBank.GradePrediction(letter, out var misconception);
+            LearnerSession.Record(Concepts.Relationship, grade, misconception);
+            LearnerSession.answers.Add($"S10_Predict2V {letter} {grade}");
+            yield return Say(Line(gate, "S10_Predict2V_F" + letter));
+        }
+
+        // Scene 10 pattern question. Wrong: feedback, the storyboard nudge S10_R_WRONG, re-ask with the wrong option out;
+        // a learner now struggling with the relationship gets rows 1-2 highlighted and the simpler question instead. Out of
+        // retries: the V column then the I column light up row by row while Wattson says S10_Pattern_X.
         IEnumerator Pattern(InteractionGate gate)
         {
-            string[] options =
-            {
-                "A. Current increases as potential difference increases.",
-                "B. Current decreases.",
-                "C. There is no pattern.",
-            };
-            LearnerSession.s10PatternAttempts = 0;
-            for (int attempt = 1; ; attempt++)
-            {
-                var panel = new MCQPanel("What do you notice?", options, dockRight: true);
-                yield return panel.WaitForPick(0);
-                panel.Close();
-                LearnerSession.s10PatternAttempts = attempt;
-                LearnerSession.s10PatternAnswer = LearnerSession.Letter(panel.Picked);
-                if (panel.Picked == 0 || attempt >= 3) yield break;
-                yield return Say(Line(gate, "S10_R_WRONG"));
-                if (attempt == 2)
-                {
-                    yield return table.Sweep(0);
-                    yield return table.Sweep(1);
-                }
-            }
+            yield return Ask(gate, QuestionBank.S10Pattern,
+                scaffold: _ => { table.Highlight(0, true, table.Pair(0)); table.Highlight(1, true, table.Pair(1)); },
+                easier: QuestionBank.S10PatternEasy, simplify: () => LearnerSession.Struggling(Concepts.Relationship),
+                reveal: () => SayWhile(Line(gate, "S10_Pattern_X"), SweepColumns()));
+            LearnerSession.s10PatternAttempts = lastRun.Answers;
+            LearnerSession.s10PatternAnswer = LearnerSession.Letter(lastRun.LastPick);
+            table.ClearHighlights(); // S10_L08's cue brings rows 1-2 back with their tags
         }
 
-        // Scene 10: tap either highlighted row (or the ×2 chip) to reveal the doubling. Reveals itself after 5 s.
-        IEnumerator Discover()
+        IEnumerator SweepColumns()
+        {
+            yield return table.Sweep(0);
+            yield return table.Sweep(1);
+        }
+
+        // Scene 10: tap either highlighted row (or the ×2 chip) to reveal the doubling. Reveals itself after 5 s. Then the
+        // callback to the learner's Scene 6 prediction: S10_Discover_FA (matched) / _FB / _FC (revised).
+        IEnumerator Discover(InteractionGate gate)
         {
             bool revealed = false;
             void OnRow(int row) { if (row <= 1) revealed = true; }
@@ -162,63 +274,62 @@ namespace OhmsLaw
             SetActive("Card Discovery", true);
             if (sfx && pop) sfx.PlayOneShot(pop);
             yield return new WaitForSeconds(1.5f);
+            if (LearnerSession.prediction != "") yield return Say(Line(gate, "S10_Discover_F" + LearnerSession.prediction));
         }
 
-        // Scene 12: slope as multiple choice (proposed). Wrong: shake, show the division, ask once more, then continue.
+        // Scene 12: the learner works row 3's V / I (in place of Wattson working it); the answer fills the cell.
+        IEnumerator Ratio(InteractionGate gate)
+        {
+            table.ShowRatio(true);
+            table.Highlight(2, true);
+            yield return Ask(gate, QuestionBank.S12Ratio, reveal: () => SayWhile(Line(gate, "S12_Ratio_X"), WorkRow(2)));
+            table.Highlight(2, false);
+            table.SetRatio(2, true);
+        }
+
+        IEnumerator WorkRow(int row)
+        {
+            table.SetRatio(row, true);
+            yield return new WaitForSeconds(1.5f);
+        }
+
+        // Scene 12 slope (storyboard: wrong -> shake, show 2.0 ÷ 0.40, re-ask once, then continue). Adaptive: a learner
+        // struggling with the graph also gets the triangle's two corners lit and the plot pulsed; one who came in
+        // confident gets the on-panel hint without the spoken one.
         IEnumerator Slope(InteractionGate gate)
         {
-            string[] options = { "5", "0.2", "2.5" };
-            for (int attempt = 1; attempt <= 2; attempt++)
-            {
-                var panel = new MCQPanel("Slope = ΔV / ΔI = ?", options, dockRight: true, width: 760f);
-                yield return panel.WaitForPick(0);
-                LearnerSession.slopeAnswer = options[panel.Picked];
-                if (panel.Picked == 0 || attempt == 2)
-                {
-                    panel.Mark(0, new Color(0.2f, 0.5f, 0.25f));
-                    panel.Hint("Slope = ΔV / ΔI = 2.0 ÷ 0.40 = 5");
-                    yield return new WaitForSeconds(2f);
-                    panel.Close();
-                    yield break;
-                }
-                panel.Mark(panel.Picked, new Color(0.5f, 0.2f, 0.2f));
-                panel.Hint("2.0 ÷ 0.40");
-                yield return panel.Shake();
-                yield return new WaitForSeconds(1.8f);
-                panel.Close();
-            }
+            bool lit = false;
+            yield return Ask(gate, QuestionBank.S12Slope,
+                scaffold: _ => { lit = true; graph.Highlight(0, true); graph.Highlight(2, true); graph.Pulse(); },
+                reveal: () => SayWhile(Line(gate, "S12_Slope_X"), PulseGraph()));
+            LearnerSession.slopeAnswer = QuestionBank.S12Slope.options[lastRun.LastPick].text;
+            if (lit) { graph.Highlight(0, false); graph.Highlight(2, false); }
         }
 
-        // Scene 13 adaptive checkpoint: Q1; right -> harder Q2; wrong -> explanation and the easier question.
-        IEnumerator Checkpoint(InteractionGate gate)
+        IEnumerator PulseGraph()
         {
-            LearnerSession.checkpoint.Clear();
-            yield return Say(Line(gate, "AQ1"));
-            var q1 = new MCQPanel(Line(gate, "AQ1").text, new[] { "A. It doubles", "B. It halves", "C. It stays the same" }, dockRight: true);
-            yield return q1.WaitForPick(0);
-            q1.Close();
-            bool right = q1.Picked == 0;
-            LearnerSession.checkpoint.Add("AQ1 " + LearnerSession.Letter(q1.Picked) + (right ? " correct" : " wrong"));
-            if (right)
-            {
-                yield return Say(Line(gate, "AQ_GOOD"));
-                yield return Say(Line(gate, "AQ2"));
-                var q2 = new MCQPanel(Line(gate, "AQ2").text, new[] { "A. The one that needs the larger potential difference", "B. The one that needs the smaller potential difference", "C. Both have the same resistance" }, dockRight: true);
-                yield return q2.WaitForPick(0);
-                q2.Close();
-                LearnerSession.checkpoint.Add("AQ2 " + LearnerSession.Letter(q2.Picked) + (q2.Picked == 0 ? " correct" : " wrong"));
-                yield return Say(Line(gate, q2.Picked == 0 ? "AQ_GOOD" : "AQ_EXPLAIN"));
-            }
-            else
-            {
-                yield return Say(Line(gate, "AQ_EXPLAIN"));
-                yield return Say(Line(gate, "AQ_EASY"));
-                var easy = new MCQPanel(Line(gate, "AQ_EASY").text, new[] { "A. It went up", "B. It went down", "C. Nothing changed" }, dockRight: true);
-                yield return easy.WaitForPick(0);
-                easy.Close();
-                LearnerSession.checkpoint.Add("AQ_EASY " + LearnerSession.Letter(easy.Picked) + (easy.Picked == 0 ? " correct" : " wrong"));
-                yield return Say(Line(gate, easy.Picked == 0 ? "AQ_GOOD" : "AQ_EXPLAIN"));
-            }
+            if (graph) graph.Pulse();
+            yield return new WaitForSeconds(1.5f);
+        }
+
+        // Storyboard AQ1, now in Scene 12 after resistance is defined. Skipped for a learner already confident with the
+        // relationship. Wrong: feedback, AQ_EXPLAIN, then AQ_EASY; out of retries: Wattson turns the source to 2 V and
+        // then 4 V while the live readings show the current double (S12_AQ1_X), and puts it back.
+        IEnumerator AQ1(InteractionGate gate)
+        {
+            if (LearnerSession.Confident(Concepts.Relationship)) yield break;
+            yield return Ask(gate, QuestionBank.AQ1, easier: QuestionBank.AQEasy, simplify: () => true,
+                reveal: () => SayWhile(Line(gate, "S12_AQ1_X"), Demonstrate(false, 2f, 4f)));
+        }
+
+        // Storyboard AQ2, now in Scene 13. A learner struggling with resistance gets the table's own numbers as the hint
+        // and the V / I column lit.
+        IEnumerator AQ2(InteractionGate gate)
+        {
+            bool lit = false;
+            yield return Ask(gate, QuestionBank.AQ2,
+                scaffold: panel => { panel.Hint("Our wire: 5.0 V ÷ 1.00 A = 5 Ω. Same I, larger V → larger or smaller R?"); if (table) { lit = true; table.GlowColumn(2, true); } });
+            if (lit) table.GlowColumn(2, false);
         }
     }
 }
