@@ -37,30 +37,34 @@ namespace OhmsLaw
             question.rectTransform.anchoredPosition = new Vector2(0, -Top);
             question.rectTransform.sizeDelta = new Vector2(Width - 2 * Pad, questionHeight);
 
-            float optionsTop = Top + questionHeight + Gap;
+            // Rows stack with a fixed gap; an option that wraps grows its own tile instead of spilling into the gap.
+            float y = Top + questionHeight + Gap, rowGap = Row - OptionHeight, labelWidth = Width - 2 * Pad - (16 + Badge + 20) - 14;
             options = new Image[optionTexts.Length];
             for (int i = 0; i < optionTexts.Length; i++)
             {
                 int index = i;
                 Split(optionTexts[i], LearnerSession.Letter(i), out var letter, out var text);
                 var button = UI.Button("Option " + LearnerSession.Letter(i), panel, new Vector2(0.5f, 1), new Vector2(0.5f, 1),
-                    new Vector2(0, -(optionsTop + i * Row)), new Vector2(Width - 2 * Pad, OptionHeight), text, () => Picked = index, UI.MCQOptionFont);
+                    new Vector2(0, -y), new Vector2(Width - 2 * Pad, OptionHeight), text, () => Picked = index, UI.MCQOptionFont);
                 var label = button.GetComponentInChildren<TextMeshProUGUI>();
                 label.alignment = TextAlignmentOptions.MidlineLeft;
                 label.rectTransform.offsetMin = new Vector2(16 + Badge + 20, 6);
+                float tile = Mathf.Max(OptionHeight, Mathf.Ceil(label.GetPreferredValues(text, labelWidth, 0).y) + 24);
+                ((RectTransform)button.transform).sizeDelta = new Vector2(Width - 2 * Pad, tile);
+                y += tile + rowGap;
                 options[i] = button.GetComponent<Image>();
                 options[i].color = UI.RaisedColor;
 
-                // The option letter in an accent disc at the left edge of the row.
-                var badge = UI.Rect("Letter", button.transform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(16 + Badge / 2, 0), new Vector2(Badge, Badge));
+                // The option letter in an accent disc in the row's left gutter (16-76 px), clear of the text at 96.
+                var badge = UI.Rect("Letter", button.transform, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(16 + Badge / 2, 0), new Vector2(Badge, Badge));
                 var disc = badge.gameObject.AddComponent<Image>();
                 disc.sprite = UI.Circle();
                 disc.color = UI.AccentColor;
                 disc.raycastTarget = false;
-                UI.Label(badge, letter, UI.MCQOptionFont - 2, UI.Alpha(UI.PanelColor, 1f));
+                UI.Label(badge, letter, UI.MCQOptionFont - 2, Color.white);
             }
 
-            float height = optionsTop + (optionTexts.Length - 1) * Row + OptionHeight + HintBand + 8;
+            float height = y - rowGap + HintBand + 8;
             panel.sizeDelta = new Vector2(Width, height);
             hint = UI.Label(panel, "", UI.MCQHintFont, UI.Theme ? UI.Theme.current : Color.yellow, TextAlignmentOptions.Bottom);
             hint.rectTransform.anchorMin = new Vector2(0, 0);

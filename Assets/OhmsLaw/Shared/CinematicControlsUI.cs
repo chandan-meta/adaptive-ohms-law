@@ -7,7 +7,8 @@ using UnityEngine.UI;
 
 namespace OhmsLaw
 {
-    // Top-right playback controls: pause, replay line, subtitles, volume and (long-press) skip. Hides after 3 s idle.
+    // Top-right playback controls: pause, replay line, subtitles, volume and (long-press) skip. Always visible (HideAfter),
+    // except while Ask Wattson is open.
     public class CinematicControlsUI : MonoBehaviour
     {
         const float HideAfter = float.PositiveInfinity, SkipHold = 1f, ButtonWidth = 150f; // always visible, like the reference HUD

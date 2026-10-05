@@ -126,14 +126,6 @@ namespace OhmsLaw.Editor
 
         // ------------------------------------------------------------------ board geometry
 
-        // World position of a graph coordinate on the board, `lift` metres in front of the chalk face.
-        Vector3 GraphPoint(float amps, float volts, float lift)
-        {
-            var (pos, rot) = BoardSurface(GraphBoardUV, lift);
-            var px = new Vector2(GraphUI.MarginLeft + amps / GraphUI.MaxI * GraphUI.Width, GraphUI.MarginBottom + volts / GraphUI.MaxV * GraphUI.Height) - GraphCanvas / 2;
-            return pos + rot * (Vector3)(px * BoardCanvasScale);
-        }
-
         // World position of a table cell's centre (column 0 = V, 1 = I; row 0 = the first reading).
         Vector3 TableCell(int column, int row, float lift)
         {

@@ -9,10 +9,16 @@ namespace OhmsLaw
     // Observation table on a world-space canvas. Values come from ExperimentData; rows fill one by one,
     // a V/I column can be added, rows and cells can be highlighted and tapped.
     // Layout in canvas px (WorldCanvasScale 0.0015 on the Boards shot): 44 px cells read ~24 px tall on screen.
+    // The table IS the board (ART_DIRECTION section 3): chalk text and rules on a lighter patch of board in a chalk frame,
+    // which Refresh() sizes to the visible columns.
     public class ObservationTableUI : MonoBehaviour
     {
-        public const float ColumnWidth = 360f, RowHeight = 84f, HeaderRow = 100f, TagWidth = 280f;
+        public const float ColumnWidth = 360f, RowHeight = 84f, HeaderRow = 100f, TagWidth = 280f, TagGap = 20f;
         public const float HeaderFont = 36f, CellFont = 44f, TagFont = 40f;
+        // The board-panel look the classroom kit's BoardPanel gives the graph, in canvas px at BoardCanvasScale 0.00135:
+        // margins 0.015 x 0.02 board UV around the content, a 0.012 m chalk line, Classroom_BoardPanel's green.
+        public const float BoardMarginX = 36f, BoardMarginY = 22f, ChalkLine = 9f;
+        public static readonly Color BoardTint = new Color(0.16f, 0.28f, 0.25f, 0.55f), ChalkColor = new Color(0.93f, 0.93f, 0.87f, 0.92f);
         // Per-column widths summing to 3 x ColumnWidth: V holds "Potential Difference", V/I holds "1.0 ÷ 0.20 = 5".
         static readonly float[] Columns = { 380f, 280f, 420f };
 
@@ -25,12 +31,14 @@ namespace OhmsLaw
         Image[,] cellBack;
         TextMeshProUGUI[] tags;
         GameObject[] rowObjects;
-        GameObject ratioHeader;
+        GameObject ratioHeader, ratioRule;
+        RectTransform frame;
         int rows;
         bool ratio;
 
         static ExperimentData Data => ExperimentData.Main;
-        static Color Panel => WorldText.PanelColor;
+        // Cells are bare chalk on the board until a highlight, glow or sweep tints them.
+        static Color Rest => Color.clear;
         // Column colours follow the concept palette: V blue, I amber, V/I coral.
         static Color Column(int c) => UI.Theme ? (c == 0 ? UI.Theme.voltage : c == 1 ? UI.Theme.current : UI.Theme.resistance) : Color.white;
         static Color CellText(int c) => Color.Lerp(Column(c), Color.white, 0.55f);
@@ -50,6 +58,20 @@ namespace OhmsLaw
             tags = new TextMeshProUGUI[n];
             rowObjects = new GameObject[n];
             var root = (RectTransform)transform;
+
+            // Frame first, so the cells draw over it: board tint, chalk outline, a firm header rule, faint row rules and
+            // column rules from outline to outline (the V / I one only with its column).
+            frame = UI.Rect("Frame", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(-BoardMarginX, BoardMarginY), Vector2.zero);
+            UI.Panel(frame, BoardTint, false).raycastTarget = false;
+            Chalk("Top", new Vector2(0, 1), new Vector2(1, 1), Vector2.zero, new Vector2(ChalkLine, ChalkLine), 1f);
+            Chalk("Bottom", Vector2.zero, new Vector2(1, 0), Vector2.zero, new Vector2(ChalkLine, ChalkLine), 1f);
+            Chalk("Left", Vector2.zero, new Vector2(0, 1), Vector2.zero, new Vector2(ChalkLine, -ChalkLine), 1f);
+            Chalk("Right", new Vector2(1, 0), Vector2.one, Vector2.zero, new Vector2(ChalkLine, -ChalkLine), 1f);
+            for (int r = 0; r < n; r++)
+                Chalk("Row Rule", new Vector2(0, 1), Vector2.one, new Vector2(0, -(BoardMarginY + HeaderRow + r * RowHeight)), new Vector2(-ChalkLine, r == 0 ? 4f : 2f), r == 0 ? 0.85f : 0.35f);
+            Chalk("Column Rule", Vector2.zero, new Vector2(0, 1), new Vector2(BoardMarginX + X(1), 0), new Vector2(3f, -ChalkLine), 0.55f);
+            ratioRule = Chalk("Column Rule", Vector2.zero, new Vector2(0, 1), new Vector2(BoardMarginX + X(2), 0), new Vector2(3f, -ChalkLine), 0.55f).gameObject;
+
             for (int c = 0; c < 3; c++)
             {
                 var head = Cell(root, c, 0, HeaderRow, headers[c], HeaderFont, Column(c));
@@ -72,16 +94,28 @@ namespace OhmsLaw
                     cells[r, c] = Cell(line, c, 0, RowHeight, "", CellFont, CellText(c));
                     cellBack[r, c] = cells[r, c].transform.parent.GetComponent<Image>();
                 }
-                tags[r] = UI.Label(UI.Rect("Tag", line, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(X(3) + 16, 0), new Vector2(TagWidth, RowHeight)),
+                // Refresh() moves this "Tag" rect (not the stretched label inside it) beside the frame.
+                tags[r] = UI.Label(UI.Rect("Tag", line, new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(TagWidth, RowHeight)),
                     "", TagFont, UI.Theme ? UI.Theme.current : Color.yellow, TextAlignmentOptions.MidlineLeft);
             }
             Refresh();
         }
 
+        // A chalk bar on the frame: anchored along an edge (or a rule's line) and stretched with the frame.
+        Image Chalk(string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 position, Vector2 size, float alpha)
+        {
+            var rect = UI.Rect(name, frame, anchorMin, new Vector2(0.5f, 0.5f), position, size);
+            rect.anchorMax = anchorMax;
+            var image = UI.Panel(rect, UI.Alpha(ChalkColor, ChalkColor.a * alpha), false);
+            image.raycastTarget = false;
+            return image;
+        }
+
+        // Cells sit centred in their slot (3 px clear of each rule) so a highlight never covers the chalk lines.
         TextMeshProUGUI Cell(RectTransform parent, int column, float y, float height, string text, float size, Color color)
         {
-            var rect = UI.Rect("Cell", parent, new Vector2(0, 1), new Vector2(0, 1), new Vector2(X(column), y), new Vector2(Columns[column] - 6, height - 6));
-            UI.Panel(rect, Panel).raycastTarget = false;
+            var rect = UI.Rect("Cell", parent, new Vector2(0, 1), new Vector2(0, 1), new Vector2(X(column) + 3, y - 3), new Vector2(Columns[column] - 6, height - 6));
+            UI.Panel(rect, Rest).raycastTarget = false;
             var label = UI.Label(rect, text, size, color);
             label.rectTransform.offsetMin = new Vector2(8, 4);
             label.rectTransform.offsetMax = new Vector2(-8, -4);
@@ -104,7 +138,7 @@ namespace OhmsLaw
         public void Highlight(int row, bool on, string tag = "")
         {
             if (row < 0 || row >= Data.Count) return;
-            for (int c = 0; c < 3; c++) cellBack[row, c].color = on ? RowHighlight : Panel;
+            for (int c = 0; c < 3; c++) cellBack[row, c].color = on ? RowHighlight : Rest;
             tags[row].text = on ? tag : "";
         }
 
@@ -115,7 +149,7 @@ namespace OhmsLaw
 
         public void GlowColumn(int column, bool on)
         {
-            var color = on ? ColumnGlow : Panel;
+            var color = on ? ColumnGlow : Rest;
             for (int r = 0; r < Data.Count; r++) cellBack[r, column].color = color;
         }
 
@@ -126,21 +160,25 @@ namespace OhmsLaw
             {
                 cellBack[r, column].color = RowHighlight;
                 yield return new WaitForSeconds(perRow);
-                cellBack[r, column].color = Panel;
+                cellBack[r, column].color = Rest;
             }
         }
 
         void Refresh()
         {
             if (cells == null) return;
+            float width = X(ratio ? 3 : 2); // the visible columns: two until Scene 12's V / I
             ratioHeader.SetActive(ratio);
+            ratioRule.SetActive(ratio);
+            frame.sizeDelta = new Vector2(width + 2 * BoardMarginX, HeaderRow + Data.Count * RowHeight + 2 * BoardMarginY);
             for (int r = 0; r < Data.Count; r++)
             {
                 rowObjects[r].SetActive(r < rows);
                 cells[r, 0].text = units ? Data.voltages[r].ToString("0.0") + " V" : Data.voltages[r].ToString("0");
                 cells[r, 1].text = units ? Data.currents[r].ToString("0.00") + " A" : Data.currents[r].ToString("0.0");
                 cellBack[r, 2].transform.gameObject.SetActive(ratio);
-                tags[r].rectTransform.anchoredPosition = new Vector2(X(ratio ? 3 : 2) + 16, 0); // tags hug the last visible column
+                // Tags stand on their row just outside the frame, like a chalk note beside the table.
+                ((RectTransform)tags[r].transform.parent).anchoredPosition = new Vector2(width + BoardMarginX + ChalkLine / 2 + TagGap, 0);
             }
         }
     }

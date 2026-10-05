@@ -9,8 +9,9 @@ namespace OhmsLaw
     {
         public static SubtitleUI Instance { get; private set; }
 
-        // Box spans y 40..236 with 210 px side insets; other HUD elements (battery control) stay above it.
-        const float SideInset = 210f, Bottom = 40f;
+        // Box spans y 40..236 with a 210 px left inset; other HUD elements (battery control) stay above it. The right inset
+        // leaves ~50 px of air to the Ask Wattson button (x >= 1722), even while the spotlight cue scales it up.
+        const float SideInset = 210f, RightSide = 250f, Bottom = 40f;
         RectTransform box;
         TextMeshProUGUI speaker, body;
         object owner;
@@ -22,7 +23,7 @@ namespace OhmsLaw
         }
 
         // Extra room on the right, so the Ask Wattson panel never covers the subtitles.
-        public float RightInset { set => box.offsetMax = new Vector2(-Mathf.Max(SideInset, value), box.offsetMax.y); }
+        public float RightInset { set => box.offsetMax = new Vector2(-Mathf.Max(RightSide, value), box.offsetMax.y); }
 
         void Awake()
         {
@@ -30,7 +31,7 @@ namespace OhmsLaw
             box = UI.Stretch("Subtitles", transform);
             box.anchorMax = new Vector2(1, 0);
             box.offsetMin = new Vector2(SideInset, Bottom);
-            box.offsetMax = new Vector2(-SideInset, UI.SubtitleTop);
+            box.offsetMax = new Vector2(-RightSide, UI.SubtitleTop);
             UI.Panel(box, UI.HudColor, true, 22f).raycastTarget = false;
 
             speaker = UI.Label(box, "", UI.SpeakerFont, UI.Theme ? UI.Theme.wattsonAccent : Color.cyan, TextAlignmentOptions.TopLeft);

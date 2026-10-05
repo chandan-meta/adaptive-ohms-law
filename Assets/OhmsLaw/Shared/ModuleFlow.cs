@@ -20,6 +20,7 @@ namespace OhmsLaw
         public static ModuleFlow Instance { get; private set; }
         // Raised once Scene 13 hands off; Scene 14 onward are external videos.
         public static event Action UnitySectionComplete;
+        public static event Action<string> Leaving; // a scene is about to hand off (before the fade or the cut); the play test shoots its last frame
 
         public ModulePalette palette;
         public ProxyConfig proxy;
@@ -129,6 +130,7 @@ namespace OhmsLaw
 
         IEnumerator Load(string next, bool fadeOut)
         {
+            Leaving?.Invoke(next);
             if (fadeOut) yield return FadeTo(1);
             if (next != null && Application.CanStreamedLevelBeLoaded(next)) { yield return SceneManager.LoadSceneAsync(next); yield break; }
             if (!fadeOut) yield return FadeTo(1);

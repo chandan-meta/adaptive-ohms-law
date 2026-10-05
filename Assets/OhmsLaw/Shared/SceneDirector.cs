@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using TMPro;
@@ -145,7 +146,7 @@ namespace OhmsLaw
                 case "graph.axes": graph.Axes(on); break;
                 case "graph.plot": graph.Plot(Int(1)); break;
                 case "graph.line": graph.Line(on); break;
-                case "graph.highlight": graph.Highlight(Int(1), true); graph.Highlight(Int(2), true, "I → 2I\nV → 2V"); break;
+                case "graph.highlight": graph.Highlight(Int(1), true); graph.Highlight(Int(2), true, "I → 2I\n<color=#" + ColorUtility.ToHtmlStringRGB(UI.AccentColor) + ">V → 2V</color>"); break; // V in voltage blue
                 case "graph.clear": for (int i = 0; i < 5; i++) graph.Highlight(i, false); break;
                 case "graph.triangle": graph.Triangle(Int(1), Int(2)); break;
                 case "graph.pulse": graph.Pulse(); break;
@@ -153,6 +154,7 @@ namespace OhmsLaw
                 case "spotlight": StartCoroutine(Spotlight()); break;
                 case "ohm.freeze": foreach (var worker in FindObjectsByType<OhmWorker>(FindObjectsSortMode.None)) worker.frozen = on; break;
                 case "ohm.pose": foreach (var worker in FindObjectsByType<OhmWorker>(FindObjectsSortMode.None)) worker.SetMode((OhmWorker.Mode)System.Enum.Parse(typeof(OhmWorker.Mode), arg, true)); break;
+                case "ohm.swing": foreach (var worker in FindObjectsByType<OhmWorker>(FindObjectsSortMode.None)) worker.Swing(); break; // re-swing the needle; its [VFX] panel stays up
                 case "lab": Lab(); break;
                 case "reminder": Reminder(); break;
                 // "callout show <id>" / "callout hide <id>" / "callout hideall" (CalloutDef ids set by the builders).
@@ -178,16 +180,25 @@ namespace OhmsLaw
         // boards, their camera and Wattson's marker move to the anchor inside the tunnel.
         void Lab()
         {
-            if (!tableInWire) { SetActive("Wire Section", false); SetActive("Lab", true); return; }
-            var anchor = Ref("Wire Boards Anchor");
-            var boards = Ref("Boards Set");
-            if (!anchor || !boards) return;
-            Vector3 delta = anchor.transform.position - boards.transform.position;
-            foreach (var name in new[] { "Boards Set", "Cam Boards", "Boards Point" })
+            if (!tableInWire) { SetActive("Wire Section", false); SetActive("Lab", true); }
+            else
             {
-                var go = Ref(name);
-                if (go) go.transform.position += delta;
+                var anchor = Ref("Wire Boards Anchor");
+                var boards = Ref("Boards Set");
+                if (anchor && boards)
+                {
+                    Vector3 delta = anchor.transform.position - boards.transform.position;
+                    foreach (var name in new[] { "Boards Set", "Cam Boards", "Boards Point" })
+                    {
+                        var go = Ref(name);
+                        if (go) go.transform.position += delta;
+                    }
+                }
             }
+            // The cue runs under the white: Wattson is already beside the board when it clears (the spring flight back
+            // from the wire would still be crossing the table).
+            var spot = Ref("Boards Point");
+            if (wattson && spot) { wattson.MoveTo(spot.transform); wattson.transform.position = spot.transform.position; }
         }
 
         // Scene 9 reminder card, with the learner's own prediction when that toggle is on.
@@ -204,18 +215,61 @@ namespace OhmsLaw
             }
         }
 
+        // "boost" grows the object and brightens its glow and holds both; "pulse" (settle) peaks and returns to normal.
         IEnumerator Boost(GameObject go, bool settle = false)
         {
             if (!go) yield break;
             var from = go.transform.localScale;
             float peak = settle ? 1.25f : 1.5f;
+            var glow = new Brightener(go);
             for (float t = 0; t < 1; t += Time.deltaTime / 0.8f)
             {
                 float k = settle ? Mathf.Sin(t * Mathf.PI) : Mathf.SmoothStep(0, 1, t);
                 go.transform.localScale = from * Mathf.Lerp(1, peak, k);
+                glow.Set(Mathf.Lerp(1, Brightener.Peak, k));
                 yield return null;
             }
             go.transform.localScale = settle ? from : from * peak;
+            glow.Set(settle ? 1 : Brightener.Peak);
+        }
+
+        // The boosted object's emissive parts (URP Lit emission, TextMeshPro face, additive particle-shader glows) and its
+        // lights, scaled together. Property blocks leave the shared materials alone; a renderer that had no block gets
+        // none back when the brightness returns to 1.
+        class Brightener
+        {
+            public const float Peak = 1.8f;
+            static readonly int Emission = Shader.PropertyToID("_EmissionColor"), Face = Shader.PropertyToID("_FaceColor"), Base = Shader.PropertyToID("_BaseColor");
+            readonly List<(Renderer renderer, int id, Color color, bool own)> parts = new List<(Renderer, int, Color, bool)>();
+            readonly List<(Light light, float intensity)> lights = new List<(Light, float)>();
+            readonly MaterialPropertyBlock block = new MaterialPropertyBlock();
+
+            public Brightener(GameObject go)
+            {
+                foreach (var r in go.GetComponentsInChildren<Renderer>())
+                {
+                    var m = r.sharedMaterial;
+                    if (!m || r is ParticleSystemRenderer) continue; // spark bursts keep their own life
+                    int id = m.IsKeywordEnabled("_EMISSION") && m.HasProperty(Emission) ? Emission
+                           : m.HasProperty(Face) ? Face
+                           : m.shader.name.Contains("Particles") && m.HasProperty(Base) ? Base : 0;
+                    if (id != 0) parts.Add((r, id, m.GetColor(id), !r.HasPropertyBlock()));
+                }
+                foreach (var l in go.GetComponentsInChildren<Light>()) lights.Add((l, l.intensity));
+            }
+
+            public void Set(float k)
+            {
+                foreach (var (r, id, c, own) in parts)
+                {
+                    if (!r) continue;
+                    if (own && k <= 1f) { r.SetPropertyBlock(null); continue; }
+                    r.GetPropertyBlock(block);
+                    block.SetColor(id, new Color(c.r * k, c.g * k, c.b * k, c.a));
+                    r.SetPropertyBlock(block);
+                }
+                foreach (var (l, i) in lights) if (l) l.intensity = i * k;
+            }
         }
 
         IEnumerator Spotlight()
@@ -253,9 +307,12 @@ namespace OhmsLaw
         const float PromptY = -140f, PromptMaxWidth = 1200f, PromptMinWidth = 480f, PromptHeight = 108f, PromptPad = 48f;
         // Battery control: bottom-left, above the subtitle box (y 40..236, 210 px insets) and left of the Record / x2 chip at x 720.
         static readonly Vector2 BatteryPos = new Vector2(60, 260), BatterySize = new Vector2(620, 220);
-        const float TrackWidth = 520f, TrackY = -10f, HandleSize = 96f, TickStep = TrackWidth / 5f;
+        // TrackY puts the 96 px knob ~10 px under the BATTERY title and ~8 px over the tick labels.
+        const float TrackWidth = 520f, TrackY = -4f, HandleSize = 96f, TickStep = TrackWidth / 5f;
         static readonly Vector2 TickRect = new Vector2(96, 44);
-        const float TapRing = 150f;
+        // Tap hint: the fingertip is FingerTip px above the ring's centre; the ring keeps clear of the subtitle band and of
+        // the Ask Wattson button (28 px inset + 170 px wide + 24 px air) at the bottom-right.
+        const float TapRing = 150f, FingerTip = 54f, AskWattsonClear = 28f + 170f + 24f;
 
         // An empty text clears the prompt; the pill fades out by itself.
         void Prompt(string text)
@@ -301,7 +358,8 @@ namespace OhmsLaw
             }
 
             var area = UI.Rect("Handle Area", rect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, TrackY), new Vector2(TrackWidth, HandleSize));
-            var handle = UI.Rect("Handle", area, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(HandleSize, HandleSize));
+            // The Slider stretches the handle over the Handle Area's height, so only its width is set: a 96 px circle.
+            var handle = UI.Rect("Handle", area, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(HandleSize, 0));
             var knob = handle.gameObject.AddComponent<Image>();
             knob.sprite = UI.Circle();
             knob.color = UI.AccentColor;
@@ -328,27 +386,35 @@ namespace OhmsLaw
             return button;
         }
 
-        // Scene 4's tap-hand following a world object on screen: translucent disc, ring, finger and palm, pulsing.
-        IEnumerator TapHint(Transform target, System.Func<bool> until)
+        // Scene 4's tap-hand following a world object on screen: faint disc, ring, finger and palm, pulsing. `offset` (canvas
+        // px) moves the ring off the target, e.g. below a meter so its reading stays visible; (0, -FingerTip) puts the
+        // fingertip on the target.
+        IEnumerator TapHint(Transform target, System.Func<bool> until, Vector2 offset = default)
         {
             var ring = UI.Rect("Tap Hint", Flow.transform, Vector2.zero, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(TapRing, TapRing));
             ring.SetAsFirstSibling();
             var disc = ring.gameObject.AddComponent<Image>();
             disc.sprite = UI.Circle();
-            disc.color = new Color(1, 1, 1, 0.22f);
+            disc.color = new Color(1, 1, 1, 0.08f); // a hint of a disc: the target shows through
             disc.raycastTarget = false;
             var outline = UI.Stretch("Ring", ring).gameObject.AddComponent<Image>();
             outline.sprite = UI.Circle(0.9f);
             outline.color = new Color(1, 1, 1, 0.9f);
             outline.raycastTarget = false;
-            var finger = UI.Rect("Finger", ring, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0), new Vector2(-6, -8), new Vector2(26, 62));
+            var finger = UI.Rect("Finger", ring, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0), new Vector2(-6, FingerTip - 62), new Vector2(26, 62));
             UI.Panel(finger, Color.white, true, 12f).raycastTarget = false;
             var palm = UI.Rect("Palm", ring, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 1), new Vector2(6, 2), new Vector2(58, 44));
             UI.Panel(palm, Color.white, true, 14f).raycastTarget = false;
             var canvas = Flow.GetComponent<Canvas>();
+            var frame = ((RectTransform)Flow.transform).rect.size;
+            float reach = TapRing * 0.56f; // half the ring at the top of its pulse, plus a few px
             while (!until())
             {
-                if (Camera.main) ring.anchoredPosition = Camera.main.WorldToScreenPoint(target.position) / canvas.scaleFactor;
+                if (Camera.main && target)
+                {
+                    var p = (Vector2)Camera.main.WorldToScreenPoint(target.position) / canvas.scaleFactor + offset;
+                    ring.anchoredPosition = new Vector2(Mathf.Min(p.x, frame.x - AskWattsonClear - reach), Mathf.Max(p.y, UI.SubtitleTop + reach + 8f));
+                }
                 ring.localScale = Vector3.one * (1 + 0.12f * Mathf.Sin(Time.unscaledTime * 5f));
                 yield return null;
             }

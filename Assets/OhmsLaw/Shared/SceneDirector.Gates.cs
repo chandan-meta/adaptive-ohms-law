@@ -42,7 +42,7 @@ namespace OhmsLaw
         IEnumerator Prediction(InteractionGate gate)
         {
             var panel = new MCQPanel("If we increase the potential difference while everything else stays the same, what do you predict will happen to the current?",
-                new[] { "A. Increase", "B. Decrease", "C. Stay the same" }, dockRight: true);
+                new[] { "A. Increase", "B. Decrease", "C. Stay the same" }, dockRight: true, width: 740f); // left edge ~1130 px, clear of the counter card
             yield return panel.WaitForPick(0);
             panel.Close();
             LearnerSession.prediction = LearnerSession.Letter(panel.Picked);
@@ -54,7 +54,7 @@ namespace OhmsLaw
         {
             if (rig.IsPlaced(part)) yield break;
             bool auto = buildMode == BuildMode.AutoPlace || ReviewMode.autoAnswer;
-            rig.draggable = auto ? "" : part;
+            rig.draggable = part; // its slot glows in auto runs too, until the part lands (CircuitRig clears it)
             if (auto) { yield return new WaitForSeconds(auto && buildMode != BuildMode.AutoPlace ? ReviewMode.autoDelay : 1f); rig.Place(part); }
             float waited = 0;
             while (!rig.IsPlaced(part))
@@ -70,7 +70,9 @@ namespace OhmsLaw
         {
             if (rig.state.keyClosed) yield break;
             rig.keyArmed = true;
-            StartCoroutine(TapHint(rig.key, () => rig.state.keyClosed));
+            // The fingertip on the lever's grip, not the base, so the hand points at what the learner taps.
+            var grip = rig.keyLever ? rig.keyLever.Find("Handle") : null;
+            StartCoroutine(TapHint(grip ? grip : rig.key, () => rig.state.keyClosed, new Vector2(0, -FingerTip)));
             float waited = 0;
             while (!rig.state.keyClosed)
             {
@@ -100,7 +102,7 @@ namespace OhmsLaw
         {
             bool recorded = false;
             var button = ScreenButton("Record", "RECORD", new Vector2(720, 250), () => recorded = true);
-            StartCoroutine(TapHint(rig.ammeter, () => recorded));
+            StartCoroutine(TapHint(rig.ammeter, () => recorded, new Vector2(0, -130))); // ring under the meter, finger up to it: the reading stays clear
             float waited = 0;
             while (!recorded)
             {

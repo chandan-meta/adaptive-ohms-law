@@ -117,7 +117,7 @@ namespace OhmsLaw.Editor
 
         // ART_DIRECTION §2: the desk top centre is the origin at y 0.80, cameras stand on the -Z side and Ohm behind
         // the desk (+Z) facing them. His model's arms are short (0.32 m shoulder to wrist at scale 1.55), so what he
-        // works with runs along the back of the desk, within reach of a 40° lean; the hero props sit toward the front.
+        // works with runs along the back of the desk, within reach of a 30° lean; the hero props sit toward the front.
         public static readonly Vector3 Desk7 = new Vector3(0f, 0.80f, 0f);
         public static readonly Vector3 OhmFeet7 = new Vector3(0f, 0f, 0.75f);
         public static readonly Vector3 Galvanometer7 = Desk7 + new Vector3(0.45f, 0, 0.10f);   // base centre of the torsion galvanometer
@@ -140,7 +140,9 @@ namespace OhmsLaw.Editor
         // Names are the storyboard's; the callout layer labels them, so nothing here carries world text.
         protected void OhmApparatus()
         {
-            var copper = Lit("Copper", new Color(0.86f, 0.46f, 0.26f), 1f, 0.72f);
+            // Satin copper (its own asset: Scenes 4-5 keep the polished "Copper"): the polished metal caught the window and
+            // bloomed orange like a heated filament, and its shaded side went near-black.
+            var copper = Lit("Classroom_Copper", new Color(0.88f, 0.5f, 0.3f), 0.6f, 0.5f);
             var brass = Lit("Brass", new Color(0.83f, 0.66f, 0.3f), 1f, 0.68f);
             var zinc = Lit("Zinc", new Color(0.62f, 0.65f, 0.68f), 1f, 0.5f);
             var wood = Lit("DarkWood", new Color(0.2f, 0.11f, 0.06f), 0f, 0.4f);
@@ -250,8 +252,8 @@ namespace OhmsLaw.Editor
             for (int i = 0; i < 4; i++)
             {
                 float length = 0.56f - i * 0.08f;
-                var centre = TestWires7 + new Vector3(0.04f * i, 0.005f, 0.12f - i * 0.08f);
-                Prim(PrimitiveType.Cylinder, "Test Wire " + (i + 1), wires, centre, new Vector3(0.01f, length / 2, 0.01f), copper, new Vector3(0, -4.5f + i * 3f, 90));
+                var centre = TestWires7 + new Vector3(0.04f * i, 0.007f, 0.12f - i * 0.08f); // resting on the desk
+                Prim(PrimitiveType.Cylinder, "Test Wire " + (i + 1), wires, centre, new Vector3(0.014f, length / 2, 0.014f), copper, new Vector3(0, -4.5f + i * 3f, 90)); // 14 mm reads at the hero lens
             }
             Pivot(wires, TestWires7 + Vector3.up * 0.01f);
 
@@ -301,7 +303,7 @@ namespace OhmsLaw.Editor
             Prim(PrimitiveType.Cylinder, "Held Copper Wire", handWire.transform, Vector3.zero, new Vector3(0.009f, 0.21f, 0.009f), copper, new Vector3(0, 0, 90));
             handWire.SetActive(false);
 
-            // Georg Ohm behind the desk. The targets are wrist positions: the hand slopes on from there, so with a 40°
+            // Georg Ohm behind the desk. The targets are wrist positions: the hand slopes on from there, so with a 30°
             // lean the pen lands on the page centre and the fingers on post A's cap (both within his 0.32 m reach); the
             // torsion knob is 0.5 m from his shoulder, so that arm straightens toward it and stops behind the cap.
             var notebookTarget = Marker("Ohm Notebook Target", Notebook7 + new Vector3(-0.01f, 0.12f, 0.15f)).transform;
@@ -421,7 +423,7 @@ namespace OhmsLaw.Editor
             worker.wirePost = wirePost;
             worker.needle = needle;
             worker.handWire = handWire;
-            worker.lean = 40f; // the back of the desk is 0.4 m in front of his feet; Scene 4's 22 reached 0.3 m
+            worker.lean = 30f; // reaches ~0.36 m (OhmWorker: 22 -> 0.3, 36 -> 0.4), past the notebook and wire targets; at 40 his face hid under his hair
             worker.mode = OhmWorker.Mode.Work;
             if (PrefabUtility.IsPartOfPrefabInstance(worker)) PrefabUtility.RecordPrefabInstancePropertyModifications(worker); // scene references are instance overrides
             return ohm;

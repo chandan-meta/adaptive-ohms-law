@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using TMPro;
 using Unity.Cinemachine;
 using UnityEngine;
@@ -69,16 +70,9 @@ namespace OhmsLaw
             return hiding && group.alpha <= 0f;
         }
 
-        // Rounded border (the card's own image) with the fill inset by the border width; the fill comes before the
-        // text in the hierarchy so the text draws over it.
-        protected void Frame(Color border, Color fill)
-        {
-            UI.Panel(card, border, true, Corner).raycastTarget = false;
-            var inner = UI.Stretch("Fill", card);
-            inner.offsetMin = Vector2.one * Border;
-            inner.offsetMax = -Vector2.one * Border;
-            UI.Panel(inner, fill, true, Corner - Border).raycastTarget = false;
-        }
+        // Rounded fill (the card's own image) under an outline-only border, both before the text in the hierarchy so the
+        // text draws over them. Nothing coloured sits beneath the translucent fill, so it stays dark while the card fades.
+        protected void Frame(Color border, Color fill) => Draw.Bordered(card, Corner, border, fill);
 
         // A label at a layout-space position inside `parent`, sized to its measured text.
         protected static TextMeshProUGUI Label(RectTransform parent, string name, string text, float font, Color color, Vector2 topLeft, Vector2 size, TextOverflowModes overflow = TextOverflowModes.Overflow)
@@ -125,12 +119,12 @@ namespace OhmsLaw
         }
     }
 
-    // Dark navy panel, orange title (30 px), white description (24 px, two lines at most), a 2 px orange leader to
-    // a 12 px marker dot on the world target.
+    // Dark navy panel, orange title (40 px: 28 px caps, the prop-name tier), white description (30 px: the 21 px cap
+    // floor of TYPOGRAPHY.md, two lines at most), a 2 px orange leader to a 12 px marker dot on the world target.
     public class ObjectCallout : Callout
     {
-        public const float TitleFont = 30f, BodyFont = 24f, MaxWidth = 440f;
-        const float PadX = 22f, PadTop = 12f, PadBottom = 16f, TitleGap = 2f, MinWidth = 220f, LeaderWidth = 2f, Marker = 12f, Rim = 18f;
+        public const float TitleFont = 40f, BodyFont = 30f, MaxWidth = 580f;
+        const float PadX = 24f, PadTop = 12f, PadBottom = 16f, TitleGap = 2f, MinWidth = 220f, LeaderWidth = 2f, Marker = 12f, Rim = 18f;
         const int MaxLines = 2;
 
         Image leader, dot, rim;
@@ -182,13 +176,15 @@ namespace OhmsLaw
     // while the effect plays - by the cue that shows the "[VFX] ..." object, or by a CalloutDef of kind Vfx.
     public class VfxPanel : Callout
     {
-        public const float TextFont = 30f, MaxWidth = 480f;
+        public const float TextFont = 32f, MaxWidth = 560f;
         const float PadX = 20f, PadY = 14f, GlyphWidth = 44f, GlyphHeight = 28f, GlyphGap = 14f;
+        static readonly Regex Hyphenated = new Regex(@"\S+-\S+");
 
         protected override void Build(string title, string body, CalloutDef.Diagram diagram)
         {
             Frame(Magenta, VfxFill);
-            string text = "<color=#E040FB>[VFX]</color> " + title;
+            // Display only: a hyphenated word ("Ohm-niscope", "time-freeze") never breaks at its hyphen; the id keeps the plain name.
+            string text = "<color=#E040FB>[VFX]</color> " + Hyphenated.Replace(title, "<nobr>$0</nobr>");
             float maxText = MaxWidth - 2 * PadX - GlyphWidth - GlyphGap;
             var textSize = Measure(TextFont, text);
             if (textSize.x > maxText) textSize = Measure(TextFont, text, maxText);
@@ -205,12 +201,13 @@ namespace OhmsLaw
         }
     }
 
-    // Dark-blue panel with a cyan edge: orange title (34 px), white body (26 px, three lines at most) and an
+    // Dark-blue panel with a cyan edge: orange title (44 px), white body (32 px, three lines at most) and an
     // optional cyan diagram (a cell with field arrows, or a conductor with three charges) at the right. No leader.
     public class ConceptPanel : Callout
     {
-        public const float TitleFont = 34f, BodyFont = 26f;
-        const float PadX = 26f, PadTop = 16f, PadBottom = 20f, TitleGap = 6f, MinWidth = 360f, MaxTextWidth = 380f, DiagramWidth = 150f, DiagramHeight = 110f, DiagramGap = 24f;
+        public const float TitleFont = 44f, BodyFont = 32f;
+        // The diagrams are drawn in a 150 x 110 box and shown at DiagramScale (180 x 132 px).
+        const float PadX = 26f, PadTop = 16f, PadBottom = 20f, TitleGap = 6f, MinWidth = 360f, MaxTextWidth = 460f, DiagramWidth = 150f, DiagramHeight = 110f, DiagramScale = 1.2f, DiagramGap = 24f;
         const int MaxLines = 3;
 
         protected override void Build(string title, string body, CalloutDef.Diagram diagram)
@@ -218,9 +215,11 @@ namespace OhmsLaw
             Frame(Cyan, DeepBlue);
             var block = TextBlock(title, body, TitleFont, BodyFont, MaxLines, PadX, PadTop, PadBottom, TitleGap, MinWidth, MaxTextWidth);
             bool drawn = diagram != CalloutDef.Diagram.None;
-            size = new Vector2(block.x + 2 * PadX + (drawn ? DiagramGap + DiagramWidth : 0), Mathf.Max(block.y, drawn ? DiagramHeight + PadTop + PadBottom : 0));
+            float w = DiagramWidth * DiagramScale, h = DiagramHeight * DiagramScale;
+            size = new Vector2(block.x + 2 * PadX + (drawn ? DiagramGap + w : 0), Mathf.Max(block.y, drawn ? h + PadTop + PadBottom : 0));
             if (!drawn) return;
-            var box = UI.Rect("Diagram", card, new Vector2(0, 1), new Vector2(0, 1), new Vector2(size.x - PadX - DiagramWidth, -(size.y - DiagramHeight) / 2), new Vector2(DiagramWidth, DiagramHeight));
+            var box = UI.Rect("Diagram", card, new Vector2(0, 1), new Vector2(0, 1), new Vector2(size.x - PadX - w, -(size.y - h) / 2), new Vector2(DiagramWidth, DiagramHeight));
+            box.localScale = Vector3.one * DiagramScale;
             if (diagram == CalloutDef.Diagram.Battery) Battery(box); else Tube(box);
         }
 
@@ -292,16 +291,19 @@ namespace OhmsLaw
             Bar(parent, to + dir * thickness * 0.5f, back - side, thickness, color);
         }
 
-        // Rounded outline: a border-coloured panel with the fill inset by the callout border width.
+        // Rounded outline around a fill, at a layout-space rect inside `parent`.
         public static RectTransform Outline(Transform parent, Rect r, float corner, Color border, Color fill)
         {
             var rect = UI.Rect("Outline", parent, TopLeft, TopLeft, new Vector2(r.x, -r.y), r.size);
-            UI.Panel(rect, border, true, corner).raycastTarget = false;
-            var inner = UI.Stretch("Fill", rect);
-            inner.offsetMin = Vector2.one * Callout.Border;
-            inner.offsetMax = -Vector2.one * Callout.Border;
-            UI.Panel(inner, fill, true, corner - Callout.Border).raycastTarget = false;
+            Bordered(rect, corner, border, fill);
             return rect;
+        }
+
+        // The fill on `rect` itself, an outline-only ring (callout border width) over it: no border colour under the fill.
+        public static void Bordered(RectTransform rect, float corner, Color border, Color fill)
+        {
+            UI.Panel(rect, fill, true, corner).raycastTarget = false;
+            UI.Outline(UI.Stretch("Border", rect), border, corner, Callout.Border);
         }
     }
 
@@ -411,7 +413,7 @@ namespace OhmsLaw
 
         // A "[VFX] ..." object was shown or hidden by a cue: mirror it with a panel carrying the same text (minus the
         // prefix). `source` is the effect object when the scene has one; the panel then also hides when the effect
-        // is deactivated or destroyed.
+        // is deactivated or destroyed, and a CalloutDef on it (if a builder added one) sets the panel's anchor.
         public void Vfx(string name, bool on, GameObject source = null)
         {
             string text = name.StartsWith(Prefix) ? name.Substring(Prefix.Length) : name;
@@ -422,6 +424,7 @@ namespace OhmsLaw
             var panel = Add<VfxPanel>(id, null, text, "");
             panel.source = source;
             panel.hasSource = source != null;
+            if (source && source.TryGetComponent(out CalloutDef placement)) { panel.anchor = placement.anchor; panel.aboveOffset = placement.aboveOffset; }
         }
 
         // ------------------------------------------------------------------ internals
@@ -485,7 +488,7 @@ namespace OhmsLaw
                     c.placed = true;
                     c.Place(c.position);
                     c.Track(marker);
-                    blocked.Add(new Rect(c.position, c.size));
+                    if (!c.hiding) blocked.Add(new Rect(c.position, c.size)); // a panel on its way out does not push the next one aside
                 }
 
             for (int i = callouts.Count - 1; i >= 0; i--)

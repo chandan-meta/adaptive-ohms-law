@@ -20,6 +20,9 @@ namespace OhmsLaw.Editor
         const float StallSeconds = 30f, MaxMinutes = 25f;
 
         static readonly List<string> spoken = new List<string>();
+        // Screenshots wait for UI fades (subtitle box, MCQ panel: UIFade 0.25 s) so the picture shows them at full alpha.
+        static readonly List<(float due, string what)> pending = new List<(float, string)>();
+        const float LineShotDelay = 0.4f, GateShotDelay = 0.6f;
         static int shotIndex;
         static string currentScene = "", lastGate;
         static double lastTime = -1;
@@ -62,8 +65,14 @@ namespace OhmsLaw.Editor
             lastTime = -1;
             Application.logMessageReceived += OnLog;
             SubtitleTrack.LineStarted += OnLine;
+            ModuleFlow.Leaving += OnLeaving;
             EditorApplication.update += Tick;
         }
+
+        // The scene's last frame, before the white fade or the match-cut, so hand-offs can be compared.
+        static void OnLeaving(string next) => Shot("exit");
+
+        static void Later(string what, float seconds) => pending.Add((Time.realtimeSinceStartup + seconds, what));
 
         static void Note(string text) => File.AppendAllText(Report, text + "\n");
 
@@ -87,8 +96,7 @@ namespace OhmsLaw.Editor
             Check($"{(director ? director.time : 0),6:0.0}s  {line.id}  {(line.vo ? (BlockoutAssets.IsScratch(line.vo) ? "scratch" : "real") : "silent")}  \"{line.text}\"", last != line.id);
             spoken.Add(line.id);
             lastProgress = Time.realtimeSinceStartup;
-            // A frame later so the subtitle is on screen in the picture.
-            EditorApplication.delayCall += () => Shot(line.id);
+            Later(line.id, LineShotDelay);
         }
 
         // Game-view screenshot for the visual review: Logs/Blockout/shots/<scene>/<nn>_<what>.png
@@ -104,7 +112,8 @@ namespace OhmsLaw.Editor
         {
             // Play mode stopped from the editor: close the test down so playModeStartScene does not stick.
             if (!EditorApplication.isPlaying) { if (started > 0) { Note("STOPPED  play mode exited before the end card"); Finish(); } return; }
-            if (started == 0) { started = Time.realtimeSinceStartup; lastProgress = started; Application.runInBackground = true; }
+            if (started == 0) { started = Time.realtimeSinceStartup; lastProgress = started; Application.runInBackground = true; SubtitleUI.Enabled = true; }
+            foreach (var due in pending.Where(p => Time.realtimeSinceStartup >= p.due).ToList()) { Shot(due.what); pending.Remove(due); }
             ReviewMode.autoAnswer = true;
             if (!Mathf.Approximately(ReviewMode.timeScale, SessionState.GetFloat(SpeedKey, 1f))) ReviewMode.timeScale = SessionState.GetFloat(SpeedKey, 1f);
 
@@ -119,13 +128,15 @@ namespace OhmsLaw.Editor
                 spoken.AddRange(early);
                 currentScene = scene;
                 shotIndex = 0;
+                pending.Clear(); // a shot due after the cut would land in the new scene's folder
+                if (Directory.Exists($"Logs/Blockout/shots/{scene}")) Directory.Delete($"Logs/Blockout/shots/{scene}", true); // no frames left over from a longer run
                 Note($"\n=== {scene} ===");
                 lastProgress = Time.realtimeSinceStartup;
                 lastTime = -1;
             }
             if (SceneDirector.Gate != lastGate)
             {
-                if (SceneDirector.Gate != null) { Note($"{(flow && flow.Director ? flow.Director.time : 0),6:0.0}s  GATE {SceneDirector.Gate} (autoAnswer)"); string g = SceneDirector.Gate; EditorApplication.delayCall += () => Shot("gate_" + g); }
+                if (SceneDirector.Gate != null) { Note($"{(flow && flow.Director ? flow.Director.time : 0),6:0.0}s  GATE {SceneDirector.Gate} (autoAnswer)"); Later("gate_" + SceneDirector.Gate, GateShotDelay); }
                 lastGate = SceneDirector.Gate;
                 lastProgress = Time.realtimeSinceStartup;
             }
@@ -163,6 +174,8 @@ namespace OhmsLaw.Editor
             EditorApplication.update -= Tick;
             Application.logMessageReceived -= OnLog;
             SubtitleTrack.LineStarted -= OnLine;
+            ModuleFlow.Leaving -= OnLeaving;
+            pending.Clear();
             SessionState.SetBool(Key, false);
             hooked = false;
             started = 0;

@@ -303,7 +303,9 @@ namespace OhmsLaw.Editor
             return Ref(root);
         }
 
-        // Scene 4's word material: TMP Distance Field with an HDR face and outer glow, one asset per colour.
+        // Scene 4's word material: TMP Distance Field with an HDR face and outer glow, one asset per colour. The face sits
+        // just over the bloom threshold (1.5x, was 2.6x) and the glow is tighter, so the palette hue survives bloom and
+        // ACES (VOLTAGE stays blue, not white) and thin stems stay letters (the sans "I" bloomed into a pill).
         protected Material WordMaterial(Color color)
         {
             if (!palette.font) return null;
@@ -311,10 +313,10 @@ namespace OhmsLaw.Editor
             var material = Asset(Art + "/Materials/Word_" + ColorUtility.ToHtmlStringRGB(color) + ".mat", () => new Material(palette.font.material));
             material.shader = Shader.Find("TextMeshPro/Distance Field");
             material.SetTexture(ShaderUtilities.ID_MainTex, palette.font.atlasTexture);
-            material.SetColor(ShaderUtilities.ID_FaceColor, Hdr(color, 2.6f));
+            material.SetColor(ShaderUtilities.ID_FaceColor, Hdr(color, 1.5f));
             material.EnableKeyword("GLOW_ON");
-            material.SetColor(ShaderUtilities.ID_GlowColor, new Color(color.r, color.g, color.b, 0.6f));
-            material.SetFloat(ShaderUtilities.ID_GlowOuter, 0.45f);
+            material.SetColor(ShaderUtilities.ID_GlowColor, new Color(color.r, color.g, color.b, 0.5f));
+            material.SetFloat(ShaderUtilities.ID_GlowOuter, 0.28f);
             material.SetFloat(ShaderUtilities.ID_GlowPower, 0.6f);
             EditorUtility.SetDirty(material);
             return material;
@@ -396,6 +398,15 @@ namespace OhmsLaw.Editor
                 w.path = null;
                 w.pathT = 0;
                 voice = w.voice; // the Timeline's VO track plays through his own mouth
+                if (w.sparks)
+                {
+                    // A shorter, slower spark trail than Scene 4's flights: the sparks stay on his body instead of drifting
+                    // onto the board or the cards beside him.
+                    var main = w.sparks.main;
+                    main.startLifetime = new ParticleSystem.MinMaxCurve(0.2f, 0.45f);
+                    main.startSpeed = new ParticleSystem.MinMaxCurve(0.02f, 0.18f);
+                    PrefabUtility.RecordPrefabInstancePropertyModifications(w.sparks);
+                }
             }
             else
             {

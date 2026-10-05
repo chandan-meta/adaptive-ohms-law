@@ -16,12 +16,6 @@ namespace OhmsLaw.Editor
         // frame like the reference. Replaces the kit's Table Close aim, which predates the apparatus layout.
         static readonly Vector3 HeroCam = new Vector3(0.1f, 1.35f, -1.2f), HeroLook = new Vector3(-0.05f, 0.82f, 0.1f);
         const float HeroFov = 40f;
-        // Board layout (board UV). The headlines use the L tier: two XL headlines (2.0 + 1.8 m with TMP's bold spacing)
-        // do not fit side by side on the 3.2 m board; the question uses the S tier so its two lines (2.6 m) fit a chalk
-        // panel inside the board (at BoardCap they span 3.0 m). Both are sized for the Bench Wide lens that reads them.
-        static float BoardHeadlineCap => WorldText.CapAt(WorldText.Px.Large, BoardCentreC, BenchWideCamC, BenchWideLookC, BenchWideFov);   // 0.14
-        static float BoardSmallCap => WorldText.CapAt(WorldText.Px.Small, BoardCentreC, BenchWideCamC, BenchWideLookC, BenchWideFov);      // 0.093
-        static readonly Rect QuestionPanel = new Rect(0.075f, 0.48f, 0.85f, 0.27f);   // under the headlines, above Ohm's head (v ≤ 0.45)
         const string NeedleSwing = "[VFX] galvanometer needle swing", Transforming = "[VFX] historical apparatus starts transforming → modern circuit";
 
         protected override void Dialogue()
@@ -55,14 +49,8 @@ namespace OhmsLaw.Editor
             ClassroomApparatus();
             Wattson(WattsonHomeC, BenchWideCamC);
 
-            // The teaching board (ART_DIRECTION §3): the two clues as chalk headlines, the question in a chalk panel, a
-            // battery-wire loop. Nothing about resistance or proportionality (§9). Headlines at v 0.9 clear the panel;
-            // the panel bottom (v 0.48) clears Ohm's head, which reaches v ≈ 0.45 in Bench Wide even when he stands up.
-            Board("Voltage → V", palette.voltage, new Vector2(0.25f, 0.9f), BoardHeadlineCap, name: "Voltage");
-            Board("Current → I", palette.current, new Vector2(0.75f, 0.9f), BoardHeadlineCap, name: "Current");
-            BoardPanel(QuestionPanel, "Board Question Panel");
-            Board("Is there a mathematical relationship\nbetween voltage and current?", Chalk, QuestionPanel.center, BoardSmallCap, name: "Question");
-            CircuitSketch();
+            // The teaching board (ART_DIRECTION §3), hidden for the cues; the kit's helper so Scene 8 rebuilds it for the cut.
+            TwoCluesBoard(shown: false);
 
             HeroShot();
             HeroCallouts();
@@ -103,21 +91,6 @@ namespace OhmsLaw.Editor
             Callout("notebook", refs["notebook"], CalloutDef.Anchor.BottomRight, new Vector3(-0.06f, 0.02f, 0f));
             var wires = CalloutTexts["Copper Test Wires"];
             Callout("wires", refs["Copper Test Wires"].transform.Find("Test Wire 2").gameObject, wires.title, wires.description, CalloutDef.Anchor.BottomLeft);
-        }
-
-        // Battery-wire loop in chalk (Scene07_two_clues board), lower-left of the board where neither Ohm nor Wattson
-        // stands: a cell on the left side of the loop with the "V" clue beside it, the "I" clue over the current arrow
-        // on the top wire. Conventional current leaves the long (+) plate, so the arrow on the top wire points right.
-        void CircuitSketch()
-        {
-            var loop = BoardGroup("Circuit");
-            const float l = 0.08f, r = 0.28f, b = 0.10f, t = 0.34f, minus = 0.19f, plus = 0.26f, width = 0.014f;
-            BoardLine(new[] { new Vector2(l, plus), new Vector2(l, t), new Vector2(r, t), new Vector2(r, b), new Vector2(l, b), new Vector2(l, minus) }, Chalk, width, loop);
-            BoardLine(new[] { new Vector2(l - 0.025f, plus), new Vector2(l + 0.025f, plus) }, Chalk, width, loop);
-            BoardLine(new[] { new Vector2(l - 0.012f, minus), new Vector2(l + 0.012f, minus) }, Chalk, width * 1.7f, loop);
-            BoardLine(new[] { new Vector2(0.165f, t + 0.025f), new Vector2(0.18f, t), new Vector2(0.165f, t - 0.025f) }, Chalk, width, loop);
-            Board("V", palette.voltage, new Vector2(l - 0.05f, (plus + minus) * 0.5f), BoardSmallCap, parent: loop);
-            Board("I", palette.current, new Vector2(0.18f, t + 0.065f), BoardSmallCap, parent: loop);
         }
 
         // The first flicker of Scene 8's transformation: a sparkle shimmer over the whole apparatus while the cue is on.

@@ -33,7 +33,9 @@ namespace OhmsLaw
         public TextMeshPro ammeterReading, voltmeterReading;
         [Tooltip("Optional world label shown while the ammeter is in (the kit no longer builds one: the board carries the path).")] public TextMeshPro pathLabel;
         public Transform ammeterNeedle, voltmeterNeedle;
-        [Tooltip("Glowing overlay along Source → Ammeter → XY → Key → Source; lit once the ammeter is in.")] public LineRenderer currentPath;
+        [Tooltip("Amber overlay along the cables Source → Ammeter → X; lit once the ammeter is in (and showPath). Nothing runs along XY.")] public LineRenderer currentPath;
+        [Tooltip("The path's return leg along the cables Y → Key → Source, lit with currentPath.")] public LineRenderer currentPathReturn;
+        [Tooltip("Builders and cues turn the lit path off where the bench should show plain red / black cables.")] public bool showPath = true;
         [Tooltip("Leads X → voltmeter and Y → voltmeter; shown once the voltmeter is in.")] public LineRenderer voltmeterLeads, voltmeterLeadY;
         [Tooltip("Leads Source → ammeter → X; shown once the ammeter is in.")] public GameObject ammeterLeads;
         public GameObject seriesGlow, parallelGlow, wireHighlight;
@@ -175,8 +177,9 @@ namespace OhmsLaw
             shownVolts = Mathf.Lerp(shownVolts, Volts, ease);
             shownAmps = Mathf.Lerp(shownAmps, Amps, ease);
             shownKnob = Mathf.Lerp(shownKnob, state.voltage, ease);
-            if (voltmeterReading) voltmeterReading.text = shownVolts.ToString("0.0") + " V";
-            if (ammeterReading) ammeterReading.text = shownAmps.ToString("0.00") + " A";
+            // A meter waiting in the tray is not in the circuit, so it shows no readout.
+            Readout(voltmeterReading, voltmeterPlaced, shownVolts.ToString("0.0") + " V");
+            Readout(ammeterReading, ammeterPlaced, shownAmps.ToString("0.00") + " A");
             Swing(voltmeterNeedle, voltmeterZero, needleSweep * Mathf.Clamp01(shownVolts / voltmeterFullScale));
             Swing(ammeterNeedle, ammeterZero, needleSweep * Mathf.Clamp01(shownAmps / ammeterFullScale));
             Swing(sourceKnob, knobZero, knobDegreesPerVolt * shownKnob);
@@ -186,7 +189,9 @@ namespace OhmsLaw
             // The series loop reads as one path once the ammeter is in it.
             var palette = UI.Theme;
             Color lit = palette ? palette.current : new Color(1f, 0.72f, 0.19f);
-            if (currentPath) currentPath.startColor = currentPath.endColor = ammeterPlaced ? lit : Color.clear;
+            Color path = ammeterPlaced && showPath ? lit : Color.clear;
+            Tint(currentPath, path);
+            Tint(currentPathReturn, path);
             if (ammeterLeads && ammeterLeads.activeSelf != ammeterPlaced) ammeterLeads.SetActive(ammeterPlaced);
             if (pathLabel) pathLabel.gameObject.SetActive(ammeterPlaced);
             if (voltmeterLeads) voltmeterLeads.enabled = voltmeterPlaced;
@@ -248,6 +253,18 @@ namespace OhmsLaw
         static void Swing(Transform pivot, Quaternion zero, float degrees)
         {
             if (pivot) pivot.localRotation = zero * Quaternion.AngleAxis(degrees, Vector3.forward);
+        }
+
+        static void Tint(LineRenderer line, Color colour)
+        {
+            if (line) line.startColor = line.endColor = colour;
+        }
+
+        static void Readout(TextMeshPro reading, bool shown, string text)
+        {
+            if (!reading) return;
+            if (reading.gameObject.activeSelf != shown) reading.gameObject.SetActive(shown);
+            if (shown) reading.text = text;
         }
 
         static void Breathe(GameObject glow, Vector3 baseScale, bool on, float pulse)

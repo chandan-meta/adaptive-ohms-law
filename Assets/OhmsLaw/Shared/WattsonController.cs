@@ -39,6 +39,7 @@ namespace OhmsLaw
         public ParticleSystem sparks;
 
         static readonly int Emission = Shader.PropertyToID("_EmissionColor");
+        const float PointTurn = 30f; // degrees he turns toward what he points at
         readonly float[] samples = new float[256];
         MaterialPropertyBlock block;
         Gesture? agentGesture;
@@ -46,6 +47,7 @@ namespace OhmsLaw
         Vector3 home, velocity, visualHome, rightArm, leftArm, restRight, restLeft;
         Quaternion restRightRotation, restLeftRotation;
         float loudness, rollTime = -1, nextRoll, pose;
+        bool pointLeft;
         AudioClip scriptedClip, unreadableClip;
         float scriptedTime;
         int scriptedFrame = -10;
@@ -89,6 +91,15 @@ namespace OhmsLaw
             home = marker.position;
         }
 
+        // Puts him on a marker at once, settled (under a fade or a cut), instead of springing there.
+        public void Warp(Transform marker)
+        {
+            if (!marker) return;
+            MoveTo(marker);
+            transform.position = home;
+            velocity = Vector3.zero;
+        }
+
         // Called by the subtitle track every frame a scripted line is on screen.
         public void ScriptedSpeech(AudioClip clip, float time)
         {
@@ -120,6 +131,13 @@ namespace OhmsLaw
 
             Transform look = agentLook ? agentLook : lookTarget;
             Vector3 forward = look ? look.position - transform.position : transform.forward;
+            // Pointing, he turns part of the way toward the target so the arm reads in three-quarter view instead of
+            // folding across his body; the turn eases back with the next gesture.
+            if (Effective == Gesture.Point && pointTarget && !agentLook)
+            {
+                Vector3 flat = Vector3.ProjectOnPlane(forward, Vector3.up), aim = Vector3.ProjectOnPlane(pointTarget.position - transform.position, Vector3.up);
+                if (flat.sqrMagnitude > 1e-4f && aim.sqrMagnitude > 1e-4f) forward = Vector3.RotateTowards(flat, aim, PointTurn * Mathf.Deg2Rad, 0f) + Vector3.up * forward.y;
+            }
             if (velocity.magnitude > 1.2f) forward = Vector3.Lerp(forward.normalized, velocity.normalized, 0.7f);
             forward.y *= 0.35f;
             if (forward.sqrMagnitude < 0.0001f) forward = transform.forward;
@@ -190,7 +208,21 @@ namespace OhmsLaw
             switch (g)
             {
                 case Gesture.Greet: right = new Vector3(0.35f, 0.9f, 0.35f); break;
-                case Gesture.Point: right = ToTarget(rightShoulder, new Vector3(0.2f, 0.2f, 1f)); break;
+                case Gesture.Point:
+                    // The arm on the target's side points (facing the lens, a screen-right target is on his left); with the
+                    // gadget out the right hand holds it, so that arm aims. The side is taken from where he looks, not his
+                    // turned body, and flips only past a dead zone, so arms never swap for a target near his line of sight.
+                    if (!pointTarget) pointLeft = false;
+                    else
+                    {
+                        Transform look = agentLook ? agentLook : lookTarget;
+                        Vector3 ahead = Vector3.ProjectOnPlane(look ? look.position - transform.position : transform.forward, Vector3.up).normalized;
+                        float side = Vector3.Cross(ahead, Vector3.ProjectOnPlane(pointTarget.position - transform.position, Vector3.up).normalized).y;
+                        if (Mathf.Abs(side) > 0.1f) pointLeft = side < 0;
+                    }
+                    if (pointLeft && !gadgetOut) left = ToTarget(leftShoulder, new Vector3(-0.2f, 0.2f, 1f));
+                    else right = ToTarget(rightShoulder, new Vector3(0.2f, 0.2f, 1f));
+                    break;
                 case Gesture.Flick: right = new Vector3(0.8f, 0.55f, 0.3f); left = new Vector3(-0.8f, 0.55f, 0.3f); break;
                 case Gesture.Reach: right = new Vector3(0.3f, -0.3f, -0.9f); break;
                 case Gesture.RaiseGadget: right = new Vector3(0.25f, 1f, 0.3f); break;

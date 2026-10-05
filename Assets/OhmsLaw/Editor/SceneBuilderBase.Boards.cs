@@ -26,9 +26,10 @@ namespace OhmsLaw.Editor
         public static readonly Vector3 BoardsWattson = new Vector3(-0.95f, 1.05f, -1.9f);
         public static readonly Vector2 TableCanvas = new Vector2(1080, 520), GraphCanvas = new Vector2(1060, 750);
 
-        // In the classroom the two canvases sit ON the teaching board (board UV): table left, graph right, each in a
-        // chalk-framed panel. 0.0012 keeps both inside the 3.2 m board; at the Boards camera's ~500 px/m the 44 px cells read ~26 px.
-        public const float BoardCanvasScale = 0.0014f;
+        // In the classroom the two canvases sit ON the teaching board (board UV): table left, graph right. The graph has a
+        // chalk-framed panel; the table draws its own frame sized to its visible columns (ObservationTableUI). 0.00135 keeps
+        // both inside the 3.2 m board with a gap between their frames; at the Boards camera's ~500 px/m the 44 px cells read ~25 px.
+        public const float BoardCanvasScale = 0.00135f;
         public static readonly Vector2 TableBoardUV = new Vector2(0.26f, 0.5f), GraphBoardUV = new Vector2(0.75f, 0.5f);
 
         // Observation table and V-I graph on world-space canvases: on the classroom's teaching board when ClassroomSet ran,
@@ -42,18 +43,18 @@ namespace OhmsLaw.Editor
             Vector3 wattson = onBoard ? BoardsWattsonC : BoardsWattson;
             if (withTable)
             {
-                var canvas = onBoard ? BoardCanvas("Observation Table", set.transform, TableBoardUV, TableCanvas)
+                var canvas = onBoard ? BoardCanvas("Observation Table", set.transform, TableBoardUV, TableCanvas, framed: false)
                                      : WorldCanvas("Observation Table", set.transform, TableBoard, TableCanvas, eye);
                 Ref(canvas.gameObject);
                 var table = canvas.gameObject.AddComponent<ObservationTableUI>();
                 table.units = unitsInTable;
                 director.table = table;
                 Placeholder(canvas.gameObject, "Observation table board: real frame/material, fill-in animation");
-                Marker("Table Point", wattson);
+                Marker("Table Point", onBoard ? TableSideC : wattson); // on the board, Boards Point would cover the V column
             }
             if (withGraph)
             {
-                var canvas = onBoard ? BoardCanvas("Graph", set.transform, GraphBoardUV, GraphCanvas)
+                var canvas = onBoard ? BoardCanvas("Graph", set.transform, GraphBoardUV, GraphCanvas, framed: true)
                                      : WorldCanvas("Graph", set.transform, GraphBoard, GraphCanvas, eye);
                 Ref(canvas.gameObject);
                 director.graph = canvas.gameObject.AddComponent<GraphUI>();
@@ -73,13 +74,16 @@ namespace OhmsLaw.Editor
             if (!refs.ContainsKey("Boards Point") || !onBoard) Marker("Boards Point", wattson);
         }
 
-        // A canvas mounted on the chalk face inside a chalk-framed panel; the board's rotation makes UGUI read from the room.
-        Canvas BoardCanvas(string name, Transform parent, Vector2 uv, Vector2 size)
+        // A canvas mounted on the chalk face, inside a chalk-framed panel ("<name> Panel") when `framed`; the board's
+        // rotation makes UGUI read from the room.
+        Canvas BoardCanvas(string name, Transform parent, Vector2 uv, Vector2 size, bool framed)
         {
             var (position, rotation) = BoardSurface(uv, 0.006f);
-            float w = size.x * BoardCanvasScale / BoardSizeC.x, h = size.y * BoardCanvasScale / BoardSizeC.y;
-            var panel = BoardPanel(new Rect(uv.x - w / 2 - 0.015f, uv.y - h / 2 - 0.02f, w + 0.03f, h + 0.04f), name + " Panel");
-            panel.SetActive(true);
+            if (framed)
+            {
+                float w = size.x * BoardCanvasScale / BoardSizeC.x, h = size.y * BoardCanvasScale / BoardSizeC.y;
+                BoardPanel(new Rect(uv.x - w / 2 - 0.015f, uv.y - h / 2 - 0.02f, w + 0.03f, h + 0.04f), name + " Panel").SetActive(true);
+            }
             var go = Node(name, parent, position);
             go.transform.rotation = rotation;
             var canvas = go.AddComponent<Canvas>();
@@ -91,6 +95,15 @@ namespace OhmsLaw.Editor
             rect.localScale = Vector3.one * BoardCanvasScale;
             go.AddComponent<GraphicRaycaster>();
             return canvas;
+        }
+
+        // World position of a graph coordinate on the classroom board, `lift` metres in front of the chalk face
+        // (Scene 11's effects and cards; Scene 12 rebuilds its "V ∝ I" card with it for the match-cut).
+        protected Vector3 GraphPoint(float amps, float volts, float lift)
+        {
+            var (pos, rot) = BoardSurface(GraphBoardUV, lift);
+            var px = new Vector2(GraphUI.MarginLeft + amps / GraphUI.MaxI * GraphUI.Width, GraphUI.MarginBottom + volts / GraphUI.MaxV * GraphUI.Height) - GraphCanvas / 2;
+            return pos + rot * (Vector3)(px * BoardCanvasScale);
         }
 
         Canvas WorldCanvas(string name, Transform parent, Vector3 position, Vector2 size, Vector3 face)

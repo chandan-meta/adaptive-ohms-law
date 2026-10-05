@@ -30,9 +30,13 @@ namespace OhmsLaw
 
         void Awake()
         {
-            // Dark rounded board behind everything.
-            var board = UI.Panel(UI.Stretch("Board", transform), WorldText.PanelColor);
-            board.raycastTarget = false;
+            // The same lighter patch of board as the observation table's frame, out to the inner edge of the classroom kit's
+            // chalk frame around this canvas, so the graph reads as chalk on the board rather than a dark tablet.
+            var tint = UI.Stretch("Board", transform);
+            var reach = new Vector2(ObservationTableUI.BoardMarginX, ObservationTableUI.BoardMarginY) - Vector2.one * (ObservationTableUI.ChalkLine / 2);
+            tint.offsetMin = -reach;
+            tint.offsetMax = reach;
+            UI.Panel(tint, ObservationTableUI.BoardTint, false).raycastTarget = false;
             plot = UI.Rect("Plot", transform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(MarginLeft, MarginBottom), new Vector2(Width, Height));
             axes = plot.gameObject;
             var grid = new Color(1, 1, 1, 0.1f);
@@ -66,7 +70,8 @@ namespace OhmsLaw
                 image.sprite = UI.Theme ? UI.Theme.circle : null;
                 image.color = Color.white;
                 image.raycastTarget = false;
-                Text(dot, $"({Data.currents[i]:0.00}, {Data.voltages[i]:0.0})", new Vector2(-60, 70), PointFont, Color.white);
+                // Labels sit up-left of their point; the first point is only ~110 px from the V axis, so its label slides right until it clears the line.
+                Text(dot, $"({Data.currents[i]:0.00}, {Data.voltages[i]:0.0})", new Vector2(Mathf.Max(-60f, 110f - At(Data.currents[i], Data.voltages[i]).x), 70), PointFont, Color.white);
                 tags[i] = Text(dot, "", new Vector2(170, -70), TagFont, Current, new Vector2(320, 140));
                 points[i] = dot;
                 dot.gameObject.SetActive(false);

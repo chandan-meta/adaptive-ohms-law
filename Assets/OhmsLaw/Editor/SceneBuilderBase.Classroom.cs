@@ -36,7 +36,13 @@ namespace OhmsLaw.Editor
         // The teaching board: 3.2 x 1.5 m, chalk face at z 2.55, centred on the desk, bottom edge 0.95 (clear of the worktop at 0.80).
         public static readonly Vector3 BoardCentreC = new Vector3(0f, 1.7f, 2.55f);
         public static readonly Vector2 BoardSizeC = new Vector2(3.2f, 1.5f);
-        public static readonly Vector3 BoardsWattsonC = new Vector3(-1.05f, 1.55f, 1.7f);       // Wattson beside the board in the Boards shot (5-20 % across, 23-59 % up)
+        public static readonly Vector3 BoardsWattsonC = new Vector3(-0.93f, 1.50f, 1.7f);       // Wattson beside the board in the Boards shot (8-26 % across; at x -1.05 his hat and arm met the frame edge)
+        // Beside the board's left rail, clear of the table's V column (1-13 % across): Scenes 10-13 hold him here so the
+        // 10 -> 11 -> 12 -> 13 match-cuts do not pop him. The kit's "Table Point" uses it when the table is on the board.
+        public static readonly Vector3 TableSideC = new Vector3(-1.45f, 1.6f, 2.2f);
+        // Just outside the Bench Present frame (its left edge is x -1.31 at his depth, so his 0.5 m body and a pointing arm
+        // stay 0.25 m clear): Scene 8 ends with him here, Scene 9 starts here.
+        public static readonly Vector3 PresentOffstageC = new Vector3(-2.0f, 1.4f, 0.3f);
         public static readonly Color Chalk = new Color(0.93f, 0.93f, 0.87f);
         // Board text caps from the TYPOGRAPHY formula: the Bench Wide lens is 5.86 m from the board (256 px/m), the Boards
         // lens 3.15 m (498 px/m). Headline = XL (56 px), body = M (28 px); Boards-shot formula cards = XL, notes = S (24 px).
@@ -149,7 +155,7 @@ namespace OhmsLaw.Editor
             TeachingBoard(room);
             Cabinets(room);
             Posters(room);
-            Plant(room, new Vector3(-2.5f, ClassroomDeskY, 2.25f));
+            Plant(room, new Vector3(-2.95f, ClassroomDeskY, 2.25f)); // beside the window: at -2.5 it sat under Wattson's boots in Bench Wide
             Books(room, new Vector3(2.15f, ClassroomDeskY, 2.3f));
             Globe(room, new Vector3(2.75f, ClassroomDeskY, 2.25f));
         }
@@ -184,8 +190,9 @@ namespace OhmsLaw.Editor
                 Prim(PrimitiveType.Cube, "Board Rail", board, new Vector3(0f, side * (s.y + rail) * 0.5f, 0.01f), new Vector3(s.x + rail * 2f, rail, 0.04f), frameWood);
                 Prim(PrimitiveType.Cube, "Board Stile", board, new Vector3(side * (s.x + rail) * 0.5f, 0f, 0.01f), new Vector3(rail, s.y, 0.04f), frameWood);
             }
-            Prim(PrimitiveType.Cube, "Chalk Tray", board, new Vector3(0f, -(s.y * 0.5f + rail + 0.015f), -0.03f), new Vector3(1.4f, 0.03f, 0.09f), frameWood);
-            Prim(PrimitiveType.Cube, "Chalk Tray Lip", board, new Vector3(0f, -(s.y * 0.5f + rail), -0.07f), new Vector3(1.4f, 0.03f, 0.01f), frameWood);
+            // The tray runs the full framed width (a shorter one showed as a step in the bottom rail).
+            Prim(PrimitiveType.Cube, "Chalk Tray", board, new Vector3(0f, -(s.y * 0.5f + rail + 0.015f), -0.03f), new Vector3(s.x + rail * 2f, 0.03f, 0.09f), frameWood);
+            Prim(PrimitiveType.Cube, "Chalk Tray Lip", board, new Vector3(0f, -(s.y * 0.5f + rail), -0.07f), new Vector3(s.x + rail * 2f, 0.03f, 0.01f), frameWood);
             foreach (var (x, c) in new[] { (-0.5f, Chalk), (-0.44f, new Color(0.95f, 0.8f, 0.45f)), (0.3f, new Color(0.6f, 0.75f, 0.95f)) })
                 Prim(PrimitiveType.Cylinder, "Chalk Stick", board, new Vector3(x, -(s.y * 0.5f + rail) + 0.006f, -0.045f), new Vector3(0.01f, 0.035f, 0.01f), Lit("Classroom_Chalk_" + ColorUtility.ToHtmlStringRGB(c), c, 0f, 0.1f), new Vector3(0f, 0f, 90f));
             boardFace = Node("Board Face", board).transform; // identity rotation: +Z into the wall, text and canvases read from -Z
@@ -354,7 +361,7 @@ namespace OhmsLaw.Editor
             var bench = Ref(Node("Bench", lab));
             var model = Model(ClassroomWorkbench, "Workbench", bench.transform, Vector3.zero, Vector3.zero, 1f, collider: false);
             Fit(model, new Vector3(BenchWidth, ClassroomDeskY - ClassroomFloorY, BenchDepth), new Vector3(DeskTopC.x, ClassroomFloorY, DeskTopC.z));
-            var top = Lit("Classroom_BenchTop", new Color(0.902f, 0.91f, 0.925f), 0f, 0.58f);
+            var top = Lit("Classroom_BenchTop", new Color(0.86f, 0.87f, 0.89f), 0f, 0.55f); // a shade under white so the probe reflection reads
             foreach (var renderer in model.GetComponentsInChildren<Renderer>())
             {
                 var materials = renderer.sharedMaterials;
@@ -388,12 +395,14 @@ namespace OhmsLaw.Editor
             key.color = new Color(1f, 0.93f, 0.82f);
             key.intensity = 1.5f;
             key.shadows = LightShadows.Soft;
-            key.shadowStrength = 0.85f;
+            key.shadowStrength = 0.6f;
 
-            var fill = Node("Ceiling Fill", root, new Vector3(0.4f, ClassroomCeilingY - 0.3f, 0.4f)).AddComponent<Light>();
+            // 0.8 m under the ceiling and a little toward the cameras: 0.3 m under it the patch it threw on the ceiling went
+            // past the bloom threshold (the high Cards shot sees the ceiling). Front faces get about the same fill as before.
+            var fill = Node("Ceiling Fill", root, new Vector3(0.4f, ClassroomCeilingY - 0.8f, -0.3f)).AddComponent<Light>();
             fill.type = LightType.Point;
             fill.color = new Color(0.78f, 0.86f, 1f);
-            fill.intensity = 1.2f;
+            fill.intensity = 0.6f;
             fill.range = 7f;
             fill.shadows = LightShadows.None;
 
@@ -411,10 +420,10 @@ namespace OhmsLaw.Editor
             wash.type = LightType.Spot;
             wash.transform.rotation = Quaternion.LookRotation(BoardCentreC - wash.transform.position);
             wash.color = new Color(1f, 0.97f, 0.9f);
-            wash.intensity = 1.6f;
+            wash.intensity = 1.1f;
             wash.range = 3.5f;
-            wash.spotAngle = 95f;
-            wash.innerSpotAngle = 60f;
+            wash.spotAngle = 120f; // wide and soft: no visible cone on the board
+            wash.innerSpotAngle = 90f;
             wash.shadows = LightShadows.None;
 
             var benchLight = Node("Bench Light", root, new Vector3(0f, 2.4f, -0.3f)).AddComponent<Light>();
@@ -442,8 +451,9 @@ namespace OhmsLaw.Editor
 
         // ------------------------------------------------------------------ audience
 
-        // Three or four student heads just inside the bottom edge of the Bench Wide frame, 0.75-0.9 m from its lens
-        // (22-31 % up the frame; the subtitle box covers the lowest 22 %), matte navy, inside the lens's near blur.
+        // Four student heads along the bottom edge of the Bench Wide frame, ~0.8 m from its lens (head tops 29-31 % up the
+        // frame; the subtitle box covers the lowest 22 %), matte navy, inside the lens's near blur. Spread to 11-91 %
+        // across so the outer two sit in the gutters beside the subtitle box (at x ±0.6 they fell outside the frame).
         // Built once under "Lab"; on sets the active state. Off for Scenes 9-13 unless the shot is wide.
         protected GameObject Audience(bool on)
         {
@@ -451,7 +461,7 @@ namespace OhmsLaw.Editor
             {
                 audience = Ref(Node("Audience", refs.TryGetValue("Lab", out var lab) ? lab.transform : null));
                 var matte = Lit("Classroom_Student", new Color(0.11f, 0.13f, 0.2f), 0f, 0.25f);
-                foreach (var (x, y, z, r) in new[] { (-0.58f, 0.92f, -2.5f, 0.1f), (-0.16f, 0.95f, -2.6f, 0.095f), (0.3f, 0.93f, -2.55f, 0.095f), (0.6f, 0.9f, -2.45f, 0.1f) })
+                foreach (var (x, y, z, r) in new[] { (-0.42f, 0.97f, -2.25f, 0.14f), (-0.14f, 0.98f, -2.22f, 0.13f), (0.18f, 0.98f, -2.27f, 0.13f), (0.44f, 0.96f, -2.24f, 0.14f) })
                 {
                     var student = Node("Student", audience.transform, new Vector3(x, 0f, z)).transform;
                     foreach (var part in new[]
@@ -544,6 +554,52 @@ namespace OhmsLaw.Editor
             frame.alignment = LineAlignment.TransformZ;
             panel.SetActive(false);
             return panel;
+        }
+
+        // ---- Scene 7's chalk (ART_DIRECTION §3), shared so Scene 8 opens its match-cut with the same board.
+        // The headlines use the L tier: two XL headlines (2.0 + 1.8 m with TMP's bold spacing) do not fit side by side on
+        // the 3.2 m board; the question uses the S tier so its two lines (2.6 m) fit a chalk panel inside the board (at
+        // BoardCap they span 3.0 m). Both are sized for the Bench Wide lens that reads them.
+        protected static float TwoCluesHeadlineCap => WorldText.CapAt(WorldText.Px.Large, BoardCentreC, BenchWideCamC, BenchWideLookC, BenchWideFov);   // 0.14
+        protected static float TwoCluesSmallCap => WorldText.CapAt(WorldText.Px.Small, BoardCentreC, BenchWideCamC, BenchWideLookC, BenchWideFov);      // 0.093
+        protected static readonly Rect TwoCluesQuestionPanel = new Rect(0.075f, 0.48f, 0.85f, 0.27f);   // under the headlines, above Ohm's head (v ≤ 0.45)
+
+        // The two clues as chalk headlines, the question in a chalk panel, a battery-wire loop. Nothing about resistance
+        // or proportionality (§9). Headlines at v 0.9 clear the panel; the panel bottom (v 0.48) clears Ohm's head, which
+        // reaches v ≈ 0.45 in Bench Wide even when he stands up. Refs "Board Voltage", "Board Current", "Board Question
+        // Panel", "Board Question", "Board Circuit": hidden for Scene 7's cues, or `shown` for Scene 8's first frame.
+        protected GameObject[] TwoCluesBoard(bool shown)
+        {
+            var items = new[]
+            {
+                Board("Voltage → V", palette.voltage, new Vector2(0.25f, 0.9f), TwoCluesHeadlineCap, name: "Voltage"),
+                Board("Current → I", palette.current, new Vector2(0.75f, 0.9f), TwoCluesHeadlineCap, name: "Current"),
+                BoardPanel(TwoCluesQuestionPanel, "Board Question Panel"),
+                Board("Is there a mathematical relationship\nbetween voltage and current?", Chalk, TwoCluesQuestionPanel.center, TwoCluesSmallCap, name: "Question"),
+                TwoCluesSketch().gameObject,
+            };
+            foreach (var item in items)
+            {
+                item.SetActive(shown);
+                if (shown) foreach (var pop in item.GetComponentsInChildren<PopIn>(true)) { pop.fromScale = 1f; pop.overshoot = 1f; } // already there at the cut: no pop
+            }
+            return items;
+        }
+
+        // Battery-wire loop in chalk (Scene07_two_clues board), lower-left of the board where neither Ohm nor Wattson
+        // stands: a cell on the left side of the loop with the "V" clue beside it, the "I" clue over the current arrow
+        // on the top wire. Conventional current leaves the long (+) plate, so the arrow on the top wire points right.
+        Transform TwoCluesSketch()
+        {
+            var loop = BoardGroup("Circuit");
+            const float l = 0.08f, r = 0.28f, b = 0.10f, t = 0.34f, minus = 0.19f, plus = 0.26f, width = 0.014f;
+            BoardLine(new[] { new Vector2(l, plus), new Vector2(l, t), new Vector2(r, t), new Vector2(r, b), new Vector2(l, b), new Vector2(l, minus) }, Chalk, width, loop);
+            BoardLine(new[] { new Vector2(l - 0.025f, plus), new Vector2(l + 0.025f, plus) }, Chalk, width, loop);
+            BoardLine(new[] { new Vector2(l - 0.012f, minus), new Vector2(l + 0.012f, minus) }, Chalk, width * 1.7f, loop);
+            BoardLine(new[] { new Vector2(0.165f, t + 0.025f), new Vector2(0.18f, t), new Vector2(0.165f, t - 0.025f) }, Chalk, width, loop);
+            Board("V", palette.voltage, new Vector2(l - 0.05f, (plus + minus) * 0.5f), TwoCluesSmallCap, parent: loop);
+            Board("I", palette.current, new Vector2(0.18f, t + 0.065f), TwoCluesSmallCap, parent: loop);
+            return loop;
         }
 
         string UniqueRef(string name)

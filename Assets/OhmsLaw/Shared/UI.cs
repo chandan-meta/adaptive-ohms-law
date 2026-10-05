@@ -105,6 +105,8 @@ namespace OhmsLaw
             var wash = Panel(Stretch("Hover", button.transform), Color.white);
             wash.raycastTarget = false;
             wash.canvasRenderer.SetColor(Color.clear); // already at "normal", so assigning the graphic below starts no tween
+            // Selectable.Awake made the panel the target: detach it first, or the ColorBlock below cross-fades the panel to clear.
+            button.targetGraphic = null;
             button.colors = new ColorBlock
             {
                 normalColor = Color.clear,
@@ -148,6 +150,45 @@ namespace OhmsLaw
             sprite.name = key > 0 ? "Ring" : "Disc";
             circles[key] = sprite;
             return sprite;
+        }
+
+        static readonly Dictionary<int, Sprite> outlines = new Dictionary<int, Sprite>();
+
+        // Rounded-rectangle outline with no fill, 9-sliced, scaled so its corner radius is `corner` and its line `thickness`
+        // reference px. Callout frames draw it over their fill: a filled border panel under a translucent fill tints the fill
+        // and shows through it while the card fades.
+        public static Image Outline(RectTransform rect, Color color, float corner, float thickness)
+        {
+            const int r = 32, size = 2 * r + 2; // corner slices of r px around a 2 px stretchable centre
+            int key = Mathf.RoundToInt(Mathf.Clamp(thickness / Mathf.Max(1f, corner), 0.02f, 1f) * 100f);
+            if (!outlines.TryGetValue(key, out var sprite) || !sprite)
+            {
+                float t = r * key / 100f, half = size * 0.5f;
+                var texture = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, name = "UI Outline" };
+                var pixels = new Color32[size * size];
+                for (int y = 0; y < size; y++)
+                    for (int x = 0; x < size; x++)
+                    {
+                        // Signed distance to the rounded rectangle (negative inside); the ring is -t..0 with 1 px soft edges.
+                        float qx = Mathf.Abs(x + 0.5f - half) - (half - r), qy = Mathf.Abs(y + 0.5f - half) - (half - r);
+                        float d = new Vector2(Mathf.Max(qx, 0f), Mathf.Max(qy, 0f)).magnitude + Mathf.Min(Mathf.Max(qx, qy), 0f) - r;
+                        float a = Mathf.Clamp01(0.5f - d) * Mathf.Clamp01(d + t + 0.5f);
+                        pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * 255f));
+                    }
+                texture.SetPixels32(pixels);
+                texture.Apply(false, true);
+                sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, Vector4.one * r);
+                sprite.name = "Outline";
+                outlines[key] = sprite;
+            }
+            var image = rect.gameObject.AddComponent<Image>();
+            image.sprite = sprite;
+            image.type = Image.Type.Sliced;
+            image.fillCenter = false;
+            image.pixelsPerUnitMultiplier = r / Mathf.Max(1f, corner);
+            image.color = color;
+            image.raycastTarget = false;
+            return image;
         }
     }
 

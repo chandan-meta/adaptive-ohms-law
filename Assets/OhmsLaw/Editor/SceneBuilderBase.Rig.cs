@@ -9,7 +9,7 @@ namespace OhmsLaw.Editor
 {
     // Stage kit: the modern circuit on the classroom bench (Scenes 8-13), laid out like the reference frames
     // (Docs/Polish/References/Scene09_*.png): DC source, ammeter, X —nichrome wire— Y, switch, the voltmeter behind
-    // the wire and the parts tray at the right end. The instruments are the imported prefabs; posts, badges, key,
+    // the wire and, while the meters wait (Scenes 8-9), the parts tray at the right end. The instruments are the imported prefabs; posts, badges, key,
     // cables, contact shadows and the X → Y pulse are built here.
     public abstract partial class SceneBuilderBase
     {
@@ -37,7 +37,7 @@ namespace OhmsLaw.Editor
         static readonly Vector3 MeterPostLeft = new Vector3(-0.46f, 0.18f, -0.63f), MeterPostRight = new Vector3(0.46f, 0.18f, -0.63f);
         const float SleeveLength = 0.1f;
         // Wire XY: a thin nichrome rod 5 cm over the bench between two brushed posts on black bases.
-        const float WireZ = -0.18f, WireHalf = 0.35f, WireRadius = 0.0025f;
+        const float WireZ = -0.18f, WireHalf = 0.35f, WireRadius = 0.004f;
         const float BaseSize = 0.07f, BaseHeight = 0.015f, PostRadius = 0.013f, PostHeight = 0.05f;
         const float PostTop = BaseHeight + PostHeight, WireHeight = PostTop - 0.01f;                 // the rod runs through each post just under its top
         const float BadgeSize = 0.062f, BadgeBack = 0.012f;                                           // dark cube on the post's +X side (reference)
@@ -47,7 +47,7 @@ namespace OhmsLaw.Editor
         const float KeyBaseW = 0.26f, KeyBaseH = 0.04f, KeyBaseD = 0.10f, KeyTerminalDx = 0.09f, KeyTerminalR = 0.014f, KeyTerminalH = 0.03f;
         const float KeyHingeX = -0.06f, KeyPivotY = KeyBaseH + KeyTerminalH + 0.004f, KeyArmLength = 0.15f, KeyHandleLength = 0.065f, KeyOpenDegrees = 35f;
         // Cables: 6 mm radius (ART_DIRECTION §5) resting on the top; the voltmeter leads are thinner.
-        const float LeadWidth = 0.012f, ThinLead = 0.006f, LeadRest = 0.006f, LeadExit = 0.03f, PathWidth = 0.022f;
+        const float LeadWidth = 0.012f, ThinLead = 0.006f, LeadRest = 0.006f, LeadExit = 0.03f, PathWidth = 0.009f;
         const float ReadingHeight = 1.3f;                                                              // readout above a meter, in the meter's local units
         static readonly Color Magenta = new Color(0.878f, 0.251f, 0.984f);                             // #E040FB, the pulse
         const float ChevronBar = 0.03f, ChevronDegrees = 38f;
@@ -75,9 +75,11 @@ namespace OhmsLaw.Editor
             Prim(PrimitiveType.Cylinder, "Nichrome Rod", wire.transform, Vector3.zero, new Vector3(WireRadius * 2, WireHalf, WireRadius * 2), nichrome, new Vector3(0, 0, 90));
             Post("X", wire.transform);
             Post("Y", wire.transform);
-            var sheath = Hdr(palette.wattsonAccent, 1.2f);
-            sheath.a = 0.35f;
-            var highlight = Prim(PrimitiveType.Cylinder, "Wire Highlight", bench, WireCentre, new Vector3(0.03f, WireHalf + 0.01f, 0.03f), Glow("Glow_WireHighlight", sheath, false), new Vector3(0, 0, 90));
+            // "It highlights" without the rod glowing: a soft cyan band on the bench just in front of XY, alpha-blended
+            // (additive vanishes on the light top), so the dull rod stays visibly a plain wire above it.
+            var highlight = Prim(PrimitiveType.Quad, "Wire Highlight", bench, new Vector3(0, 0.003f, WireZ - 0.05f), new Vector3(2 * WireHalf + 0.06f, 0.07f, 1),
+                Decal("WireHighlight", new Color(0.15f, 0.7f, 0.9f, 0.55f), RigTexture(RigTextures + "RigShadow.png")), new Vector3(90, 0, 0));
+            highlight.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
             highlight.SetActive(false);
             rig.wireHighlight = Ref(highlight);
 
@@ -86,9 +88,9 @@ namespace OhmsLaw.Editor
             rig.voltmeterSlot = Slot("Voltmeter Slot", bench, VoltmeterSlotAt);
             var trayA = Slot("Tray Ammeter", bench, TrayAt + new Vector3(-TraySlotDx, TrayBase, 0));
             var trayV = Slot("Tray Voltmeter", bench, TrayAt + new Vector3(TraySlotDx, TrayBase, 0));
-            var ammeter = Meter("Ammeter", "AMMETER", palette.current, "Ammeter_0to1p2.png", "Ammeter1", "niddle_grp",
+            var ammeter = Meter("Ammeter", "AMMETER", palette.current, "Ammeter_0to1p2.png", "Ammeter1", "niddle_grp", "0.00 A",
                 assembled ? rig.ammeterSlot : trayA, bench, billboards, out rig.ammeterReading, out rig.ammeterNeedle);
-            var voltmeter = Meter("Voltmeter", "VOLTMETER", palette.voltage, "VoltMeter_0to6.png", "Voltmeter", "niddle_grp1",
+            var voltmeter = Meter("Voltmeter", "VOLTMETER", palette.voltage, "VoltMeter_0to6.png", "Voltmeter", "niddle_grp1", "0.0 V",
                 assembled ? rig.voltmeterSlot : trayV, bench, billboards, out rig.voltmeterReading, out rig.voltmeterNeedle);
             rig.ammeter = ammeter.transform;
             rig.voltmeter = voltmeter.transform;
@@ -96,7 +98,7 @@ namespace OhmsLaw.Editor
             Ref(ammeter); Ref(voltmeter);
             rig.seriesGlow = SlotGlow("Series Slot Glow", bench, AmmeterSlotAt, palette.current);
             rig.parallelGlow = SlotGlow("Parallel Slot Glow", bench, VoltmeterSlotAt, palette.voltage);
-            PartsTray(bench);
+            if (!assembled) PartsTray(bench); // empty once the meters are in: not part of the §5 bench layout
 
             // Variable DC source at the left, panel to the camera: repainted 0-5 V panel, knob and pilot lamp driven by
             // CircuitRig, a red + and a black − sleeve on its posts.
@@ -157,9 +159,10 @@ namespace OhmsLaw.Editor
             var toAmmeter = LeadPath(sourcePlus, Vector3.back, ammeterL, Vector3.up, OnTop(-0.73f, -0.15f), OnTop(-0.60f, -0.10f), OnTop(-0.45f, 0.0f));
             var toX = LeadPath(ammeterR, Vector3.up, xOuter, Vector3.left, Lifted(-0.25f, 0.02f, -0.02f), OnTop(-0.39f, -0.09f), Lifted(-0.42f, 0.02f, -0.16f));
             var toKey = LeadPath(yBack, Vector3.forward, keyA, Vector3.left, Lifted(0.38f, 0.015f, -0.09f), OnTop(0.50f, -0.10f), OnTop(0.57f, -0.15f));
+            // The return cable keeps well behind the nichrome rod (z -0.18) so it never reads as the wire from the front cameras.
             var toSource = LeadPath(keyB, Vector3.forward, sourceMinus, Vector3.back,
-                OnTop(0.84f, -0.06f), OnTop(0.45f, -0.06f), OnTop(0.0f, -0.06f), OnTop(-0.30f, -0.07f), OnTop(-0.50f, -0.12f),
-                OnTop(-0.70f, -0.21f), OnTop(-0.87f, -0.19f), Lifted(-0.875f, 0.025f, -0.14f));
+                OnTop(0.84f, -0.06f), OnTop(0.55f, 0.04f), OnTop(0.0f, 0.06f), OnTop(-0.45f, 0.05f),
+                OnTop(-0.70f, -0.10f), OnTop(-0.87f, -0.19f), Lifted(-0.875f, 0.025f, -0.14f));
             rig.ammeterLeads = Node("Ammeter Leads", bench);
             Lead("Lead Source → Ammeter", rig.ammeterLeads.transform, leadRed, LeadWidth, toAmmeter);
             Lead("Lead Ammeter → X", rig.ammeterLeads.transform, leadRed, LeadWidth, toX);
@@ -170,17 +173,21 @@ namespace OhmsLaw.Editor
             rig.voltmeterLeadY = Lead("Voltmeter Lead Y", bench, leadBlack, ThinLead, LeadPath(voltmeterR, Vector3.up, yTop, Vector3.up, OnTop(0.30f, 0.0f), Lifted(0.315f, 0.025f, -0.06f), Lifted(0.325f, 0.03f, -0.11f)));
             rig.voltmeterLeads.enabled = rig.voltmeterLeadY.enabled = assembled;
 
-            // Current path: an additive overlay along the cables and across the bench under the wire (the rod never
-            // glows), set a little toward the camera so it sits over the cable ribbons. Lit amber by CircuitRig once the ammeter is in.
-            var path = new List<Vector3>();
-            Append(path, toAmmeter);
-            Append(path, toX);
-            Append(path, new[] { xOuter, W(XPost + Vector3.up * 0.004f), W(YPost + Vector3.up * 0.004f), yBack });
-            Append(path, toKey);
-            Append(path, toSource);
-            rig.currentPath = Polyline("Current Path", bench, Glow("Glow_CurrentPath", Hdr(Color.white, 1.6f), false), PathWidth, false, true,
-                path.Select(p => p + (RigBenchCam - p).normalized * 0.012f).ToArray());
-            rig.currentPath.startColor = rig.currentPath.endColor = Color.clear;
+            // Current path: an additive overlay along the cables only, set a little toward the camera so it sits over the
+            // ribbons; narrower than the cables and under the bloom threshold, so it tints them amber. Two legs, source ->
+            // ammeter -> X and Y -> key -> source: nothing is drawn along XY (the nichrome wire never glows). The return leg
+            // is a child, so hiding "Current Path" hides both. Lit by CircuitRig once the ammeter is in (and showPath).
+            var pathGlow = Glow("Glow_CurrentPath", Hdr(Color.white, 0.8f), false);
+            LineRenderer PathLeg(string name, Transform parent, params Vector3[][] legs)
+            {
+                var points = new List<Vector3>();
+                foreach (var leg in legs) Append(points, leg);
+                var line = Polyline(name, parent, pathGlow, PathWidth, false, true, points.Select(p => p + (RigBenchCam - p).normalized * 0.012f).ToArray());
+                line.startColor = line.endColor = Color.clear;
+                return line;
+            }
+            rig.currentPath = PathLeg("Current Path", bench, toAmmeter, toX);
+            rig.currentPathReturn = PathLeg("Current Path Return", rig.currentPath.transform, toKey, toSource);
 
             Pulse(rig, bench, billboards);
             foreach (var card in billboards) Face(card.gameObject, RigBenchCam); // CircuitRig keeps them on the live camera
@@ -203,7 +210,7 @@ namespace OhmsLaw.Editor
         void RigMaterials()
         {
             var shade = RigTexture(RigTextures + "CableShade.png");
-            nichrome = Lit("Nichrome", new Color(0.64f, 0.57f, 0.44f), 0.85f, 0.45f);             // dull gold-grey alloy, no emission
+            nichrome = Lit("Nichrome", new Color(0.55f, 0.50f, 0.40f), 0.85f, 0.45f);             // dull gold-grey alloy, no emission
             steel = Lit("PostSteel", new Color(0.70f, 0.71f, 0.73f), 1f, 0.58f);                  // brushed posts, terminals, lever
             matteBlack = Lit("MatteBlack", new Color(0.045f, 0.048f, 0.055f), 0.1f, 0.32f);        // post bases, key base
             badgeNavy = Lit("BadgeNavy", new Color(0.106f, 0.133f, 0.2f), 0f, 0.4f);               // #1B2233
@@ -233,7 +240,8 @@ namespace OhmsLaw.Editor
         }
 
         // An imported meter at a slot: repainted dial, collider for drag and tap, digit readout above it, contact shadow.
-        GameObject Meter(string prefab, string name, Color tint, string dial, string bodyMesh, string needlePivot, Transform at, Transform bench,
+        // The readout is built with its widest runtime text (`widest`) so its backing plate fits every value CircuitRig writes.
+        GameObject Meter(string prefab, string name, Color tint, string dial, string bodyMesh, string needlePivot, string widest, Transform at, Transform bench,
             List<Transform> billboards, out TextMeshPro reading, out Transform needle)
         {
             var go = Model(Imported + prefab + ".prefab", name, bench, at.localPosition, Vector3.zero, MeterScale); // collider fitted here, before the readout and shadow join
@@ -242,7 +250,7 @@ namespace OhmsLaw.Editor
             var texture = RigTexture(RigTextures + dial);
             body.sharedMaterial = Mat(prefab + "_Dial", printed.shader.name, m => { m.CopyPropertiesFromMaterial(printed); if (texture) m.SetTexture("_BaseMap", texture); });
             needle = FindChild(go, needlePivot);
-            reading = WorldText.Card("Reading", "0.0", tint, go.transform, new Vector3(0, ReadingHeight, -0.1f), WorldText.Cap.Reading, cardBacking);
+            reading = WorldText.Card("Reading", widest, tint, go.transform, new Vector3(0, ReadingHeight, -0.1f), WorldText.Cap.Reading, cardBacking);
             reading.transform.localScale = Vector3.one / MeterScale;
             billboards.Add(reading.transform);
             RigShadow(go.transform, Vector3.zero, MeterFootprint, MeterScale);
@@ -255,10 +263,12 @@ namespace OhmsLaw.Editor
         {
             float side = letter == "X" ? -1f : 1f;
             var post = Node("Post " + letter, wire, new Vector3(side * WireHalf, -WireHeight, 0)).transform; // at bench level
-            Prim(PrimitiveType.Cube, "Base", post, Vector3.up * (BaseHeight / 2), new Vector3(BaseSize, BaseHeight, BaseSize), matteBlack);
+            // The base carries the badge too (nothing floats, ART_DIRECTION §5): it extends past the post on the badge side.
+            float baseW = BaseSize + BadgeSize;
+            Prim(PrimitiveType.Cube, "Base", post, new Vector3(BadgeSize / 2, BaseHeight / 2, 0), new Vector3(baseW, BaseHeight, BaseSize), matteBlack);
             Prim(PrimitiveType.Cylinder, "Post", post, Vector3.up * (BaseHeight + PostHeight / 2), new Vector3(PostRadius * 2, PostHeight / 2, PostRadius * 2), steel);
-            RigShadow(post, Vector3.zero, new Vector2(BaseSize, BaseSize));
-            var badge = Node("Card " + letter, post, new Vector3(PostRadius + BadgeSize / 2, PostTop, BadgeBack));
+            RigShadow(post, new Vector3(BadgeSize / 2, 0, 0), new Vector2(baseW, BaseSize));
+            var badge = Node("Card " + letter, post, new Vector3(PostRadius + BadgeSize / 2, BaseHeight + BadgeSize / 2, BadgeBack));
             Prim(PrimitiveType.Cube, "Cube", badge.transform, Vector3.zero, Vector3.one * BadgeSize, badgeNavy);
             WorldText.Card("Letter", letter, palette.current, badge.transform, new Vector3(0, 0, -(BadgeSize / 2 + 0.0008f)), WorldText.Cap.Terminal);
             Ref(badge); // no PopIn: the badges open every match-cut scene already visible
@@ -275,17 +285,26 @@ namespace OhmsLaw.Editor
         // A pose on the bench for a meter; dials face -Z, toward the cameras, everywhere.
         Transform Slot(string name, Transform bench, Vector3 at) => Node(name, bench, at).transform;
 
-        // Soft additive disc on the bench under a slot; CircuitRig shows and pulses it while that part may be dragged.
+        // The drop target on the bench under a slot: a tinted fill and an 8 mm outline of the meter's footprint, alpha-
+        // blended (an additive glow adds nothing visible on the light top). CircuitRig shows and pulses it while that part
+        // may be dragged. The root lies flat (its Z points down), so the outline's TransformZ ribbon lies on the top.
         GameObject SlotGlow(string name, Transform bench, Vector3 at, Color colour)
         {
-            var hdr = Hdr(colour, 1.6f);
-            hdr.a = 0.55f;
-            var glow = Prim(PrimitiveType.Quad, name, bench, at + Vector3.up * 0.004f, new Vector3(0.32f, 0.42f, 1), Glow("Glow_" + name.Replace(" ", ""), hdr), new Vector3(90, 0, 0));
+            var glow = Node(name, bench, at + Vector3.up * 0.004f);
+            glow.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            string key = name.Replace(" ", "");
+            Vector2 half = MeterFootprint / 2 + Vector2.one * 0.02f;
+            Prim(PrimitiveType.Quad, "Fill", glow.transform, Vector3.zero, new Vector3(half.x * 2, half.y * 2, 1), Translucent(key + "_Fill", new Color(colour.r, colour.g, colour.b, 0.25f)))
+                .GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            var outline = Polyline("Outline", glow.transform, Translucent(key + "_Outline", new Color(colour.r, colour.g, colour.b, 0.9f)), 0.008f, true, false,
+                new Vector3(-half.x, -half.y, -0.001f), new Vector3(half.x, -half.y, -0.001f), new Vector3(half.x, half.y, -0.001f), new Vector3(-half.x, half.y, -0.001f));
+            outline.alignment = LineAlignment.TransformZ;
             glow.SetActive(false);
             return glow;
         }
 
         // Shallow graphite tray behind the key, at the right end; the meters wait in it side by side until Scene 9 places them.
+        // Built only for an unassembled rig; hide "Parts Tray" once both meters are in so Scene 9's last frame matches Scene 10's.
         void PartsTray(Transform bench)
         {
             var tray = Node("Parts Tray", bench, TrayAt);

@@ -10,19 +10,20 @@ namespace OhmsLaw.Editor
     // a label, never a number or a result a later scene reveals.
     public abstract partial class SceneBuilderBase
     {
-        // Default callout text by the kit's ref name (Lab.cs apparatus, Rig.cs instruments).
+        // Default callout text by the kit's ref name (Lab.cs apparatus, Rig.cs instruments). Non-breaking spaces keep the
+        // symbol/unit groups on one line (no orphaned "(A)" or a line starting with a dash).
         protected static readonly Dictionary<string, (string title, string description)> CalloutTexts = new Dictionary<string, (string, string)>
         {
-            ["AMMETER"] = ("Ammeter", "Measures current — I — ampere (A)"),
-            ["VOLTMETER"] = ("Voltmeter", "Measures potential difference — V — volt (V)"),
+            ["AMMETER"] = ("Ammeter", "Measures current — I — ampere (A)"),
+            ["VOLTMETER"] = ("Voltmeter", "Measures potential difference — V — volt (V)"),
             ["NICHROME WIRE — XY"] = ("Nichrome wire — XY", "Test conductor between X and Y"),
-            ["cells / controllable DC source"] = ("Controllable DC source", "Provides a controllable potential difference"),
+            ["cells / controllable DC source"] = ("Cells / controllable DC source", "Provides a controllable potential difference"),
             ["switch / key"] = ("Switch / key", "Completes or breaks the circuit"),
-            ["torsion galvanometer"] = ("Torsion galvanometer", "A needle twists when current flows"),
+            ["torsion galvanometer"] = ("Torsion galvanometer", "A needle twists when current flows"),
             ["Mercury Cups"] = ("Mercury cups", "Connection points for the wires"),
             ["Copper Test Wires"] = ("Copper test wires", "Wires of different lengths"),
             ["notebook"] = ("Notebook", "Ohm's handwritten measurements"),
-            ["Thermoelectric Source"] = ("Copper–bismuth thermoelectric source", "Provides a steady potential difference"),
+            ["Thermoelectric Source"] = ("Copper–bismuth thermoelectric source", "Provides a steady potential difference"),
         };
 
         // Concept panel text for Scenes 6 and 12 (ART_DIRECTION section 9: the references' wording would answer the
