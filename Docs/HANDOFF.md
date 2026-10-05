@@ -1,6 +1,16 @@
 # Hand-off — Ohm's Law Unity module (Scenes 4–13)
 
-Last updated 2026-10-05. Repository: `github.com/chandan-meta/adaptive-ohms-law`, branch `main` (the 226 MB `Environment.fbx` is in Git LFS: run `git lfs install` before cloning/pulling).
+Last updated 2026-10-05. Repository: `github.com/chandan-meta/adaptive-ohms-law`, branch `main`. `Environment.fbx` is in Git LFS: run `git lfs install` before cloning/pulling, then `git lfs pull` to retrieve the model.
+
+## Latest handoff — 2026-10-05
+
+- Latest asset commit: `53500d8` (`Update environment, Scene 04, materials and font assets`), successfully pushed to `origin/main`, including its LFS model. The working tree was clean before this documentation update.
+- That commit contains 13 modified assets: the environment FBX, Scene 04 scene and Wattson prefab, seven shared materials, and the Nunito, Symbols and LiberationSans fallback font assets. The Wattson prefab removes its Follow Light and updates particle settings.
+- Previous implementation commit: `22b5479`. Its wow-factor pass and review fixes are documented in `Docs/Polish/WOW_REPORT.md`; use that report for completed fixes, prior verification and remaining limitations. Earlier workflow notes below provide orientation but are not a fresh validation of the latest assets.
+- Validation in this handoff session: `git diff --check` passed before the asset commit; Git confirmed the push and LFS upload. Unity compilation, scene playback, visual review and device builds were not run for these asset changes.
+- Next: open with Unity 6000.3.0f1, allow imports to finish, inspect Scene 04 lighting and particles, the environment, shared material textures and font rendering, then run the existing module checks below. Review the saved scene before rebuilding it from editor scripts, since regeneration may overwrite scene/prefab edits.
+- Continue from `Assets/OhmsLaw/Scenes/Scene00_ModulePlayer.unity` for the Scenes 4–13 module. The root README describes the older `Assets/AdaptiveLearning` entry point; this handoff and `Docs/Polish/WOW_REPORT.md` describe the newer module.
+- External follow-up remains: live proxy/voice setup, manual interaction and pause/skip checks, tablet/WebGL validation, and the Scene 14 video assignment. Keep credentials in the ignored local configuration described by the proxy README.
 
 ## What exists
 | Area | State | Where |
