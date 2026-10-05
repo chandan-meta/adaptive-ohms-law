@@ -257,7 +257,7 @@ namespace OhmsLaw.Editor
 
         protected BlockoutPlaceholder Placeholder(GameObject go, string note, bool pulse = false)
         {
-            var tag = go.GetComponent<BlockoutPlaceholder>() ?? go.AddComponent<BlockoutPlaceholder>();
+            var tag = go.TryGetComponent(out BlockoutPlaceholder existing) ? existing : go.AddComponent<BlockoutPlaceholder>();
             tag.note = note;
             tag.pulse = pulse;
             return tag;

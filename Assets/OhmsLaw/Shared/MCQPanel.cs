@@ -91,7 +91,7 @@ namespace OhmsLaw
         }
 
         // Waits for a tap. With ReviewMode.autoAnswer the panel answers itself (autoPick) after the review delay; the delay
-        // starts once holdAuto (e.g. "the question is still being spoken") turns false.
+        // starts once holdAuto (e.g. "the question is still being spoken") turns false, and never runs while Ask Wattson is open.
         public IEnumerator WaitForPick(int autoPick, System.Func<bool> holdAuto = null)
         {
             Picked = -1;
@@ -99,7 +99,7 @@ namespace OhmsLaw
             float waited = 0;
             while (Picked < 0)
             {
-                if (holdAuto == null || !holdAuto()) waited += Time.deltaTime;
+                if ((holdAuto == null || !holdAuto()) && !AskWattsonUI.IsOpen) waited += Time.deltaTime;
                 if (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay) Picked = Mathf.Max(0, autoPick);
                 yield return null;
             }

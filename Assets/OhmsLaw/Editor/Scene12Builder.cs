@@ -16,6 +16,7 @@ namespace OhmsLaw.Editor
 
         // Wattson beside the board, left of the table: the kit's Boards Point (-1.05, 1.55, 1.7) sits over the V column
         // in the Boards shot (5-20 % across vs the column at 14-26 %); here he spans 1-12 %, the table panel starts at 12.8 %.
+        // Scene 12 ends with him here (Scene13Builder.Scene12WattsonC mirrors it: change together).
         static readonly Vector3 BoardSide = new Vector3(-1.48f, 1.5f, 2.2f);
         // Board UV of the two free strips: above the table (v 0.73-1.0) and above the graph (v 0.82-1.0); the graph's strip
         // is only ~0.2 m tall, so its text sits high in it (Scene13Builder.Scene12OmegaV mirrors this v).
@@ -66,7 +67,11 @@ namespace OhmsLaw.Editor
             L("AQ_EXPLAIN", "Remember the table, detective: every time V went up, I went up with it, and V divided by I stayed at 5.", 6.5f, proposed: true);
             L("AQ_EASY", "When the potential difference across the nichrome wire went up, what happened to the current?", 5.0f, proposed: true);
             L("AQ_GOOD", "Case closed, detective.", 1.8f, proposed: true);
-            L("S12_AQ1_X", "Watch the meters: 2 volts, then 4 volts. The current doubles too.", 3.8f, proposed: true);
+            // Wrong picks (AQ1's B/C and AQ_EASY's B/C share the gate's _FB/_FC), before the AQ_EXPLAIN hint; a right pick
+            // falls back to AQ_GOOD. The reveal runs in the Boards shot: the readings strip above the graph is what shows it.
+            L("S12_AQ1_FB", "More push, but less flow? That's not what our wire did.", 3.2f, proposed: true);
+            L("S12_AQ1_FC", "If the current stayed put, the I column would never change. It does!", 3.8f, proposed: true);
+            L("S12_AQ1_X", "Watch the readings: 2 volts gives 0.40 amperes, 4 volts gives 0.80.", 4.8f, proposed: true);
         }
 
         protected override SceneAgentContext Agent() => Context(
@@ -90,16 +95,27 @@ namespace OhmsLaw.Editor
             ClassroomSet(modernBench: true, audience: false);
             director.matchCutFrom = "Scene11_Graph";
             director.rig = Rig(assembled: true, keyClosed: true, voltage: 5);
+            director.rig.showPath = false;                                       // off since Scene 9's "rig.path 0": plain cables on the bench
             refs["Circuit Rig"].transform.SetParent(refs["Lab"].transform, true); // the dive's `hide Lab` empties the bench too
+            // Known pop at the 11 → 12 cut: Scene 11's cells read "1 | 0.2", these read "1.0 V | 0.20 A" (ObservationTableUI.units
+            // is set at build time; there is no cue to switch it under the dive's white). Scene 13 matches Scene 12.
             Boards(withTable: true, withGraph: true, unitsInTable: true);
             refs["Boards Point"].transform.position = BoardSide;               // the `lab` cue moves this marker for tableInWire
-            Wattson(BoardsWattsonC, BoardsCamC);                                 // where Scene 11 leaves him (its Boards Point); he goes to BoardSide after the wire
-            // Scene 11's last card, carried over the match-cut, settled (no pop, no sparks); it goes as the dive starts.
-            var proportional = Card("Proportional", "V ∝ I", palette.voltage, null, GraphPoint(1.15f, 3.3f, 0.026f), BoardsShotTitleCap, WorldText.Look.Glow, true, sparks: false);
+            Wattson(TableSideC, BoardsCamC);                                     // where Scene 11 leaves him (its Table Point, all scene); BoardSide after the wire
+            // Scene 11's last card, carried over the match-cut exactly as Scene11Builder.Stage builds it (same text, colour,
+            // graph point, lift, cap, glow look and board rotation; its constants), shown from frame 0 and settled (no pop,
+            // no sparks). It goes under the dive's white, where the board is out of sight (Bench Wide still shows the board).
+            var proportional = Card("Proportional", "V ∝ I", palette.voltage, null, GraphPoint(Scene11Builder.CardAmps, Scene11Builder.CardVolts, Scene11Builder.CardLift), BoardsShotTitleCap, WorldText.Look.Glow, true, sparks: false);
             proportional.transform.rotation = BoardSurface(GraphBoardUV).rotation;
             var settled = proportional.transform.Find("Text").GetComponent<PopIn>();
             settled.fromScale = 1f;
             settled.overshoot = 1f;
+            // Scene 11's "Graph Line Glow", the additive strand that keeps the UI line blooming, carried over the same way
+            // (Scene11Builder.LineDraw: same material, width, lift and end points); it goes under the white with the card.
+            var data = BlockoutAssets.ExperimentData();
+            var strand = Polyline("Graph Line Glow", refs["Boards Set"].transform, Glow("Glow_GraphLine", Hdr(palette.voltage, 2.2f), softTexture: false), 0.014f, false, true,
+                GraphPoint(0, 0, Scene11Builder.GlowLift), GraphPoint(1.1f, 1.1f * data.resistance, Scene11Builder.GlowLift));
+            Ref(strand.gameObject);
 
             // The dive. Wattson aims from off the left end of the bench, level with the wire, so the Ohm-niscope beam runs
             // along the rod and crosses nothing; the beam is the Scene 4 one inside his gadget. Scene 4's streaks race out
@@ -173,7 +189,6 @@ namespace OhmsLaw.Editor
             Wait(0.7);
             // The bench first: Wattson sets it to 1 V (row 1) while the camera holds still, then the dive.
             Shot("Bench Wide");
-            Hide("Card Proportional");
             Show("Beam", 0.3);
             Cue("rig.voltage 1", "Wattson sets the bench to 1 V: the meters read 1.0 V and 0.20 A (ExperimentData row 1)", 0.3);
             Line("S12_W01");
@@ -187,6 +202,7 @@ namespace OhmsLaw.Editor
             // the lattice fading in; Wattson already on his spot (no 98 m spring flight on screen).
             Shot("Wire Inside", cut: true);
             Show("Wire Section"); Hide("Lab"); Hide("Beam"); Hide("Dive Streaks");
+            Hide("Card Proportional"); Hide("Graph Line Glow");                  // Scene 11's V ∝ I and its line glow go under the white
             Cue("wire.field 1");
             Show("Cross Section"); Show("Counter"); Show("Wire Readout");
             Cue("wire.count 1", "the counter counts the net charges through the ring each second");
@@ -286,8 +302,8 @@ namespace OhmsLaw.Editor
 
             // AQ1, now that resistance is defined (skipped for a learner already confident with the relationship).
             Gesture(WattsonController.Gesture.Listening);
-            Gate("S12_AQ1", "Storyboard AQ1 (graded, moved from Scene 13): A. It doubles (correct) · B. It halves · C. It stays the same. Wrong: AQ_EXPLAIN, then AQ_EASY. Skipped when Confident(Relationship); checkpointEnabled gates it.",
-                "AQ1", "AQ_EASY", "AQ_EXPLAIN", "AQ_GOOD", "S12_AQ1_X");
+            Gate("S12_AQ1", "Storyboard AQ1 (graded, moved from Scene 13): A. It doubles (correct) · B. It halves · C. It stays the same. Wrong: S12_AQ1_FB/_FC, AQ_EXPLAIN, then AQ_EASY; out of tries: S12_AQ1_X over 2 V → 4 V on the readings strip. Skipped when Confident(Relationship); checkpointEnabled gates it.",
+                "AQ1", "AQ_EASY", "AQ_EXPLAIN", "AQ_GOOD", "S12_AQ1_FB", "S12_AQ1_FC", "S12_AQ1_X");
 
             // Wattson goes to the graph's lower right first, then the lean-in, then the line: one movement at a time.
             Gesture(WattsonController.Gesture.Point, point: "Graph", moveTo: "Graph Point");
@@ -310,6 +326,9 @@ namespace OhmsLaw.Editor
             Hide("Board Slope"); Hide("Card Formula");
             Show("Card Ohm Symbol");
             Line("S12_L14");
+            // The ohm is named: from here the live readings may add R (5 Ω) and Ask Wattson may quote it
+            // (LearnerSession.resistanceTaught). State only: the readings strip itself stays off, the Ω owns that band.
+            Cue("readings.r 1", "R and the ohm are taught: the readings may show R");
             Show("Card One Ohm");
             Line("S12_L15", 0.2);
             Cue("handoff");

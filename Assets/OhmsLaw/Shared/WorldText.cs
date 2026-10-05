@@ -165,7 +165,7 @@ namespace OhmsLaw
         public static PopIn Glow(TextMeshPro label, Material faceMaterial)
         {
             if (faceMaterial) { label.fontSharedMaterial = faceMaterial; label.color = Color.white; }
-            var pop = label.GetComponent<PopIn>() ?? label.gameObject.AddComponent<PopIn>();
+            var pop = label.TryGetComponent(out PopIn existing) ? existing : label.gameObject.AddComponent<PopIn>();
             pop.duration = 0.55f;
             pop.overshoot = 1.45f;
             pop.bob = 0.025f;
@@ -176,7 +176,7 @@ namespace OhmsLaw
         // for one shot keeps its screen size in the others. refDepth 0 = billboard only.
         public static WorldLabel Billboard(Component target, float refDepth)
         {
-            var label = target.GetComponent<WorldLabel>() ?? target.gameObject.AddComponent<WorldLabel>();
+            var label = target.TryGetComponent(out WorldLabel existing) ? existing : target.gameObject.AddComponent<WorldLabel>();
             label.refDepth = refDepth;
             return label;
         }

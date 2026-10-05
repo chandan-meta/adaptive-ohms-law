@@ -25,11 +25,14 @@ namespace OhmsLaw
         {
             bool Present { get; }          // there is a circuit in this scene
             bool ControlsOpen { get; }     // the learner (and so Wattson) may change the voltage now
+            double ControlsMax { get; }    // the highest voltage anyone may set now (SceneDirector.ControlsMax: 1 V in S10_Set1V / S10_Record, else 5)
             double Voltage { get; }        // the source setting
             double Amps { get; }           // the ammeter's reading: 0 while the key is open or the meter is out
             bool KeyClosed { get; }
             bool AmmeterIn { get; }
             int Scene { get; }             // 4..13: what has been taught so far (spoiler rules)
+            int TableRows { get; }         // observation table rows recorded so far (LearnerSession.tableRows)
+            bool ResistanceTaught { get; } // R and the ohm have been named (Scene 12, after S12_L14): only then is R = 5 ohms quoted
             string Gate { get; }           // the activity in progress, or null
             double TargetAmps { get; }     // the current a target activity asks for (S11_Target, S13_Apply); negative when none
             double AmpsAt(double volts);   // this wire's current at a voltage (ExperimentData)
@@ -262,12 +265,14 @@ namespace OhmsLaw
         {
             if (intent.kind == Kind.None) return null;
             if (!bench.Present) return "There's no circuit for me to control in this part of the case.";
+            // Declined: the same wire keeps the same resistance. Its value and unit only once they have been taught (spoiler rule:
+            // Scene 12's own question asks for V / I before S12_L14 names the ohm).
             if (intent.kind == Kind.Resistance)
-                return bench.Scene >= 12
+                return bench.ResistanceTaught
                     ? "This experiment keeps the same nichrome wire, so its resistance stays at " + Volts(Ohms(bench)) + " ohms. You can change the voltage instead."
-                    : "This experiment keeps the same nichrome wire the whole time, so I can't change that part. You can change the voltage instead.";
+                    : "This experiment keeps the same nichrome wire, so its resistance stays the same. You can change the voltage instead.";
             if (!bench.ControlsOpen) return "The battery control isn't open right now. When it is, use the slider or ask me to set the voltage.";
-            if (intent.kind == Kind.Unclear) return intent.note;
+            if (intent.kind == Kind.Unclear) return intent.note.Replace(Example, ExampleCommand(bench));
             if (intent.kind == Kind.Current) return CurrentReply(intent, bench);
 
             double now = bench.Voltage, ampsBefore = bench.Amps;
@@ -301,6 +306,10 @@ namespace OhmsLaw
                     break;
                 default: return null;
             }
+            // The cap (S10_Set1V / S10_Record hold it at 1 V): nothing above it is applied, so no 2 V reading leaks before
+            // the S10_Predict2V prediction, and no reply quotes a setting the director would undo the next frame.
+            if (target > bench.ControlsMax + 1e-6)
+                return $"For this reading the knob stops at {Volts(bench.ControlsMax)} V. Higher settings come after your prediction.";
             double applied = bench.SetVoltage(target);
             string verb = intent.kind == Kind.Double ? "doubled from " + Volts(now) + " V to" :
                           intent.kind == Kind.Halve ? "halved from " + Volts(now) + " V to" :
@@ -334,14 +343,14 @@ namespace OhmsLaw
         static string CurrentReply(Intent intent, IBench bench)
         {
             const string Cant = "I can't set the current directly: it follows the voltage.";
-            bool target = bench.TargetAmps >= 0 || (bench.Gate != null && (bench.Gate.IndexOf("target", StringComparison.OrdinalIgnoreCase) >= 0 || bench.Gate.IndexOf("apply", StringComparison.OrdinalIgnoreCase) >= 0));
+            bool target = TargetActivity(bench);
             double perVolt = bench.AmpsAt(1);
             bool asked = !double.IsNaN(intent.value);
             double goal = asked ? intent.value : bench.TargetAmps;
             if (target)
             {
-                // The learner's own puzzle: a hint, never the answer.
-                if (bench.Scene >= 12) return Cant + $" Use V = IR with R = {Volts(Ohms(bench))} ohms to work out the voltage, then ask me to set it.";
+                // The learner's own puzzle: a hint, never the answer. R only once it has been taught.
+                if (bench.ResistanceTaught) return Cant + $" Use V = IR with R = {Volts(Ohms(bench))} ohms to work out the voltage, then ask me to set it.";
                 return Cant + $" Each volt gave {Amps(perVolt)} A in our table." + (goal >= 0 ? $" Which voltage gives {Amps(goal)} A?" : " Which voltage gives your target?");
             }
             if (bench.Scene < 11) return "I can't set the current directly: the current is whatever the circuit gives. Change the voltage and watch the ammeter.";
@@ -361,6 +370,86 @@ namespace OhmsLaw
             }
         }
 
+        static bool GateIs(IBench bench, string part) => bench.Gate != null && bench.Gate.IndexOf(part, StringComparison.OrdinalIgnoreCase) >= 0;
+        static bool TargetActivity(IBench bench) => bench.TargetAmps >= 0 || GateIs(bench, "target") || GateIs(bench, "apply");
+
+        // ------------------------------------------------------------------ the AI's rules for this moment
+
+        // The app's rules inside the AI's live state (WattsonAgent.DescribeState). The proxy prompt follows text in this form
+        // and ignores any other instruction in the app's sections. The proxy keeps only rules whose text starts with one of
+        // its known prefixes (Server/wattson-proxy/index.js APP_RULE_PREFIXES) and drops any other, so a new rule here
+        // needs its prefix added there.
+        public static string Rule(string text) => "[App rule: " + text + "]";
+
+        // Activities are the learner's own puzzles: a prediction favours no option, a question or a target gets one
+        // reasoning hint, never the option, the number or the voltage. "" when no activity is running.
+        public static string ActivityRule(IBench bench, bool questionOnScreen)
+        {
+            if (GateIs(bench, "predict"))
+                return Rule("the learner is making a prediction; do not favour any option or hint which one is right: any honest guess is fine, and the experiment will tell");
+            if (TargetActivity(bench))
+                return Rule("target activity: never say the voltage that hits the target; give one hint about the reasoning and ask what they notice");
+            if (questionOnScreen)
+                return Rule("on-screen question: never give the option, its letter or the number it asks for; give one hint about the reasoning and ask what they notice");
+            return "";
+        }
+
+        // R = 5 ohms only once it has been taught (Scene 12, after S12_L14); before that a rule keeps the value and the unit out.
+        public static string ResistanceState(IBench bench)
+        {
+            if (bench.ResistanceTaught) return "Resistance has been taught: the nichrome wire XY has R = " + Volts(Ohms(bench)) + " ohms";
+            return bench.Scene == 12
+                ? Rule("resistance is being introduced in this scene; do not state its value or its unit yet")
+                : Rule("resistance has not been taught yet; never give its value or mention ohms. If asked to change it, this experiment keeps the same wire, so its resistance stays the same");
+        }
+
+        // ------------------------------------------------------------------ saved answers and examples
+
+        // Saved FAQ answers and suggested questions are written for the whole scene, so none during an activity (some answer
+        // it outright: Scene 5's "Which way do electrons move?" in S05_Drift, Scene 12's "Why is V divided by I always 5?" in
+        // S12_Ratio), none naming the ohm before it is taught, and none telling Scene 10's "Why does the current change..."
+        // before row 2 is recorded.
+        public static bool SavedAnswerAllowed(IBench bench, bool activity, string question, string answer) =>
+            !activity && FactAllowed(bench, question) && FactAllowed(bench, answer);
+
+        // A scene's covered fact (or saved answer) the AI may be given now: the ohm only once taught; a reading above 1 V
+        // or the way the current goes with the voltage only once Scene 10 has recorded row 2.
+        public static bool FactAllowed(IBench bench, string text) =>
+            (bench.ResistanceTaught || !NamesOhm(text)) && !(OneVoltOnly(bench) && RevealsRelationship(text));
+
+        // Scene 10 before row 2 (S10_Record2): the learner has measured only 1 V, and S10_Predict2V / S10_Pattern ask what
+        // comes next. Until then the facts "2 V → 0.4 A" and "the current increases with the voltage" stay out.
+        public static bool OneVoltOnly(IBench bench) => bench.Scene == 10 && bench.TableRows < 2;
+        public static string OneVoltRule(IBench bench) => OneVoltOnly(bench)
+            ? Rule("the learner has measured only 1 V so far; never say what the ammeter reads at another voltage or how the current changes with the voltage: the experiment will show it")
+            : "";
+
+        // A voltage above 1 V or a current above 0.2 A ("2 V", "2.0 volts", "0.4 A", "1.0 A"), or the current with a change
+        // word in the same sentence ("the current increases", "more ... current", "the current change when I change...").
+        static readonly Regex AboveOneVolt = new Regex(@"(?<![\d.])\b(?:[2-9]|[1-9]\d)(?:\.\d+)?\s*(?:V|volts?)\b|(?<![\d.])\b(?:0\.(?:2[1-9]|[3-9])\d*|[1-9](?:\.\d+)?)\s*(?:A|amperes?)\b");
+        const string ChangeWords = @"(?:increas\w*|decreas\w*|doubl\w*|halv\w*|chang\w*|ris(?:e|es|ing)|fall\w*|bigger|smaller|more|less|follow\w*)";
+        static readonly Regex CurrentChanges = new Regex(@"\b(?:current|amperes?)\b[^.?!]*\b" + ChangeWords + @"\b|\b" + ChangeWords + @"\b[^.?!]*\b(?:current|amperes?)\b", RegexOptions.IgnoreCase);
+        public static bool RevealsRelationship(string text) => AboveOneVolt.IsMatch(text ?? "") || CurrentChanges.IsMatch(text ?? "");
+
+        // The unit (lowercase "ohm", "ohms", or Ω); Georg Ohm and Ohm's law are not it.
+        static readonly Regex OhmUnit = new Regex(@"\bohms?\b|Ω");
+        public static bool NamesOhm(string text) => OhmUnit.IsMatch(text ?? "");
+
+        // The offline reply while an activity runs: no saved answer, and the puzzle stays the learner's.
+        public const string OfflinePuzzle = "My radio's fuzzy, but this puzzle is yours anyway. Give it a go!";
+
+        // The example command in a reply: never above the cap (the knob stops at 1 V in S10_Set1V / S10_Record), never the
+        // answer to a running target (S11_Target's 0.60 A is 3 V).
+        const string Example = "set the voltage to 3 volts";
+        static string ExampleCommand(IBench bench)
+        {
+            if (bench.ControlsMax < MaxVolts) return $"set the voltage to {Volts(bench.ControlsMax)} volt{(Math.Abs(bench.ControlsMax - 1) < 1e-6 ? "" : "s")}";
+            if (!TargetActivity(bench)) return Example;
+            foreach (int v in new[] { 2, 1, 5 })
+                if (bench.TargetAmps < 0 || Math.Abs(bench.AmpsAt(v) - bench.TargetAmps) > 0.005) return $"set the voltage to {v} volt{(v == 1 ? "" : "s")}";
+            return Example;
+        }
+
         // Essential guidance when the AI is unreachable: the real readings and what the learner can still do. App text,
         // shown as an offline answer.
         public static string Guidance(IBench bench)
@@ -368,7 +457,7 @@ namespace OhmsLaw
             if (!bench.Present) return "You can still tap a suggested question for a saved answer, or carry on with the case.";
             string s = $"Here's what I can see: the source is set to {Volts(bench.Voltage)} V";
             s += !bench.AmmeterIn ? "." : !bench.KeyClosed ? " and the key is open, so no current flows." : $" and the ammeter reads {Amps(bench.Amps)} A.";
-            if (bench.ControlsOpen) s += " You can move the battery slider, or type \"set the voltage to 3 volts\": I can still do that without my radio.";
+            if (bench.ControlsOpen) s += $" You can move the battery slider, or type \"{ExampleCommand(bench)}\": I can still do that without my radio.";
             return s;
         }
 
@@ -406,12 +495,16 @@ namespace OhmsLaw
 
             public bool Present => Rig;
             public bool ControlsOpen => Rig && Rig.controlsOpen;
+            public double ControlsMax => SceneDirector.ControlsMax;
             public double Voltage => Rig ? Rig.state.voltage : 0;
             public double Amps => Rig ? Rig.Amps : 0;
             public bool KeyClosed => Rig && Rig.state.keyClosed;
             public bool AmmeterIn => Rig && Rig.ammeterPlaced;
             public string Gate => SceneDirector.Gate;
             public double TargetAmps => Rig ? Rig.targetAmps : -1;
+            public int TableRows => LearnerSession.tableRows;
+            // Set by the cue "readings.r 1" after S12_L14. Scene 13 comes after that teaching, so a direct jump there counts too.
+            public bool ResistanceTaught => LearnerSession.resistanceTaught || Scene >= 13;
             public int Scene
             {
                 get

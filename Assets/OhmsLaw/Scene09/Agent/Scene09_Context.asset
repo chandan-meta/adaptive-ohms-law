@@ -25,6 +25,9 @@ MonoBehaviour:
   - The voltmeter is connected in parallel across the two ends of the wire, X and
     Y, to measure the potential difference between them.
   - Closing the key completes the circuit so current can flow.
+  - "The lit path and the X \u2192 Y pulse show conventional current, which is taken
+    from + to \u2212 around the circuit; the free electrons themselves drift the
+    other way, from \u2212 to +."
   doNotSpoil:
   - The readings
   - The pattern between V and I

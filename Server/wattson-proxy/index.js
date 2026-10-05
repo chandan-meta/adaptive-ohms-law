@@ -8,8 +8,9 @@ const MODEL = process.env.WATTSON_MODEL || 'claude-haiku-4-5-20251001';
 const MAX_QUESTION = 300;
 const MAX_SPEECH = 600;
 const MAX_CONTEXT_SPEECH = 300; // previous_text / next_text for /tts
-const MAX_STATE = 1200;
-const MAX_LEARNER = 500;
+// The same caps as Unity's WattsonAgent (MaxState / MaxLearner), which puts the app's [App rule: ...] parts first.
+const MAX_STATE = 1500;
+const MAX_LEARNER = 800;
 const WINDOW_MS = 10 * 60 * 1000;
 // Live answers use a few /tts calls each; a full VO bake is about 200 lines. Raise TTS_LIMIT in .env for a first full bake.
 const TTS_LIMIT = Number(process.env.TTS_LIMIT) || 200;
@@ -71,16 +72,33 @@ export function retryAfter(hits, key, now = Date.now()) {
   return times.length ? Math.max(1, Math.ceil((WINDOW_MS - (now - times[0])) / 1000)) : 1;
 }
 
+// The prompt follows "[App rule: ...]" text in LIVE STATE, and `state` is a field of an unauthenticated request. So only
+// the rules Unity itself writes pass: those whose text starts with one of these prefixes (WattsonActions.Rule callers,
+// WattsonAgent.DescribeState). Any other bracketed rule, in any field, is dropped before the model sees it. A new rule in
+// Unity needs its prefix here.
+export const APP_RULE_PREFIXES = [
+  'the app itself changes the voltage',
+  'the learner is making a prediction',
+  'target activity:',
+  'on-screen question:',
+  'resistance is being introduced',
+  'resistance has not been taught yet',
+  'the learner has measured only 1 V',
+];
+const APP_RULE = /\[\s*app\s*rules?\s*:\s*([^\]]*)\]/gi;
+export const appRules = (text, keepKnown) =>
+  text.replace(APP_RULE, (match, rule) => (keepKnown && APP_RULE_PREFIXES.some((prefix) => rule.trimStart().startsWith(prefix)) ? match : '')).trim();
+
 export function systemPrompt(body) {
-  const list = (items) => (Array.isArray(items) ? items.slice(0, 12).map((x) => clean(x, 200)).filter(Boolean).join('; ') : '') || 'none';
+  const list = (items) => (Array.isArray(items) ? items.slice(0, 12).map((x) => appRules(clean(x, 200), false)).filter(Boolean).join('; ') : '') || 'none';
   const fields = {
     sceneId: clean(body.sceneId, 40) || 'unknown',
-    sceneTitle: clean(body.sceneTitle, 80),
-    currentLine: clean(body.currentLine, 300),
+    sceneTitle: appRules(clean(body.sceneTitle, 80), false),
+    currentLine: appRules(clean(body.currentLine, 300), false),
     covered: list(body.covered),
     doNotSpoil: list(body.doNotSpoil),
-    state: cleanBlock(body.state, MAX_STATE) || 'not provided',
-    learner: cleanBlock(body.learner, MAX_LEARNER) || 'not provided',
+    state: appRules(cleanBlock(body.state, MAX_STATE), true) || 'not provided',
+    learner: appRules(cleanBlock(body.learner, MAX_LEARNER), false) || 'not provided',
   };
   // One pass over the template: text inside a field is never expanded again.
   return promptTemplate.replace(/\{(\w+)\}/g, (match, name) => fields[name] ?? match);

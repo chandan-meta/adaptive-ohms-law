@@ -20,6 +20,8 @@ namespace OhmsLaw
 
         // "readings 1|0": live V / I panel beside the graph (a HUD card where the scene has no graph).
         // "readings.r 1|0": add R (from Scene 12, once ohms are introduced). "graph.live 1|0": the live point on the graph.
+        // "rig.drag ammeter|voltmeter|none": that part's slot glows and it may be dragged (Scene 9, before its gate); a
+        // part already in its slot clears it, so a replay after placement is a no-op. "rig.path 1|0": the lit current path.
         bool ExperimentCue(string verb, string[] words, string rest, float value, bool on)
         {
             switch (verb)
@@ -27,6 +29,8 @@ namespace OhmsLaw
                 case "readings": Readings(on); return true;
                 case "readings.r": readingsResistance = on; if (on) LearnerSession.resistanceTaught = true; if (readings) readings.showResistance = on; return true;
                 case "graph.live": if (graph) graph.Live(on); return true;
+                case "rig.drag": if (rig) rig.draggable = rest == "" || rest == "none" || rig.IsPlaced(rest) ? "" : rest; return true;
+                case "rig.path": if (rig) rig.showPath = on; return true;
                 default: return false;
             }
         }
@@ -51,8 +55,10 @@ namespace OhmsLaw
 
         // Scene 10: the learner sets the source with the slider (or asks Wattson). <gate>_GO (optional) says what to do; a
         // wrong setting held for a moment updates the prompt with the reading and, once, plays <gate>_H. autoAnswer sets it.
+        // While ControlsMax is lowered (S10_Set1V) the knob stops there; a learner who pushed past it is told so on the prompt.
         IEnumerator SetVoltage(InteractionGate gate, float volts)
         {
+            capPushed = false;
             if (!slider) Slider(true);
             string instruction = promptText;
             yield return Say(Line(gate, gate.gateId + "_GO"));
@@ -74,7 +80,8 @@ namespace OhmsLaw
                 yield return null;
             }
             rig.controlsOpen = false;
-            if (promptText != instruction) Prompt(instruction);
+            if (capPushed) Prompt($"The knob stops at {Volts(ControlsMax)} for this reading."); // until the builder's next prompt cue
+            else if (promptText != instruction) Prompt(instruction);
             yield return new WaitForSeconds(1.2f); // let the needles settle on the reading
         }
 
@@ -160,7 +167,7 @@ namespace OhmsLaw
                 {
                     judged = v;
                     var outcome = run.Judge(rig.Volts, rig.Amps);
-                    if (outcome == TargetRun.Outcome.Hit) break;
+                    if (outcome == TargetRun.Outcome.Hit) { React(LearnerSession.Grade.Correct); break; }
                     if (readings) readings.targetNote = rig.Amps < run.targetAmps ? "▲ more volts" : "▼ fewer volts";
                     if (outcome == TargetRun.Outcome.Show) { yield return ShowTarget(gate, run, n); break; }
                     if (!confident && !hinted) { hinted = true; yield return Say(Line(gate, id + "_H")); }

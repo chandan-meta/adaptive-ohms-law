@@ -44,8 +44,9 @@ namespace OhmsLaw
                 case "S09_PlaceAmmeter": yield return PlacePart(gate, "ammeter"); break;
                 case "S09_PlaceVoltmeter": yield return PlacePart(gate, "voltmeter"); break;
                 case "S09_CloseKey": yield return CloseKey(); break;
-                case "S10_Set1V": yield return SetVoltage(gate, 1); break;
-                case "S10_Record": yield return Record(gate, 0); break;
+                // Before the S10_Predict2V prediction the controls stop at 1 V (no peeking at the 2 V reading).
+                case "S10_Set1V": ControlsMax = 1f; yield return SetVoltage(gate, 1); break;
+                case "S10_Record": ControlsMax = 1f; yield return Record(gate, 0); break;
                 case "S10_Predict2V": yield return Predict2V(gate); break;
                 case "S10_Set2V": yield return SetVoltage(gate, 2); break;
                 case "S10_Record2": yield return Record(gate, 1); yield return ComparePrediction(gate); break;
@@ -58,8 +59,49 @@ namespace OhmsLaw
                 case "S13_AQ2": if (checkpointEnabled) yield return AQ2(gate); break;
                 case "S13_Apply": yield return Target(gate, Concepts.OhmsLaw, 0.80f); break;
                 case "S13_Checkpoint": break; // retired: AQ1 moved to S12_AQ1, AQ2 to S13_AQ2 (an older Scene 13 build still has the marker)
-                default: Debug.LogWarning($"{sceneId}: no handler for gate '{gate.gateId}'", this); break;
+                default:
+                    if (IsSayGate(gate)) yield return SayGate(gate);
+                    else Debug.LogWarning($"{sceneId}: no handler for gate '{gate.gateId}'", this);
+                    break;
             }
+        }
+
+        // ------------------------------------------------------------------ say gates (branch lines)
+
+        // A gate with no handler of its own whose lines are all "<gate>" or "<gate>_If_<condition>" is a say gate: the
+        // Timeline holds while Wattson says ONE line, the first _If_ line (in the gate's order) whose condition holds for
+        // this learner (LearnerSession.Holds), else "<gate>", else nothing. E.g. Scene 9: "S09_Conventional" for everyone,
+        // "S09_Conventional_If_S05_Drift_B" for a learner who said electrons flow + to −. TriggerOnce, like every gate.
+        public const string IfTag = "_If_";
+
+        public static bool IsSayGate(InteractionGate gate)
+        {
+            bool any = false;
+            foreach (var line in gate.lines)
+            {
+                if (!line) continue;
+                if (line.id != gate.gateId && !line.id.StartsWith(gate.gateId + IfTag)) return false;
+                any = true;
+            }
+            return any;
+        }
+
+        // The line a say gate speaks for this learner, or null.
+        public static DialogueLine SayGateLine(InteractionGate gate)
+        {
+            string prefix = gate.gateId + IfTag;
+            var chosen = gate.lines.FirstOrDefault(l => l && l.id.StartsWith(prefix) && LearnerSession.Holds(l.id.Substring(prefix.Length)));
+            return chosen ? chosen : gate.lines.FirstOrDefault(l => l && l.id == gate.gateId);
+        }
+
+        IEnumerator SayGate(InteractionGate gate) { yield return Say(SayGateLine(gate)); }
+
+        // Wattson's quick reaction to a graded answer, layered over whatever gesture he is in.
+        static void React(Grade grade)
+        {
+            var reacting = WattsonController.Active;
+            if (reacting) reacting.React(grade == Grade.Correct ? WattsonController.Reaction.Correct
+                : grade == Grade.Partial ? WattsonController.Reaction.Partial : WattsonController.Reaction.Incorrect);
         }
 
         IEnumerator TestMcq(InteractionGate gate)
@@ -96,6 +138,7 @@ namespace OhmsLaw
                 yield return null;
             }
             rig.draggable = "";
+            React(Grade.Correct); // the part snapped in (gesture only, no line)
         }
 
         IEnumerator CloseKey()
@@ -112,6 +155,7 @@ namespace OhmsLaw
                 if (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay) rig.CloseKey();
                 yield return null;
             }
+            React(Grade.Correct);
             // CircuitRig.CloseKey applies the small default voltage (0.5 V) so the needles move; Scene 10 starts from it.
         }
 
@@ -149,6 +193,7 @@ namespace OhmsLaw
                 spoken = null;
                 int pick = panel.Picked;
                 var step = run.Answer(pick);
+                React(step.grade);
 
                 var feedback = Line(gate, id + "_F" + LearnerSession.Letter(pick));
                 if (!feedback && step.grade == Grade.Correct && q.correctFallbackLine != null) feedback = Line(gate, q.correctFallbackLine);
@@ -237,6 +282,7 @@ namespace OhmsLaw
             var grade = QuestionBank.GradePrediction(letter, out var misconception);
             LearnerSession.Record(Concepts.Relationship, grade, misconception);
             LearnerSession.answers.Add($"S10_Predict2V {letter} {grade}");
+            React(grade);
             yield return Say(Line(gate, "S10_Predict2V_F" + letter));
         }
 
@@ -318,8 +364,19 @@ namespace OhmsLaw
         IEnumerator AQ1(InteractionGate gate)
         {
             if (LearnerSession.Confident(Concepts.Relationship)) yield break;
-            yield return Ask(gate, QuestionBank.AQ1, easier: QuestionBank.AQEasy, simplify: () => true,
-                reveal: () => SayWhile(Line(gate, "S12_AQ1_X"), Demonstrate(false, 2f, 4f)));
+            yield return Ask(gate, QuestionBank.AQ1, easier: QuestionBank.AQEasy, simplify: () => true, reveal: () => Reveal4V(gate));
+        }
+
+        // The readings strip shows 4 V / 0.80 A for as long as S12_AQ1_X says so (Demonstrate alone would restore the source
+        // and drop the strip at ~3.6 s of the 5.8 s line); then the source goes back to where it was.
+        IEnumerator Reveal4V(InteractionGate gate)
+        {
+            bool hadReadings = readings;
+            float before = rig ? rig.state.voltage : 0;
+            Readings(true);
+            yield return SayWhile(Line(gate, "S12_AQ1_X"), Demonstrate(true, 2f, 4f));
+            if (rig) rig.SetVoltage(before);
+            if (!hadReadings) Readings(false);
         }
 
         // Storyboard AQ2, now in Scene 13. A learner struggling with resistance gets the table's own numbers as the hint

@@ -85,32 +85,66 @@ namespace OhmsLaw.Editor
             Debug.Log("Wrote Docs/FLOW.md");
         }
 
+        // Hand-written from the builders' Gate(...) calls and the gate contract (Docs/Polish/WOW_PLAN.md §8). Graded questions
+        // (Ask): a wrong pick gets its feedback line, a hint and a retry, at most twice, then the reveal; option A is correct.
         const string Chart = @"flowchart TD
     S04[Scene 4: Meet Wattson] -->|flash to white| S05[Scene 5: Inside the Wire]
-    S05 -->|match-cut, handoff state| S06[Scene 6: Adaptive Question]
-    S06 --> P{S06_Prediction<br>A Increase / B Decrease / C Stay the same}
-    P -->|stored in LearnerSession.prediction| S06R[Proposed reaction S06_R_A/B/C, then S06_L03]
+    S05 --> D{S05_Drift graded<br>A minus to plus / B plus to minus / C no overall direction}
+    D -->|A correct, C partial| S05b[Drift Arrow, S05_L06 ..]
+    D -->|B wrong| DH[S05_Drift_FB, hint S05_Drift_H, retry] --> D
+    D -->|out of retries| DX[S05_Drift_X over the running drift] --> S05b
+    S05b -->|match-cut, handoff state| S06[Scene 6: Adaptive Question]
+    S06 --> P{S06_Prediction ungraded<br>A Increase / B Decrease / C Stay the same}
+    P -->|stored in LearnerSession.prediction| S06R[S06_R_A/B/C, then S06_L03]
     S06R -->|Ohm-niscope flash, fade white| S07[Scene 7: Back to Georg Ohm]
     S07 -->|match-cut| S08[Scene 8: Our Lab]
     S08 -->|match-cut, CircuitState| S09[Scene 9: Build the Circuit]
-    S09 --> G1[S09_PlaceAmmeter] --> G2[S09_PlaceVoltmeter] --> G3[S09_CloseKey]
-    G3 -->|reminder card; showLearnerPrediction recalls Scene 6| S10[Scene 10: Experiment]
-    S10 --> G4[S10_Set1V] --> G5[S10_Record] --> G6{S10_Pattern}
-    G6 -->|correct A| G7[S10_Discover ×2]
-    G6 -->|wrong| W1[S10_R_WRONG, re-ask]
-    W1 -->|wrong again| W2[Sweep V then I column, re-ask]
-    W2 -->|3rd answer accepted| G7
-    G7 --> S11[Scene 11: Graph]
-    S11 -->|graph + table kept| S12[Scene 12: Resistance]
-    S12 --> G8{S12_Slope 5 / 0.2 / 2.5}
-    G8 -->|correct| S12b[S12_L13 .. S12_L15]
-    G8 -->|wrong| W3[shake, show 2.0 ÷ 0.40, re-ask once] --> S12b
-    S12b --> S13[Scene 13: Ohm's Law]
-    S13 --> C{checkpoint enabled?}
-    C -->|no| S13end[S13_L07]
-    C -->|yes| Q1{AQ1}
-    Q1 -->|correct| Q2{AQ2 harder} --> S13end
-    Q1 -->|wrong| E[AQ_EXPLAIN] --> Q3{AQ_EASY} --> S13end
+    S09 --> G1[S09_PlaceAmmeter] --> G1b{S09_Conventional say gate}
+    G1b -->|picked B at S05_Drift| G1c[S09_Conventional_If_S05_Drift_B]
+    G1b -->|else| G1d[S09_Conventional]
+    G1c --> G2[S09_PlaceVoltmeter]
+    G1d --> G2
+    G2 --> G3[S09_CloseKey]
+    G3 -->|reminder chalk, showLearnerPrediction recalls Scene 6| S10[Scene 10: Experiment]
+    S10 --> G4[S10_Set1V, controls capped at 1 V] --> G5[S10_Record row 1, cap 1 V] --> G5b{S10_Predict2V ungraded<br>A 0.40 A / B 0.20 A / C 0.10 A}
+    G5b -->|stored in LearnerSession.s10Prediction2V| G5c[S10_Set2V] --> G5d[S10_Record2 row 2<br>the meter grades the prediction: S10_Predict2V_FA/_FB/_FC]
+    G5d -->|3-5 V auto-run, rows 3-5| G6{S10_Pattern graded}
+    G6 -->|A correct| G7[S10_Discover: V x 2 to I x 2]
+    G6 -->|wrong| W1[S10_Pattern_FB/_FC, S10_R_WRONG, re-ask]
+    W1 -->|Struggling Relationship| W1b[rows 1-2 highlighted, simpler question S10_Pattern_E]
+    W1 --> G6
+    W1b --> G6
+    G6 -->|out of retries| W2[V then I column sweep, S10_Pattern_X] --> G7
+    G7 -->|Scene 6 callback S10_Discover_FA/_FB/_FC| S11[Scene 11: Graph]
+    S11 --> T1[S11_Target: make the ammeter read 0.60 A<br>miss: S11_Target_H, 2nd miss: Wattson sets 3 V with _X, hit: _OK]
+    T1 -->|Confident Graph| T2[bonus 0.80 A: _GO2 / _X2 / _OK2] --> S12
+    T1 -->|else| S12[Scene 12: Resistance]
+    S12 --> R1{S12_Ratio graded<br>5 / 0.2 / 1.8}
+    R1 -->|A correct| R2
+    R1 -->|wrong| R1h[S12_Ratio_FB/_FC, hint _H, retry] --> R1
+    R1 -->|out of retries| R1x[S12_Ratio_X, row 3 fills] --> R2
+    R2{S12_AQ1 checkpointEnabled<br>skipped when Confident Relationship}
+    R2 -->|A correct, or skipped| G8
+    R2 -->|wrong| R2h[S12_AQ1_FB/_FC, AQ_EXPLAIN, retry on AQ_EASY] --> R2
+    R2 -->|out of retries| R2x[S12_AQ1_X: 2 V then 4 V on the readings strip] --> G8
+    G8{S12_Slope graded<br>5 / 0.2 / 2.5}
+    G8 -->|A correct| S12b[S12_L13 .. S12_L15, readings.r: the ohm is taught]
+    G8 -->|wrong| W3[S12_Slope_FB/_FC, hint _H, retry] --> G8
+    G8 -->|out of retries| W3x[S12_Slope_X] --> S12b
+    S12b -->|match-cut| S13[Scene 13: Ohm's Law]
+    S13 --> C{checkpointEnabled?}
+    C -->|yes| Q2{S13_AQ2 graded}
+    Q2 -->|A correct| AP
+    Q2 -->|wrong| Q2h[S13_AQ2_FB/_FC, hint _H, retry] --> Q2
+    Q2 -->|out of retries| Q2x[S13_AQ2_X] --> AP
+    C -->|no| AP[S13_Apply: make the ammeter read 0.80 A with V = IR<br>miss: S13_Apply_H, 2nd miss: Wattson sets 4 V with _X, hit: _OK]
+    AP --> RC{S13_Recap say gate}
+    RC -->|Struggling OhmsLaw| RC1[S13_Recap_If_Struggling_OhmsLaw]
+    RC -->|Struggling Resistance| RC2[S13_Recap_If_Struggling_Resistance]
+    RC -->|else| RC3[S13_Recap]
+    RC1 --> S13end[S13_L07]
+    RC2 --> S13end
+    RC3 --> S13end
     S13end -->|UnitySectionComplete| V14[Scene 14 video card]";
     }
 }

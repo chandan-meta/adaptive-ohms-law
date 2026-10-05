@@ -238,7 +238,8 @@ namespace OhmsLaw
             else if (Busy) agent.Stop();
         }
 
-        // The scene's suggested questions (their saved answers are the offline fallback).
+        // The scene's suggested questions (their saved answers are the offline fallback). None while an activity runs (some
+        // answer it outright), none naming the ohm before it is taught (WattsonAgent.Offered).
         void ShowSuggestions()
         {
             foreach (Transform child in suggestions) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
@@ -246,7 +247,8 @@ namespace OhmsLaw
             var questions = new List<string>();
             if (faq && faq.entries != null)
                 foreach (var entry in faq.entries)
-                    if (entry != null && !string.IsNullOrEmpty(entry.question) && questions.Count < 3) questions.Add(entry.question);
+                    if (entry != null && !string.IsNullOrEmpty(entry.question) && questions.Count < 3 && WattsonAgent.Offered(entry.question, entry.answer))
+                        questions.Add(entry.question);
             if (questions.Count == 0) return;
             var heading = UI.Label(suggestions, "TRY ASKING", 17, new Color(1, 1, 1, 0.6f), TextAlignmentOptions.MidlineLeft);
             heading.fontStyle = FontStyles.Bold;

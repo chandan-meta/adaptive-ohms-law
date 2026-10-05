@@ -83,25 +83,21 @@ namespace OhmsLaw.Editor
             Face(Card("Current", WorldText.Sub("CURRENT", "Symbol: I\nUnit: ampere (A)", WireConceptCap, sub), palette.current, null, refs["Concept Right"].transform.position, WireConceptCap, false, WorldText.Wrap.Concept));
         }
 
-        // Scene 4's test wire between its brass posts at Wire4, the Ohm-niscope beam ending on it with a hot spot, the
-        // amber shimmer of Scene 4's lock-on, and the dive streaks racing out of the surface at the lens. Both macro
-        // cameras stand on Scene 4's dive axis (Wattson's hover point → the wire): "Macro A" is SH11b's pose, the frame
-        // Scene 4 flashed out on; "Macro B" is the push-in, 10 cm off the wire.
+        // Scene 4's desk as it was at the flash: Ohm's 1826 apparatus, built by the same kit call as Scene 4's
+        // (Scene04Builder.Apparatus.cs: HistoricalApparatus(DeskTop, StudyTurn)), so the torsion galvanometer, the
+        // thermoelectric source, the cups and the notebook stand behind the wire as they did, and its "Copper Wire" on
+        // its posts is Scene 4's test wire at Wire4. On it: the Ohm-niscope beam ending in a hot spot, the amber shimmer of
+        // Scene 4's lock-on, and the dive streaks racing out of the surface at the lens. Both macro cameras stand on
+        // Scene 4's dive axis (Wattson's hover point → the wire): "Macro A" is SH11b's pose, the frame Scene 4 flashed out
+        // on; "Macro B" is the push-in, 10 cm off the wire. All of it sits under "Macro", so the flash to white takes it away.
         void MacroWire(Transform macro)
         {
-            var copper = Lit("Copper", new Color(0.86f, 0.46f, 0.26f), 1f, 0.72f);
-            var brass = Lit("Brass", new Color(0.83f, 0.66f, 0.3f), 1f, 0.68f);
-            var wood = Lit("DarkWood", new Color(0.2f, 0.11f, 0.06f), 0f, 0.4f);
             var group = Node("Macro Wire", macro).transform;
-            const float half = 0.21f;
-            Prim(PrimitiveType.Cylinder, "Copper Wire", group, Wire4, new Vector3(0.007f, half, 0.007f), copper, new Vector3(0, 0, 90));
-            foreach (float side in new[] { -1f, 1f })
-            {
-                var foot = new Vector3(Wire4.x + side * half, DeskY, Wire4.z);
-                Prim(PrimitiveType.Cube, "Post Base", group, foot + Vector3.up * 0.008f, new Vector3(0.05f, 0.016f, 0.05f), wood);
-                Prim(PrimitiveType.Cylinder, "Post", group, foot + Vector3.up * 0.05f, new Vector3(0.012f, 0.045f, 0.012f), brass);
-                Prim(PrimitiveType.Sphere, "Post Cap", group, foot + Vector3.up * 0.098f, Vector3.one * 0.02f, brass);
-            }
+            const float half = 0.21f; // the test wire's half length (the kit's AppWireHalf): the shimmer runs along all of it
+            HistoricalApparatus(DeskTop, StudyTurn).transform.SetParent(group, true);
+            // The kit leaves Ohm's held wire (hidden) and its work-target markers at the scene root: keep them with the desk.
+            foreach (var loose in new[] { "Ohm Hand Wire", "Apparatus Point", "Ohm Notebook Target", "Ohm Galvanometer Target", "Ohm Wire Target" })
+                if (refs.TryGetValue(loose, out var piece)) piece.transform.SetParent(group, true);
 
             Vector3 toWire = (Wire4 - Hover).normalized;
             Vector3 right = Vector3.Cross(Vector3.up, toWire).normalized;

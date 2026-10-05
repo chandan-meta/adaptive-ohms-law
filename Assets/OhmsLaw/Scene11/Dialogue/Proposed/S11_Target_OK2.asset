@@ -10,13 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
-  m_Name: AQ_EXPLAIN
+  m_Name: S11_Target_OK2
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
-  id: AQ_EXPLAIN
+  id: S11_Target_OK2
   speaker: WATTSON
-  text: 'Remember the table, detective: every time V went up, I went up with it,
-    and V divided by I stayed at 5.'
-  ttsText: 'Remember the table, detective: every time V went up, I went up with it,
-    and V divided by I stayed at 5.'
-  vo: {fileID: 8300000, guid: 4638449791f82ed4489438da5453f3a1, type: 3}
-  fallbackDuration: 6.5
+  text: 4 volts, 0.80 amperes. Every volt, another 0.20. The pattern holds!
+  ttsText: 4 volts, 0.80 amperes. Every volt, another 0.20. The pattern holds!
+  vo: {fileID: 0}
+  fallbackDuration: 3.8

@@ -212,9 +212,9 @@ namespace OhmsLaw.Editor
             line.text = text;
             line.ttsText = text;
             line.fallbackDuration = fallback;
-            // A recorded clip named after the line id is picked up automatically (baked or from a voice actor).
-            if (!line.vo)
-                line.vo = new[] { ".wav", ".mp3", ".ogg" }.Select(ext => AssetDatabase.LoadAssetAtPath<AudioClip>(S4 + "/Audio/VO/" + id + ext)).FirstOrDefault(clip => clip);
+            // The best clip in Scene 4's Audio/VO, as every scene picks it (BlockoutAssets.FindVo): a baked <id>.mp3, then a
+            // voice actor's <id>.ogg/.wav, then the local stand-in scratch_<id>.wav, so a recreated line is never silent.
+            line.vo = BlockoutAssets.FindVo(S4, id);
             EditorUtility.SetDirty(line);
             return line;
         }

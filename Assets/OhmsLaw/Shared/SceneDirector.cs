@@ -19,6 +19,10 @@ namespace OhmsLaw
 
         public static DialogueLine Speaking { get; private set; }
         public static string Gate { get; private set; }
+        // The highest voltage the learner (slider) and Ask Wattson may set while the controls are open. Below the source's
+        // 5 V only while a reading must stay unseen: S10_Set1V / S10_Record cap it at 1 V, so nobody reads 2 V before the
+        // S10_Predict2V prediction. Hold() lifts it after every gate.
+        public static float ControlsMax { get; private set; } = CircuitRig.MaxVolts;
 
         public string sceneId;
         [Tooltip("Start on the previous scene's last camera pose when arriving from this scene.")] public string matchCutFrom;
@@ -45,6 +49,9 @@ namespace OhmsLaw
         RectTransform prompt;
         string promptText = "";
         Slider slider;
+        TMP_Text[] tickLabels = new TMP_Text[0];
+        float ticksShownMax = -1f;
+        bool capPushed; // someone asked for more than ControlsMax while it was lowered: the gate says why the knob stops
         CalloutLayer callouts; // screen-space callouts; created under the module canvas on first use, persists across scenes
 
         static ModuleFlow Flow => ModuleFlow.Instance;
@@ -54,6 +61,7 @@ namespace OhmsLaw
         {
             Speaking = null;
             Gate = null;
+            ControlsMax = CircuitRig.MaxVolts;
             bool matchCut = !string.IsNullOrEmpty(matchCutFrom) && SceneHandoffState.fromScene == matchCutFrom;
             if (matchCut && rig) rig.Restore(SceneHandoffState.circuit); // readings carry across 9 -> 10 -> 11 -> 12 -> 13
             if (entryCamera && SceneHandoffState.hasCamera && matchCut)
@@ -65,13 +73,36 @@ namespace OhmsLaw
             }
         }
 
-        // The slider mirrors the rig (cues and Ask Wattson move the knob too) and takes input only while an activity has
-        // opened the controls.
+        // The prompt pill sits top-centre; while the Ask panel is open it moves right until it clears the panel (x 24-544,
+        // plus air), kept on screen. The slider mirrors the rig (cues and Ask Wattson move the knob too) and takes input only
+        // while an activity has opened the controls. While ControlsMax is lowered, the ticks above it dim, and a setting
+        // above it made through the open controls (a request that did not check the cap) is undone at once.
         void Update()
         {
-            if (!slider || !rig) return;
+            if (prompt)
+            {
+                var safe = (RectTransform)prompt.parent;
+                float half = prompt.sizeDelta.x / 2, push = AskWattsonUI.IsOpen ? Mathf.Max(0, AskPanelClear - (safe.rect.width / 2 - half)) : 0;
+                prompt.anchoredPosition = new Vector2(Mathf.Min(push, safe.rect.width / 2 - half - 24f), PromptY);
+            }
+            if (!rig) return;
+            if (rig.controlsOpen && rig.state.voltage > ControlsMax + 0.001f) { rig.SetVoltage(ControlsMax); capPushed = true; }
+            if (!slider) return;
             slider.SetValueWithoutNotify(rig.state.voltage);
             if (slider.interactable != rig.controlsOpen) slider.interactable = rig.controlsOpen;
+            if (!Mathf.Approximately(ticksShownMax, ControlsMax))
+            {
+                ticksShownMax = ControlsMax;
+                for (int i = 0; i < tickLabels.Length; i++) if (tickLabels[i]) tickLabels[i].color = new Color(1, 1, 1, i > ControlsMax + 0.001f ? 0.3f : 0.85f);
+            }
+        }
+
+        // The slider's request: whole volts, never above ControlsMax (the knob stops there).
+        float LearnerVoltage(float volts)
+        {
+            float want = Mathf.Round(volts);
+            if (want > ControlsMax + 0.001f) { want = ControlsMax; capPushed = true; }
+            return rig.SetVoltage(want);
         }
 
         public void OnNotify(Playable origin, INotification notification, object context)
@@ -87,15 +118,20 @@ namespace OhmsLaw
             if (Flow) Flow.SetPaused(ModuleFlow.PauseReason.Hold, true);
             yield return RunGate(gate);
             if (rig) { rig.controlsOpen = false; rig.targetAmps = -1f; } // whatever the gate did, cue-driven time follows
+            ControlsMax = CircuitRig.MaxVolts;
+            capPushed = false;
             Gate = null;
             if (Flow) Flow.SetPaused(ModuleFlow.PauseReason.Hold, false);
         }
 
-        // Speaks a line outside the Timeline (interaction branches): subtitle, voice and Wattson's talking glow.
+        // Speaks a line outside the Timeline (interaction branches): subtitle, voice and Wattson's talking glow. It takes its
+        // turn on the voice channel first, so it never starts over an Ask Wattson answer. Speaking is set before that wait:
+        // StopSaying can still cancel a line that has not started, and autoAnswer (Pick) waits for the whole line.
         public IEnumerator Say(DialogueLine line)
         {
             if (!line) yield break;
             Speaking = line;
+            yield return VoiceChannel.WaitTurn(voice);
             SubtitleTrack.Started(line);
             if (voice) { voice.clip = line.vo; if (line.vo) voice.Play(); }
             float length = line.Duration;
@@ -105,6 +141,7 @@ namespace OhmsLaw
                 {
                     if (voice) voice.Pause();
                     yield return new WaitWhile(() => AskWattsonUI.IsOpen);
+                    yield return VoiceChannel.WaitTurn(voice); // an answer still finishing after the panel closed
                     if (voice) voice.UnPause();
                 }
                 if (SubtitleUI.Instance) SubtitleUI.Instance.Show(this, line.speaker, line.text, t / length);
@@ -146,8 +183,8 @@ namespace OhmsLaw
                 case "wire.impede": wire.impede = value; break;
                 case "wire.lattice": wire.latticeVisibility = value; break;
                 case "wire.radius": if (narrowingMetaphor || value >= wire.tunnelRadius) wire.tunnelRadius = value; break;
-                case "boost": StartCoroutine(Boost(Ref(rest))); break;
-                case "pulse": StartCoroutine(Boost(Ref(rest), settle: true)); break;
+                case "boost": Boost(Ref(rest)); break;
+                case "pulse": Boost(Ref(rest), settle: true); break;
                 case "rig.voltage": rig.SetVoltage(value); break;
                 case "rig.key": if (on) rig.CloseKey(); else rig.state.keyClosed = false; break;
                 case "rig.place": rig.Place(arg); break;
@@ -232,10 +269,24 @@ namespace OhmsLaw
         }
 
         // "boost" grows the object and brightens its glow and holds both; "pulse" (settle) peaks and returns to normal.
-        IEnumerator Boost(GameObject go, bool settle = false)
+        // A cue that fires again while its run is still going (REPLAY, a retroactive re-fire) stops that run and starts
+        // over from the rest scale, so nothing is ever measured from an inflated one.
+        readonly Dictionary<GameObject, (Coroutine running, Vector3 rest)> boosts = new Dictionary<GameObject, (Coroutine, Vector3)>();
+
+        void Boost(GameObject go, bool settle = false)
         {
-            if (!go) yield break;
-            var from = go.transform.localScale;
+            if (!go) return;
+            if (boosts.TryGetValue(go, out var prior))
+            {
+                if (prior.running != null) StopCoroutine(prior.running);
+                go.transform.localScale = prior.rest;
+            }
+            var rest = go.transform.localScale;
+            boosts[go] = (StartCoroutine(BoostRun(go, rest, settle)), rest);
+        }
+
+        IEnumerator BoostRun(GameObject go, Vector3 from, bool settle)
+        {
             float peak = settle ? 1.25f : 1.5f;
             var glow = new Brightener(go);
             for (float t = 0; t < 1; t += Time.deltaTime / 0.8f)
@@ -288,10 +339,22 @@ namespace OhmsLaw
             }
         }
 
+        // Draws the eye to the Ask Wattson button: a scale wobble, or under ReducedMotion.On one dip of its alpha and back.
         IEnumerator Spotlight()
         {
             var button = Flow ? Flow.transform.Find("SafeArea/Ask Wattson") : null;
             if (!button) yield break;
+            if (ReducedMotion.On)
+            {
+                if (!button.TryGetComponent(out CanvasGroup group)) group = button.gameObject.AddComponent<CanvasGroup>();
+                for (float t = 0; t < 0.8f; t += Time.deltaTime)
+                {
+                    group.alpha = 1 - 0.6f * Mathf.Sin(t / 0.8f * Mathf.PI);
+                    yield return null;
+                }
+                group.alpha = 1;
+                yield break;
+            }
             for (float t = 0; t < 1.6f; t += Time.deltaTime)
             {
                 button.localScale = Vector3.one * (1 + 0.25f * Mathf.Sin(t / 1.6f * Mathf.PI * 3) * (1 - t / 1.6f));
@@ -321,6 +384,7 @@ namespace OhmsLaw
 
         // Prompt pill: below CinematicControlsUI's top-right buttons (they end at y -124), width fitted to the text.
         const float PromptY = -140f, PromptMaxWidth = 1200f, PromptMinWidth = 480f, PromptHeight = 108f, PromptPad = 48f;
+        const float AskPanelClear = 24f + 520f + 24f; // the Ask panel's margin + width (AskWattsonUI) + air: the pill's left edge while it is open
         // Battery control: bottom-left, above the subtitle box (y 40..236, 210 px insets) and left of the Record / x2 chip at x 720.
         static readonly Vector2 BatteryPos = new Vector2(60, 260), BatterySize = new Vector2(620, 220);
         // TrackY puts the 96 px knob ~10 px under the BATTERY title and ~8 px over the tick labels.
@@ -368,10 +432,12 @@ namespace OhmsLaw
             UI.Panel(track, new Color(1, 1, 1, 0.25f), true, 7f).raycastTarget = false;
             var fill = UI.Stretch("Fill", track);
             UI.Panel(fill, UI.AccentColor, true, 7f).raycastTarget = false;
+            tickLabels = new TMP_Text[6];
+            ticksShownMax = -1f; // Update dims the ticks above ControlsMax
             for (int i = 0; i <= 5; i++)
             {
                 UI.Panel(UI.Rect("Tick Mark", track, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-TrackWidth / 2 + i * TickStep, 0), new Vector2(4, 24)), new Color(1, 1, 1, 0.35f), false).raycastTarget = false;
-                UI.Label(UI.Rect("Tick", rect, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-TrackWidth / 2 + i * TickStep, 6), TickRect), i + " V", UI.SliderTickFont, new Color(1, 1, 1, 0.85f));
+                tickLabels[i] = UI.Label(UI.Rect("Tick", rect, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-TrackWidth / 2 + i * TickStep, 6), TickRect), i + " V", UI.SliderTickFont, new Color(1, 1, 1, 0.85f));
             }
 
             var area = UI.Rect("Handle Area", rect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, TrackY), new Vector2(TrackWidth, HandleSize));
@@ -393,7 +459,7 @@ namespace OhmsLaw
             slider.wholeNumbers = false; // the carried 0.5 V sits between the ticks; the listener snaps to whole volts
             slider.SetValueWithoutNotify(rig.state.voltage);
             slider.interactable = rig.controlsOpen;
-            slider.onValueChanged.AddListener(volts => slider.SetValueWithoutNotify(rig.controlsOpen ? rig.SetVoltage(Mathf.Round(volts)) : rig.state.voltage));
+            slider.onValueChanged.AddListener(volts => slider.SetValueWithoutNotify(rig.controlsOpen ? LearnerVoltage(volts) : rig.state.voltage));
         }
 
         // Record / x2: a UI.Button in the blue accent.
@@ -441,6 +507,7 @@ namespace OhmsLaw
 
         void OnDestroy()
         {
+            ControlsMax = CircuitRig.MaxVolts; // static: never carried into a scene left mid-gate
             if (prompt) Destroy(prompt.gameObject);
             if (slider) Destroy(slider.gameObject);
             if (readings) Destroy(readings.gameObject); // the HUD variant lives on the module canvas, which outlives the scene

@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
-  m_Name: AQ_EASY
+  m_Name: S10_Discover_FB
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
-  id: AQ_EASY
+  id: S10_Discover_FB
   speaker: WATTSON
-  text: When the potential difference across the nichrome wire went up, what happened
-    to the current?
-  ttsText: When the potential difference across the nichrome wire went up, what happened
-    to the current?
-  vo: {fileID: 8300000, guid: 34e6f4b8197dc4643aa95c37a3d5c3cc, type: 3}
-  fallbackDuration: 5
+  text: You predicted the current would drop. The data says it rises. Good detectives
+    update.
+  ttsText: You predicted the current would drop. The data says it rises. Good detectives
+    update.
+  vo: {fileID: 0}
+  fallbackDuration: 4.8

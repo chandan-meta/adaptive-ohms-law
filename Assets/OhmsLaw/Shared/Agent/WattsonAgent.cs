@@ -28,7 +28,8 @@ namespace OhmsLaw
             public bool FromLearner => speaker == Speaker.You || speaker == Speaker.YouHeard;
         }
 
-        const int MaxTurns = 6, MaxQuestionLength = 300, MaxLog = 40, RecentLines = 3, MaxState = 1500, MaxLearner = 800;
+        // MaxState / MaxLearner / MaxTurnText are the proxy's own caps (index.js MAX_STATE, MAX_LEARNER, history turns).
+        const int MaxTurns = 6, MaxQuestionLength = 300, MaxLog = 40, RecentLines = 3, MaxState = 1500, MaxLearner = 800, MaxTurnText = 800;
         const float NarrationWait = 6f, ConfirmVoiceWait = 4f;
         static readonly Regex Sentence = new Regex(@"^\s*(.+?[.!?।…]+[""'’”)\]]*)(?=\s)", RegexOptions.Singleline);
 
@@ -59,6 +60,15 @@ namespace OhmsLaw
         static ProxyConfig Config => ModuleFlow.Instance ? ModuleFlow.Instance.proxy : null;
         static WattsonController Wattson => WattsonController.Active;
         static SceneAgentContext Context => Wattson ? Wattson.agentContext : null;
+        static WattsonActions.LiveBench Live => WattsonActions.LiveBench.Instance;
+
+        // An on-screen question, a prediction or a target activity is running: every answer is hint-only.
+        public static bool InActivity => WattsonActions.ActivityRule(Live, OnScreenQuestion().Length > 0).Length > 0;
+
+        // A saved FAQ answer (suggested question chip, offline answer) may be offered now: never during an activity, never
+        // naming the ohm before it is taught.
+        public static bool Offered(string question, DialogueLine answer) =>
+            answer && WattsonActions.SavedAnswerAllowed(Live, InActivity, question, answer.text);
 
         void Awake()
         {
@@ -144,7 +154,7 @@ namespace OhmsLaw
                 else
                 {
                     // While the proxy is down, the suggested questions answer from the local FAQ without retrying it.
-                    var saved = Offline && Context && Context.faq ? Context.faq.Find(question) : null;
+                    var saved = Offline ? Saved(question) : null;
                     if (saved) await SayOffline(saved, cancel);
                     else
                     {
@@ -189,17 +199,29 @@ namespace OhmsLaw
         }
 
         // No live answer: the saved FAQ answer when the question matches one, otherwise the offline line plus the app's
-        // guidance from the real bench state. Both are labelled "Offline answer".
+        // guidance from the real bench state. Both are labelled "Offline answer". During an activity there is no saved
+        // answer, and the offline line ("Try one of these clues!") gives way to a note that the puzzle is the learner's.
         async Awaitable Fallback(string question, CancellationToken cancel)
         {
-            var saved = Context && Context.faq ? Context.faq.Find(question) : null;
+            var saved = Saved(question);
             if (saved) { await SayOffline(saved, cancel); return; }
             var line = Config ? Config.offlineLine : null;
             string guidance = WattsonActions.Guidance();
+            if (InActivity)
+            {
+                line = null;
+                guidance = WattsonActions.OfflinePuzzle + (Live.Present ? " " + guidance : "");
+            }
             Add(Speaker.Offline, ((line ? line.text + " " : "") + guidance).Trim());
             SetState(State.Talking);
             if (line) await Voice(line.text, line.vo, line.fallbackDuration, cancel);
             await Voice(guidance, null, ReadingSeconds(guidance), cancel);
+        }
+
+        static DialogueLine Saved(string question)
+        {
+            var saved = Context && Context.faq ? Context.faq.Find(question) : null;
+            return Offered(question, saved) ? saved : null;
         }
 
         async Awaitable SayOffline(DialogueLine line, CancellationToken cancel)
@@ -218,7 +240,7 @@ namespace OhmsLaw
                 sceneId = context ? context.sceneId : "",
                 sceneTitle = context ? context.sceneTitle : "",
                 currentLine = speaking ? speaking.text : "",
-                covered = context ? context.covered : new string[0],
+                covered = context ? Covered(context.covered) : new string[0],
                 doNotSpoil = context ? context.doNotSpoil : new string[0],
                 history = history.ToArray(),
                 question = question,
@@ -265,19 +287,33 @@ namespace OhmsLaw
             return full.ToString();
         }
 
-        // The live state the AI must ground its answer in (WOW_PLAN.md section 6): never invent a reading.
+        // A scene's covered facts are written for the whole scene: Scene 12's name the ohm before S12_L14 has, Scene 10's
+        // quote 2 V → 0.4 A and "the current increases" before row 2 is recorded. WattsonActions.FactAllowed keeps those out.
+        static string[] Covered(string[] facts) =>
+            facts == null ? new string[0] : Array.FindAll(facts, fact => WattsonActions.FactAllowed(Live, fact));
+
+        // The live state the AI must ground its answer in (WOW_PLAN.md section 6): never invent a reading. The app's rules
+        // ("[App rule: ...]", which the proxy prompt follows) come right after the scene, so the length cap never cuts them;
+        // the recent scripted lines come last.
         string DescribeState()
         {
             var parts = new List<string>();
             var context = Context;
+            var live = Live;
             string sceneId = context ? context.sceneId : SceneManager.GetActiveScene().name;
-            int scene = WattsonActions.SceneNumber(sceneId);
             parts.Add("Scene " + sceneId + (context && !string.IsNullOrEmpty(context.sceneTitle) ? " (" + context.sceneTitle + ")" : ""));
+            string question = OnScreenQuestion();
+            parts.Add(WattsonActions.Rule("the app itself changes the voltage when the learner asks; never say you changed, set or measured anything"));
+            string activity = WattsonActions.ActivityRule(live, question.Length > 0);
+            if (activity.Length > 0) parts.Add(activity);
+            string oneVolt = WattsonActions.OneVoltRule(live);
+            if (oneVolt.Length > 0) parts.Add(oneVolt);
+            parts.Add(WattsonActions.ResistanceState(live));
+
             parts.Add(SceneDirector.Gate != null ? "Learner activity in progress: " + SceneDirector.Gate : "No learner activity right now; the story waits while the learner talks to you");
             string prompt = ScreenText("SafeArea/Prompt");
             if (prompt.Length > 0) parts.Add("On-screen instruction: " + prompt);
-            string question = OnScreenQuestion();
-            if (question.Length > 0) parts.Add("On-screen question the learner is answering (give a hint, never the answer): " + question);
+            if (question.Length > 0) parts.Add("On-screen question the learner is answering: " + question);
 
             var rig = CircuitRig.Active;
             if (rig)
@@ -285,8 +321,8 @@ namespace OhmsLaw
                 var bench = new StringBuilder("Bench: source set to " + WattsonActions.Volts(rig.state.voltage) + " V, key " + (rig.state.keyClosed ? "closed" : "open"));
                 bench.Append(rig.ammeterPlaced ? ", ammeter reads " + WattsonActions.Amps(rig.Amps) + " A" : ", ammeter not connected yet");
                 bench.Append(rig.voltmeterPlaced ? ", voltmeter reads " + WattsonActions.Volts(rig.Volts) + " V" : ", voltmeter not connected yet");
-                bench.Append(rig.controlsOpen ? ". The learner may change the voltage now (battery slider, or by asking you; whole volts 0-5 V)" : ". The voltage controls are locked right now");
-                if (rig.targetAmps >= 0) bench.Append(". Target activity: the learner must make the ammeter read " + WattsonActions.Amps(rig.targetAmps) + " A by choosing the voltage (hint the reasoning, never say the voltage)");
+                bench.Append(rig.controlsOpen ? ". The learner may change the voltage now (battery slider, or by asking you; whole volts 0-" + WattsonActions.Volts(SceneDirector.ControlsMax) + " V)" : ". The voltage controls are locked right now");
+                if (rig.targetAmps >= 0) bench.Append(". Target activity: the learner must make the ammeter read " + WattsonActions.Amps(rig.targetAmps) + " A by choosing the voltage");
                 if (!Mathf.Approximately(rig.PreviousVoltage, rig.state.voltage)) bench.Append(". Previous source setting: " + WattsonActions.Volts(rig.PreviousVoltage) + " V");
                 parts.Add(bench.ToString());
                 if (WattsonActions.LastChange.Length > 0 && Mathf.Approximately((float)WattsonActions.LastChangeVolts, rig.state.voltage)) parts.Add(WattsonActions.LastChange.TrimEnd('.'));
@@ -302,11 +338,7 @@ namespace OhmsLaw
                 parts.Add("Observation table rows recorded: " + string.Join("; ", recorded));
             }
             else parts.Add("No observation table rows recorded yet");
-            parts.Add(scene >= 12
-                ? "Resistance has been taught: the nichrome wire XY has R = " + WattsonActions.Volts(data ? data.resistance : 5) + " ohms"
-                : "Resistance and ohms have not been taught yet: do not mention them");
             if (recentLines.Count > 0) parts.Add("Wattson's recent scripted lines: " + string.Join(" / ", recentLines));
-            parts.Add("The app itself changes the voltage when the learner asks; never say you changed, set or measured anything");
 
             string state = string.Join(". ", parts) + ".";
             return Cap(state, MaxState);
@@ -398,7 +430,7 @@ namespace OhmsLaw
         {
             // Memory only, last few turns, never written to disk. Lab-controls turns stay out: the live state carries them.
             history.Add(new ChatTurn { role = "user", text = question });
-            history.Add(new ChatTurn { role = "assistant", text = answer });
+            history.Add(new ChatTurn { role = "assistant", text = Cap(answer, MaxTurnText) }); // the proxy keeps no more of a turn
             while (history.Count > MaxTurns * 2) history.RemoveRange(0, 2);
         }
 

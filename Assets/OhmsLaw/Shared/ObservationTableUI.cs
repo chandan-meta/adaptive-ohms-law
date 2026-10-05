@@ -50,14 +50,23 @@ namespace OhmsLaw
         static Color Shade(Color c, float k) => new Color(c.r * k, c.g * k, c.b * k, 0.95f);
         static float X(int column) { float x = 0; for (int c = 0; c < column; c++) x += Columns[c]; return x; }
 
+        // Record / ShowRows may run before Awake (a builder keeps the table inactive until its shot): the record keeps, and
+        // Awake builds the cells around it.
+        void EnsureRecords()
+        {
+            if (recordedVolts != null) return;
+            int n = Data.Count;
+            recordedVolts = new float[n];
+            recordedAmps = new float[n];
+            for (int r = 0; r < n; r++) recordedVolts[r] = recordedAmps[r] = float.NaN;
+        }
+
         void Awake()
         {
             var canvas = GetComponent<Canvas>();
             if (canvas && !canvas.worldCamera) canvas.worldCamera = Camera.main;
             int n = Data.Count;
-            recordedVolts = new float[n];
-            recordedAmps = new float[n];
-            for (int r = 0; r < n; r++) recordedVolts[r] = recordedAmps[r] = float.NaN;
+            EnsureRecords();
             cells = new TextMeshProUGUI[n, 3];
             cellBack = new Image[n, 3];
             tags = new TextMeshProUGUI[n];
@@ -133,6 +142,7 @@ namespace OhmsLaw
         public void Record(int row, float volts, float amps)
         {
             if (row < 0 || row >= Data.Count) return;
+            EnsureRecords();
             recordedVolts[row] = volts;
             recordedAmps[row] = amps;
             rows = Mathf.Max(rows, row + 1);
@@ -155,7 +165,7 @@ namespace OhmsLaw
 
         public void Highlight(int row, bool on, string tag = "")
         {
-            if (row < 0 || row >= Data.Count) return;
+            if (row < 0 || row >= Data.Count || cellBack == null) return; // no cells before Awake
             for (int c = 0; c < 3; c++) cellBack[row, c].color = on ? RowHighlight : Rest;
             tags[row].text = on ? tag : "";
         }
@@ -167,6 +177,7 @@ namespace OhmsLaw
 
         public void GlowColumn(int column, bool on)
         {
+            if (cellBack == null) return; // no cells before Awake (Scene 13 keeps the table hidden)
             var color = on ? ColumnGlow : Rest;
             for (int r = 0; r < Data.Count; r++) cellBack[r, column].color = color;
         }

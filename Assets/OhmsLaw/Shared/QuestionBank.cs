@@ -51,7 +51,9 @@ namespace OhmsLaw
         // Asked before the 2 V step, graded at S10_Record2 against the meter (no retry: the experiment answers it).
         public static readonly Question S10Predict2V = new Question
         {
-            id = "S10_Predict2V", concept = Concepts.Relationship, width = 740f, // clear of the voltmeter in Bench Close
+            // 700 px docked right (left edge ~1172 px): the voltmeter's readout plate in Bench Close spans ~968-1150 px
+            // (slot x 0.12 m, readout 0.27 m up, 2.0 m from BenchCloseCamC at 36°; "0.0 V" plate ~0.22 m wide); 740 covered its edge.
+            id = "S10_Predict2V", concept = Concepts.Relationship, width = 700f,
             text = "At 1 V the ammeter read 0.20 A. What will it read at 2 V?",
             options = new[]
             {

@@ -42,8 +42,8 @@ namespace OhmsLaw.Editor
         public static Vector3 StudyDeskCamC => new Vector3(0.05f, 1.5f, -2.05f);
         public static Vector3 StudyDeskLookC => new Vector3(0.05f, 0.98f, 0.15f);
         public const float StudyDeskFov = 46f;                                         // bench 10-87 % across, Ohm's head top at 89 %
-        public static Vector3 WattsonStudyC => new Vector3(-0.78f, 1.22f, -1.0f);     // in front of the desk's left half in Study Wide (48 %), under the slate
-        public static Vector3 TransformPointC => new Vector3(-0.9f, 1.35f, -0.35f);   // beside the desk's left end in Study Desk (17 %)
+        public static Vector3 WattsonStudyC => new Vector3(0.78f, 1.18f, -0.55f);     // right of Ohm over the desk's right half in Study Wide (~70 %): never between the lens and his face
+        public static Vector3 TransformPointC => new Vector3(-0.95f, 0.9f, -0.35f);   // beside the desk's left end in Study Desk (13 %), below the slate's chalk
         // The chalk slate: left of the desk in front of the fireplace (the fire still glows below it), turned to Study Wide,
         // 3.0 m from that lens. The board's UV space at x0.6 (a 1.92 x 0.9 m slate) keeps the two clues' chalk at the pixel
         // sizes they were set for on the classroom board (36 px headlines, 24 px question).

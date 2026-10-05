@@ -1,12 +1,15 @@
+using TMPro;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
 namespace OhmsLaw.Editor
 {
-    // Scene 11: Turn Data into a Graph. Points in a straight line through the origin; V ∝ I.
+    // Scene 11: Turn Data into a Graph. Points in a straight line through the origin; V ∝ I; then the learner uses the
+    // line (S11_Target: make the ammeter read 0.60 A with the battery slider or Ask Wattson, live readings above the graph).
     // Classroom frame: the observation table and the V-I graph sit on the teaching board (Boards kit), the Boards
     // camera holds the whole scene (match-cut from Scene 10, hand-off to Scene 12 on the same shot) and Wattson
-    // teaches from beside the board. The graph effects are built here on top of the canvases' own layout.
+    // teaches from TableSideC beside the board's left rail, where Scene 10 leaves him and Scene 12 picks him up.
+    // The graph effects are built here on top of the canvases' own layout.
     public class Scene11Builder : SceneBuilderBase
     {
         public override string SceneId => "Scene11";
@@ -14,7 +17,13 @@ namespace OhmsLaw.Editor
         public override string Title => "Turn Data into a Graph";
 
         // Heights above the chalk face: the canvases sit at 0.006, the card over them, the effects over the card.
-        const float GlowLift = 0.018f, CardLift = 0.026f, FxLift = 0.03f;
+        // GlowLift and CardLift are public: Scene12Builder rebuilds the "Graph Line Glow" strand and the card for its match-cut.
+        public const float GlowLift = 0.018f, CardLift = 0.026f;
+        const float FxLift = 0.03f;
+        // "V ∝ I" at the top of the line, right of it (graph coordinates): Scene 12 rebuilds the card at this exact spot.
+        public const float CardAmps = 1.15f, CardVolts = 4.4f;
+        // The live readings strip sits in the band above the graph's chalk frame (board v ≈ 0.87-0.98, gate contract).
+        const float ReadingsV = 0.92f;
         const float ColumnsFlight = 1.2f;      // the cells' travel to the axes (the beat's Visual is 1.5 s)
         const float LineSweep = 0.9f;          // the head's run from the origin to the end of the line (Visual 1.0 s)
         // ObservationTableUI lays its V and I columns out 380 and 280 px wide (its private Columns): the digits' centres.
@@ -30,6 +39,17 @@ namespace OhmsLaw.Editor
             L("S11_L03", "And it keeps happening.", 1.8f);
             L("S11_L04", "For this conductor that is the nichrome wire, while its temperature remains constant...the potential difference across it is directly proportional to the current flowing through it.", 9.0f);
             L("S11_L05", "But there's still one clue we haven't explained.", 2.8f);
+
+            // S11_Target (gate contract, WOW_PLAN §8). Every value a line quotes is guaranteed by the gate: _OK plays only on a
+            // hit (0.60 A is 3 V on this wire, whole volts only), _X while Wattson sets the target himself. _H also serves the
+            // bonus round and the 15 s idle hint, so it names no target.
+            L("S11_Target_GO", "Your turn: make the ammeter read 0.60 amperes. Use the slider, or ask me!", 4.4f, proposed: true);
+            L("S11_Target_H", "Each volt adds 0.20 amperes. So how many volts reach your target?", 3.8f, proposed: true);
+            L("S11_Target_X", "Let me show you: three steps of 0.20 make 0.60. So, 3 volts.", 3.8f, proposed: true);
+            L("S11_Target_OK", "3 volts, 0.60 amperes. Your point sits right on the line!", 3.4f, proposed: true);
+            L("S11_Target_GO2", "Bonus round, detective: now make it read 0.80 amperes.", 3.0f, proposed: true);
+            L("S11_Target_X2", "Watch: four steps of 0.20 make 0.80. So, 4 volts.", 3.2f, proposed: true);
+            L("S11_Target_OK2", "4 volts, 0.80 amperes. Every volt, another 0.20. The pattern holds!", 3.8f, proposed: true);
         }
 
         protected override SceneAgentContext Agent() => Context(
@@ -47,12 +67,21 @@ namespace OhmsLaw.Editor
         protected override void Stage()
         {
             ClassroomSet(modernBench: true, audience: false);
-            Wattson(BoardsWattsonC, BoardsCamC); // where Scene 10 leaves him: beside the board, so the match-cut holds
+            // Scene 10's "Table Side" spot, beside the board's left rail and clear of the table's V column: the 10 -> 11 -> 12
+            // match-cuts do not pop him, and he stays here all scene (the kit's "Table Point" marks it).
+            Wattson(TableSideC, BoardsCamC);
             director.matchCutFrom = "Scene10_Experiment";
             director.rig = Rig(assembled: true, keyClosed: true, voltage: 5);
+            director.rig.showPath = false; // off since Scene 9's "rig.path 0": plain cables wherever the bench shows
             Boards(withTable: true, withGraph: true);
             data = BlockoutAssets.ExperimentData();
             GraphMaterials();
+
+            // Scene 10's last frame has its chalk discovery beside rows 1-2 (Scene10Builder's own text, UV, cap and
+            // alignment): here at frame 0, settled (no pop on the cut); the graph takes its place on the first beat.
+            var discovery = Board(Scene10Builder.DiscoveryText, palette.current, Scene10Builder.DiscoveryUV, BoardsShotTitleCap, align: TextAlignmentOptions.Left, name: "Discovery");
+            discovery.SetActive(true);
+            foreach (var pop in discovery.GetComponentsInChildren<PopIn>(true)) { pop.fromScale = 1f; pop.overshoot = 1f; }
 
             // Scene 10 has only the table on the board, so the graph is not there at the cut: it pops onto the board
             // in the first beat (soft PopIn on the canvas and its chalk-framed panel).
@@ -70,20 +99,25 @@ namespace OhmsLaw.Editor
             GraphPulse();
             Marker("Graph Pair", GraphPoint((data.currents[0] + data.currents[1]) / 2, (data.voltages[0] + data.voltages[1]) / 2, FxLift));
 
-            // V ∝ I: the formula glows beside the top of the line (under its end, right of the last points, clear of
-            // their labels and of the highlight tags), inside the graph panel, lying on the board like the canvases
-            // (a Face() toward the camera would tilt its far edge into the slab).
-            var card = Card("Proportional", "V ∝ I", palette.voltage, null, GraphPoint(1.15f, 3.3f, CardLift), BoardsShotTitleCap);
+            // V ∝ I: the formula glows at the top of the line, the line's destination (right of it, under its end, clear of
+            // point 5's up-left label), inside the graph panel, lying on the board like the canvases (a Face() toward the
+            // camera would tilt its far edge into the slab). Scene 12 rebuilds it identically (settled, no sparks).
+            var card = Card("Proportional", "V ∝ I", palette.voltage, null, GraphPoint(CardAmps, CardVolts, CardLift), BoardsShotTitleCap, WorldText.Look.Glow);
             card.transform.rotation = BoardSurface(GraphBoardUV).rotation;
+
+            // Where Wattson points as S11_Target starts: the live readings strip above the graph (the I value and the target).
+            // Not at the line itself: pointing at the 0.60 A point would give the answer away.
+            Marker("Readings Point", BoardSurface(new Vector2(GraphBoardUV.x, ReadingsV), FxLift).position);
         }
 
         protected override void Beats()
         {
             Shot("Boards");
             Cue("table.rows 5", "match-cut from Scene 10 with the full table on screen");
-            Cue("table.highlight 0 1", "rows 1 and 2 still highlighted from Scene 10's discovery");
-            Gesture(WattsonController.Gesture.Point, point: "Observation Table", moveTo: "Boards Point");
+            Cue("table.highlight 0 1", "rows 1 and 2 still highlighted from Scene 10's discovery; its V × 2 → I × 2 chalk still beside them");
+            Gesture(WattsonController.Gesture.Point, point: "Observation Table", moveTo: "Table Point");
             Wait(0.5);
+            Hide("Board Discovery"); // the chalk makes way for the graph on the same frame
             Show("Graph Panel");
             Show("Graph");
             Cue("table.clear", "the table hands its highlights over to the graph");
@@ -114,10 +148,38 @@ namespace OhmsLaw.Editor
             Line("S11_L03");
             Hide("[VFX] graph pulse");
 
-            Gesture(WattsonController.Gesture.Point, point: "Card Proportional"); // at the end of the line, where V ∝ I appears
+            Gesture(WattsonController.Gesture.Point, point: "Card Proportional"); // at the top of the line, where V ∝ I appears
+            // The state S11_L04 starts from, restated (no-ops on a straight run): REPLAY of this line from the activity's
+            // run-up below must not bring the card back over a live point.
+            Cue("graph.live 0", "", 0.05);
+            Cue("readings 0", "", 0.05);
+            Cue("graph.highlight 0 1", "", 0.05);
+            Hide("Card Proportional", 0.05);
             Line("S11_L04", 0.2);
             Show("Card Proportional", -3.2); // on "...directly proportional..."
-            Visual("V ∝ I glows at the end of the line", 0.8);
+            Visual("V ∝ I glows at the top of the line", 0.8);
+
+            // S11_Target: the learner uses the line. The pair highlights go (a clean plot to read; Scene 12 does not rebuild
+            // them) and the card steps aside: the bench is still at Scene 10's 5 V, so the live point starts on point 5 and
+            // its "now" label (right-below) would sit on the card's ∝. The readings strip and the live point come up on the
+            // Timeline (the gate would turn them on too), so a replay or skip lands on the same state.
+            Cue("graph.clear", "the I → 2I / V → 2V highlights go");
+            Hide("Card Proportional");
+            Cue("readings 1", "live V / I strip in the band above the graph's chalk frame: 5.0 V, 1.00 A (the bench as Scene 10 left it)");
+            Cue("graph.live 1", "the amber 'now' ring lands on point 5 (1.00, 5.0)");
+            Gesture(WattsonController.Gesture.Point, point: "Readings Point"); // "there": the strip as it appears
+            Visual("The live readings strip appears above the graph; the 'now' ring sits on the last point; Wattson points at the strip", 1.2);
+            // While the learner works he faces them, arms down: from his spot left of the table a held point at the graph
+            // would lie across the table's V column for the whole activity.
+            Gesture(WattsonController.Gesture.Idle);
+            Cue("spotlight", "the Ask Wattson button pulses once as he offers help (\"...or ask me!\")");
+            Gate("S11_Target", "Make the ammeter read 0.60 A with the battery slider (bottom-left, created and removed by the gate) or Ask Wattson. The strip shows V, I and the target; the 'now' ring and its ghost move on the graph. A held miss: '▲ more volts' / '▼ fewer volts' and S11_Target_H (once; 15 s idle also); 2nd miss: Wattson sets 3 V with S11_Target_X while point 3 lights. Hit: S11_Target_OK. Confident(Graph) after a first-time hit: bonus 0.80 A (S11_Target_GO2 / _X2 / _OK2). autoAnswer sets the target.",
+                "S11_Target_GO", "S11_Target_H", "S11_Target_X", "S11_Target_OK", "S11_Target_GO2", "S11_Target_X2", "S11_Target_OK2");
+            // The instruments go and V ∝ I comes back: the exit frame is the board as it was after S11_L04 (Scene 12's match-cut).
+            Cue("graph.live 0", "the live point and its ghost go");
+            Cue("readings 0", "the readings strip goes (it shares the band above the graph with Scene 12's cards)");
+            Show("Card Proportional", 0.2);
+            Wait(0.4);
             Gesture(WattsonController.Gesture.Thinking);
             Line("S11_L05", 0.2);
             Cue("handoff", "graph and table stay for Scene 12");

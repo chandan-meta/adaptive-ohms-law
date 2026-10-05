@@ -23,7 +23,8 @@ namespace OhmsLaw
             info.rectTransform.offsetMax = new Vector2(-24, -20);
             info.lineSpacing = 8f;
             Button(0, 0, "NEXT SCENE", () => ModuleFlow.Instance.CompleteScene());
-            Button(1, 0, "REPLAY LINE", () => { if (SubtitleTrack.LastLineStart >= 0) ModuleFlow.Instance.JumpTo(SubtitleTrack.LastLineStart); });
+            // Not during a gate (CinematicControlsUI REPLAY): the Gate row shows why.
+            Button(1, 0, "REPLAY LINE", () => { if (SceneDirector.Gate == null && SubtitleTrack.LastLineStart >= 0) ModuleFlow.Instance.JumpTo(SubtitleTrack.LastLineStart); });
             autoLabel = Button(0, 1, "", () => ReviewMode.autoAnswer = !ReviewMode.autoAnswer);
             speedLabel = Button(1, 1, "", () => ReviewMode.timeScale = ReviewMode.timeScale > 1 ? 1 : 2);
             root.gameObject.SetActive(false);

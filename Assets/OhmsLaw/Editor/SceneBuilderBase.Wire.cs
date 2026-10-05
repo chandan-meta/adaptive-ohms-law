@@ -132,8 +132,10 @@ namespace OhmsLaw.Editor
             // Each terminal is named in words as well as by its sign and colour: "− negative" under the − disc on the block's
             // front; "+ positive" on the + block's front beside the conduit's entry (its disc sits low on the side face,
             // just over the floor), above Scene 6's gauge and right of the CURRENT card. Dark backings keep them readable.
-            WireTerminalLabel(section.transform, "−", "− negative", MinusTint, MinusBlock + new Vector3(0, -0.85f, -0.96f), terminalsOn);
-            WireTerminalLabel(section.transform, "+", "+ positive", PlusTint, PlusBlock + new Vector3(-0.3f, 0.35f, -0.86f), terminalsOn);
+            // Labels sit well in front of the blocks: Face() tilts them toward the lens, and at the old depth the tilted plane's
+            // left end dipped behind the block face, which swallowed the glyph after the sign ("egative", "ositive").
+            WireTerminalLabel(section.transform, "−", "− negative", MinusTint, MinusBlock + new Vector3(0, -0.85f, -1.3f), terminalsOn);
+            WireTerminalLabel(section.transform, "+", "+ positive", PlusTint, PlusBlock + new Vector3(-0.3f, 0.35f, -1.2f), terminalsOn);
 
             // Electrons: the carriers, two of them traced; the lattice ions apart, drawn first so the electrons stay on top.
             wire.carriers = Particles("Carriers", section.transform, BlockoutAssets.ChargeMaterial(ElectronTint), 64);

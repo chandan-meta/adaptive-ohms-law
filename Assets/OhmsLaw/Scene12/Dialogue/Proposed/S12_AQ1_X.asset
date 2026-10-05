@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
   id: S12_AQ1_X
   speaker: WATTSON
-  text: 'Watch the meters: 2 volts, then 4 volts. The current doubles too.'
-  ttsText: 'Watch the meters: 2 volts, then 4 volts. The current doubles too.'
+  text: 'Watch the readings: 2 volts gives 0.40 amperes, 4 volts gives 0.80.'
+  ttsText: 'Watch the readings: 2 volts gives 0.40 amperes, 4 volts gives 0.80.'
   vo: {fileID: 0}
-  fallbackDuration: 3.8
+  fallbackDuration: 4.8

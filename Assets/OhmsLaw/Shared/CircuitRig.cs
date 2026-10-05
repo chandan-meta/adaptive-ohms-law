@@ -230,7 +230,8 @@ namespace OhmsLaw
             // The series loop reads as one path once the ammeter is in it.
             var palette = UI.Theme;
             Color lit = palette ? palette.current : new Color(1f, 0.72f, 0.19f);
-            Color path = ammeterPlaced && showPath ? lit : Color.clear;
+            Color path = Color.clear;
+            if (ammeterPlaced && showPath) { path = lit; if (!state.keyClosed) path.a *= 0.4f; } // open key: the route is marked, not lit; full on CloseKey (additive SrcAlpha, so alpha is brightness)
             Tint(currentPath, path);
             Tint(currentPathReturn, path);
             if (ammeterLeads && ammeterLeads.activeSelf != ammeterPlaced) ammeterLeads.SetActive(ammeterPlaced);

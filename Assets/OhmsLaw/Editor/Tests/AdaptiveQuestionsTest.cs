@@ -18,6 +18,7 @@ namespace OhmsLaw.Editor
             passed = failed = 0;
             var savedConcepts = new Dictionary<string, LearnerSession.ConceptRecord>(LearnerSession.concepts);
             var savedAnswers = new List<string>(LearnerSession.answers);
+            string savedPrediction = LearnerSession.prediction, savedPrediction2V = LearnerSession.s10Prediction2V;
             try
             {
                 Bank();
@@ -29,6 +30,7 @@ namespace OhmsLaw.Editor
                 StrugglingAndConfident();
                 Prediction();
                 Target();
+                SayGateConditions();
             }
             catch (System.Exception e) { Check("no exception", false, e.ToString()); }
             finally
@@ -37,6 +39,8 @@ namespace OhmsLaw.Editor
                 foreach (var pair in savedConcepts) LearnerSession.concepts[pair.Key] = pair.Value;
                 LearnerSession.answers.Clear();
                 LearnerSession.answers.AddRange(savedAnswers);
+                LearnerSession.prediction = savedPrediction;
+                LearnerSession.s10Prediction2V = savedPrediction2V;
             }
             string summary = $"Adaptive Questions: {passed} passed, {failed} failed";
             if (failed == 0) Debug.Log("PASS " + summary); else Debug.LogError("FAIL " + summary);
@@ -174,6 +178,56 @@ namespace OhmsLaw.Editor
             Fresh();
             new TargetRun("S11_Target", Concepts.Graph, 0.60f).Judge(3f, 0.60f);
             Check("target: hit first time makes the learner confident (S11 bonus target)", LearnerSession.Confident(Concepts.Graph));
+        }
+
+        // Say gates pick a branch line with LearnerSession.Holds (the part of a line id after "_If_").
+        static void SayGateConditions()
+        {
+            Fresh();
+            LearnerSession.prediction = "";
+            LearnerSession.s10Prediction2V = "";
+            Check("say gate: nothing recorded, no condition holds",
+                !LearnerSession.Holds("S05_Drift_B") && !LearnerSession.Holds("Struggling_ElectronDrift") && !LearnerSession.Holds("") && !LearnerSession.Holds("S05_Drift_"));
+
+            var drift = new QuestionRun(QuestionBank.S05Drift);
+            drift.Answer(1); // B: electrons flow + to −
+            drift.Answer(0); // then right
+            Check("say gate: a wrong pick counts after it was corrected (S05_Drift_B), other letters do not",
+                LearnerSession.Holds("S05_Drift_B") && LearnerSession.Holds("S05_Drift_A") && !LearnerSession.Holds("S05_Drift_C"),
+                string.Join(",", LearnerSession.answers));
+            Check("say gate: a letter only counts at its own gate", !LearnerSession.Holds("S12_Ratio_B") && !LearnerSession.Holds("S05_B"));
+
+            // The gate itself: which line it speaks, and which gates count as say gates.
+            var made = new List<Object>();
+            DialogueLine Made(string id) { var l = ScriptableObject.CreateInstance<DialogueLine>(); l.id = id; made.Add(l); return l; }
+            InteractionGate Gate(string id, params DialogueLine[] lines) { var g = ScriptableObject.CreateInstance<InteractionGate>(); g.gateId = id; g.lines = lines; made.Add(g); return g; }
+            try
+            {
+                var plain = Made("S09_Conventional");
+                var fix = Made("S09_Conventional_If_S05_Drift_B");
+                var other = Made("S09_Conventional_If_S05_Drift_C");
+                var say = Gate("S09_Conventional", other, fix, plain);
+                Check("say gate: recognised; the first _If_ line that holds wins, in the gate's order",
+                    SceneDirector.IsSayGate(say) && SceneDirector.SayGateLine(say) == fix);
+                Check("say gate: no _If_ line holds -> the plain line; none listed -> nothing",
+                    SceneDirector.SayGateLine(Gate("S09_Conventional", other, plain)) == plain && SceneDirector.SayGateLine(Gate("S09_Conventional", other)) == null);
+                Check("say gate: a gate listing a line of another id is not a say gate (unknown gates still warn)",
+                    !SceneDirector.IsSayGate(Gate("S09_Typo", plain)) && !SceneDirector.IsSayGate(Gate("S09_Conventional")) && !SceneDirector.IsSayGate(Gate("S09_Conventional", Made("S09_L01"), plain)));
+            }
+            finally { foreach (var o in made) Object.DestroyImmediate(o); }
+
+            LearnerSession.prediction = "C";
+            LearnerSession.s10Prediction2V = "B";
+            Check("say gate: predictions count (S06_Prediction_C, S10_Predict2V_B before it is graded)",
+                LearnerSession.Holds("S06_Prediction_C") && !LearnerSession.Holds("S06_Prediction_A") && LearnerSession.Holds("S10_Predict2V_B") && !LearnerSession.Holds("S10_Predict2V_A"));
+
+            new QuestionRun(QuestionBank.S12Ratio).Answer(1);
+            new QuestionRun(QuestionBank.S12Ratio).Answer(2);
+            Check("say gate: Struggling_/Confident_ by Concepts field name",
+                LearnerSession.Holds("Struggling_Resistance") && !LearnerSession.Holds("Confident_Resistance") &&
+                !LearnerSession.Holds("Struggling_ElectronDrift") && !LearnerSession.Holds("Struggling_NoSuchConcept"));
+            Check("Concepts.Named maps every field name", Concepts.Named("ElectronDrift") == Concepts.ElectronDrift && Concepts.Named("OhmsLaw") == Concepts.OhmsLaw &&
+                Concepts.Named("Relationship") == Concepts.Relationship && Concepts.Named("Graph") == Concepts.Graph && Concepts.Named("nope") == null);
         }
     }
 }

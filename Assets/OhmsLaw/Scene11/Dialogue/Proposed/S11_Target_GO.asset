@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: S11_Target_GO
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: S11_Target_GO
+  speaker: WATTSON
+  text: 'Your turn: make the ammeter read 0.60 amperes. Use the slider, or ask me!'
+  ttsText: 'Your turn: make the ammeter read 0.60 amperes. Use the slider, or ask
+    me!'
+  vo: {fileID: 0}
+  fallbackDuration: 4.4

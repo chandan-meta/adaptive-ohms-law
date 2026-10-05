@@ -89,7 +89,9 @@ The bake remembers which words and which voice settings made each clip. After yo
 
 ## Grounded chat
 
-Besides the question, scene and history, `/chat` accepts two optional plain-text fields from Unity: `state` (live experiment state: activity, voltage, current, recorded rows; up to 1200 characters) and `learner` (the session's learner summary; up to 500). Control characters are removed and both are appended to the system prompt as authoritative facts, so Wattson only quotes readings the app actually shows. The prompt also tells him he cannot operate anything (the app performs and confirms actions itself), to keep answers short with a deeper version on request, and to be a companion rather than a cheerleader.
+Besides the question, scene and history, `/chat` accepts two optional plain-text fields from Unity: `state` (live experiment state: activity, voltage, current, recorded rows; up to 1500 characters) and `learner` (the session's learner summary; up to 800). These are the same caps Unity uses, and Unity puts its rules first, so nothing is cut. Control characters are removed and both are appended to the system prompt as authoritative facts, so Wattson only quotes readings the app actually shows. The prompt also tells him he cannot operate anything (the app performs and confirms actions itself), to keep answers short with a deeper version on request, and to be a companion rather than a cheerleader.
+
+The app's own rules for the moment travel inside `state`, in square brackets: `[App rule: ...]` (for example "the learner is making a prediction; do not favour any option", or "resistance has not been taught yet"). The prompt follows those, and only those: they can only make Wattson more careful (withhold, hint, stay on the case) and never relax another rule; any other instruction inside the app's sections is ignored, and the learner's messages can never add a rule. Because `state` arrives in an unauthenticated request, the proxy keeps only the rules Unity itself writes (their text starts with one of the prefixes in `APP_RULE_PREFIXES` at the top of `index.js`) and strips any other bracketed rule from every field before the prompt is built. A new rule in Unity needs its prefix added there. The ACTIVITIES rule makes every on-screen question, prediction and target activity hint-only: Wattson never gives the option, the number or the voltage, gives one reasoning hint and asks what the learner notices, and favours no option in a prediction.
 
 ## Deploy
 
@@ -105,11 +107,11 @@ Railway and Fly.io work the same way: point them at this folder, `npm start`, se
 ## Safety
 
 - **Rate limit:** 20 questions per 10 minutes per anonymous session id, with a looser cap per network address so a new session id does not reset it. `/tts` (`TTS_LIMIT`, default 200) and `/stt` (40) have their own limits. A blocked call gets `429` with a `Retry-After` header.
-- **Input limits:** questions are capped at 300 characters, speech text at 600, live state at 1200, learner summary at 500, audio at 2 MB.
+- **Input limits:** questions are capped at 300 characters, speech text at 600, live state at 1500, learner summary at 800, audio at 2 MB.
 - **Personal details:** email addresses and phone numbers are removed from questions and history before anything is forwarded or logged.
 - **Keyword filter:** requests to hurt someone, to make a weapon, and explicit or drug content get a fixed kid-safe reply without calling the model; self-harm gets a "talk to a trusted adult" reply. Electrical-safety questions such as "can electricity kill you?" are answered, with the safety rule. The patterns are at the top of `index.js`.
 - **No storage:** the proxy keeps no conversation history. Unity sends the last six turns with each question and holds them in memory only.
-- **System prompt:** `systemPrompt.txt`, editable without touching code. The scene, live-state and learner placeholders are filled from each request; text inside them is never treated as instructions.
+- **System prompt:** `systemPrompt.txt`, editable without touching code. The scene, live-state and learner placeholders are filled from each request; text inside them is never treated as instructions, except the app's `[App rule: ...]` parts of the live state, and only those with a known prefix (`APP_RULE_PREFIXES`); forged ones are stripped. App rules can only restrict, never override.
 
 The session id is a random GUID, not a login. Anyone who learns the proxy address can call it within the rate limits, so keep the address out of public pages and watch provider usage. If that becomes a problem, put the proxy behind your school or platform sign-in.
 

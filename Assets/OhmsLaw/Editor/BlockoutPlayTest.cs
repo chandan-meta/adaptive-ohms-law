@@ -23,6 +23,31 @@ namespace OhmsLaw.Editor
         // Screenshots wait for UI fades (subtitle box, MCQ panel: UIFade 0.25 s) so the picture shows them at full alpha.
         static readonly List<(float due, string what)> pending = new List<(float, string)>();
         const float LineShotDelay = 0.4f, GateShotDelay = 0.6f;
+
+        // Extra review frames, `delay` Timeline seconds after an event: the first `what` in that scene's Timeline that comes
+        // at or after the first `after` ("" = from the start). Events are the Timeline's cue commands as the builders write
+        // them ("show Drift Arrow", "rig.voltage 2", "appear 0.7 AMMETER") and its camera shots as "shot <camera>". Timeline
+        // time, so a gate's hold or a 2x run moves the frame with the beat. A rule whose events are missing shoots nothing.
+        static readonly (string scene, string after, string what, float delay)[] Captures =
+        {
+            ("Scene05", "", "show Card Terminal Label +", 1.0f),     // both terminals lit and labelled
+            ("Scene05", "", "show Drift Arrow", 1.0f),               // the drift confirmed after S05_Drift
+            ("Scene08", "", "appear 0.7 AMMETER", 0.4f),             // the transformation: each swap mid-way (old out, new in)
+            ("Scene08", "", "appear 0.7 cells / controllable DC source", 0.4f),
+            ("Scene08", "", "appear 0.7 NICHROME WIRE — XY", 0.4f),
+            ("Scene08", "", "appear 0.7 switch / key", 0.4f),
+            ("Scene08", "", "glide 0.9 Bench", 0.5f),                // the desk becoming the bench
+            ("Scene08", "", "look 2.8 classroom", 0.9f),             // the room sweep, twice
+            ("Scene08", "", "look 2.8 classroom", 2.0f),
+            ("Scene12", "", "rig.voltage 2", 2.5f),                  // inside the wire at 2 V: the counter at 4
+            ("Scene12", "lab", "shot Bench Wide", 1.2f),             // back out of the wire, on the bench (2.0 V / 0.40 A)
+            ("Scene13", "", "fx Title Ignite", 0.9f),                // OHM'S LAW lit mid-sweep
+            ("Scene13", "", "shot Question", 1.1f),                  // the Question frame just before the AQ2 panel
+            ("Scene13", "", "shot Apply", 1.5f),                     // the Apply frame before the gate: line, live point, strip, meters, V = IR
+            ("Scene13", "", "shot Wattson", 1.4f),                   // the closing frame with Title Back / Law Back
+        };
+        static readonly List<(double due, string what)> captures = new List<(double, string)>();
+        static PlayableDirector capturesFor;
         static int shotIndex;
         static string currentScene = "", lastGate;
         static double lastTime = -1;
@@ -108,6 +133,35 @@ namespace OhmsLaw.Editor
             ScreenCapture.CaptureScreenshot($"Logs/Blockout/shots/{scene}/{++shotIndex:00}_{what}.png");
         }
 
+        // The Captures rules for this director's Timeline, once per director (a new scene brings a new one). Only a
+        // director in the active scene counts, so a scene being unloaded never plans for the next one.
+        static void PlanCaptures(PlayableDirector director, string scene)
+        {
+            if (director == capturesFor || director.gameObject.scene.name != scene) return;
+            capturesFor = director;
+            captures.Clear();
+            if (!(director.playableAsset is TimelineAsset timeline)) return;
+            var events = new List<(double at, string name)>();
+            if (timeline.markerTrack) events.AddRange(timeline.markerTrack.GetMarkers().OfType<Cue>().Select(cue => (cue.time, cue.command)));
+            foreach (var track in timeline.GetOutputTracks().Where(t => t.name == "Cameras"))
+                events.AddRange(track.GetClips().Select(clip => (clip.start, "shot " + clip.displayName)));
+            events = events.OrderBy(e => e.at).ToList();
+            foreach (var rule in Captures.Where(r => scene.StartsWith(r.scene + "_")))
+            {
+                double from = 0;
+                if (rule.after != "")
+                {
+                    var anchor = events.FirstOrDefault(e => e.name == rule.after);
+                    if (anchor.name == null) continue;
+                    from = anchor.at;
+                }
+                var hit = events.FirstOrDefault(e => e.at >= from && e.name == rule.what);
+                if (hit.name != null) captures.Add((hit.at + rule.delay, $"at_{Safe(rule.what)}+{rule.delay:0.0}s"));
+            }
+        }
+
+        static string Safe(string name) => new string(name.Select(c => char.IsLetterOrDigit(c) || c == '.' || c == '+' || c == '-' ? c : '_').ToArray());
+
         static void Tick()
         {
             // Play mode stopped from the editor: close the test down so playModeStartScene does not stick.
@@ -129,6 +183,7 @@ namespace OhmsLaw.Editor
                 currentScene = scene;
                 shotIndex = 0;
                 pending.Clear(); // a shot due after the cut would land in the new scene's folder
+                captures.Clear(); capturesFor = null; // planned again from the new scene's own Timeline
                 if (Directory.Exists($"Logs/Blockout/shots/{scene}")) Directory.Delete($"Logs/Blockout/shots/{scene}", true); // no frames left over from a longer run
                 Note($"\n=== {scene} ===");
                 lastProgress = Time.realtimeSinceStartup;
@@ -141,6 +196,11 @@ namespace OhmsLaw.Editor
                 lastProgress = Time.realtimeSinceStartup;
             }
             if (flow && flow.Director && flow.Director.time != lastTime) { lastTime = flow.Director.time; lastProgress = Time.realtimeSinceStartup; }
+            if (flow && flow.Director)
+            {
+                PlanCaptures(flow.Director, scene);
+                foreach (var capture in captures.Where(c => flow.Director.time >= c.due).ToList()) { Shot(capture.what); captures.Remove(capture); }
+            }
 
             bool stalled = Time.realtimeSinceStartup - lastProgress > StallSeconds;
             var note = GameObject.Find("WhiteFade") ? GameObject.Find("WhiteFade").GetComponentInChildren<TMPro.TMP_Text>() : null;
@@ -176,6 +236,8 @@ namespace OhmsLaw.Editor
             SubtitleTrack.LineStarted -= OnLine;
             ModuleFlow.Leaving -= OnLeaving;
             pending.Clear();
+            captures.Clear();
+            capturesFor = null;
             SessionState.SetBool(Key, false);
             hooked = false;
             started = 0;

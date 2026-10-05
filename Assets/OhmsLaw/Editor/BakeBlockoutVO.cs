@@ -143,7 +143,11 @@ namespace OhmsLaw.Editor
 
         static string TextHash(string speech) => Hash128.Compute(speech).ToString();
         static string Stamp(string speech, string voice) => TextHash(speech) + "@" + Hash128.Compute(voice);
-        static string StampOf(string path) => AssetImporter.GetAtPath(path)?.userData ?? "";
+        static string StampOf(string path)
+        {
+            var importer = AssetImporter.GetAtPath(path); // a UnityEngine.Object: test it with its bool, never ?. / ??
+            return importer ? importer.userData ?? "" : "";
+        }
 
         static void Import(string path, string stamp)
         {
@@ -303,6 +307,9 @@ $s.Dispose()
                 ("Slope = ΔV / ΔI", "Slope equals delta V divided by delta I"),
                 ("electrons drift from the − end toward the + end", "electrons drift from the negative end toward the positive end"),
                 ("Georg Ohm and the nichrome wire XY", "Gay-ork Ohm and the Nye-krome wire X Y"),
+                ("In 1826, Ohm kept changing one condition. Back to 1826 you go.", "In eighteen twenty-six, Ohm kept changing one condition. Back to eighteen twenty-six you go."),
+                ("born in 1789, published in 1827; 1800 and 1805", "born in seventeen eighty-nine, published in eighteen twenty-seven; eighteen hundred and eighteen oh five"),
+                ("0.1826 A, 1000 and 1200 Ω", "0.1826 amperes, 1000 and 1200 ohms"),
             })
                 Check(PronunciationLexicon.Apply(input) == expected, $"lexicon \"{input}\" -> \"{PronunciationLexicon.Apply(input)}\"");
             Check(PronunciationLexicon.ForSpeech("...we call that electric current.") == "we call that, electric current.", "delivery: continuation and reveal beat");

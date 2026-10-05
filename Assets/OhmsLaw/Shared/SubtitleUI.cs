@@ -22,9 +22,6 @@ namespace OhmsLaw
             set { PlayerPrefs.SetInt("ohm.subtitles", value ? 1 : 0); if (Instance) Instance.box.gameObject.SetActive(value && Instance.owner != null); }
         }
 
-        // Extra room on the right, so the Ask Wattson panel never covers the subtitles.
-        public float RightInset { set => box.offsetMax = new Vector2(-Mathf.Max(RightSide, value), box.offsetMax.y); }
-
         void Awake()
         {
             Instance = this;

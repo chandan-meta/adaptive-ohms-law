@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
-  m_Name: AQ1
+  m_Name: S10_Predict2V_Q
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
-  id: AQ1
+  id: S10_Predict2V_Q
   speaker: WATTSON
-  text: If resistance stays constant and voltage doubles, what happens to current?
-  ttsText: If resistance stays constant and voltage doubles, what happens to current?
-  vo: {fileID: 8300000, guid: 8c6c84777ce556a4ab51a5056e850d99, type: 3}
-  fallbackDuration: 4.5
+  text: 'Detective prediction: 1 volt gave 0.20 amperes. What will 2 volts give?'
+  ttsText: 'Detective prediction: 1 volt gave 0.20 amperes. What will 2 volts give?'
+  vo: {fileID: 0}
+  fallbackDuration: 4.4

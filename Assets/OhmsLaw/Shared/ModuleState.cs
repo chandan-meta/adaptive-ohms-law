@@ -69,6 +69,27 @@ namespace OhmsLaw
         // Right at least once and never wrong: skip the optional follow-up, offer the harder prediction.
         public static bool Confident(string concept) => concepts.TryGetValue(concept, out var r) && r.correct > 0 && r.incorrect == 0;
 
+        // A say gate's condition (the part of a line id after "_If_", see SceneDirector.Gates.cs):
+        //   "<GateId>_<Letter>"   the learner picked that option at that gate, at any attempt ("S05_Drift_B"; the
+        //                         predictions "S06_Prediction_B" and "S10_Predict2V_C" count too)
+        //   "Struggling_<Name>" / "Confident_<Name>"   that concept, by its Concepts field name ("Struggling_Resistance")
+        public static bool Holds(string condition)
+        {
+            if (string.IsNullOrEmpty(condition)) return false;
+            foreach (var state in new[] { "Struggling_", "Confident_" })
+                if (condition.StartsWith(state))
+                {
+                    string concept = Concepts.Named(condition.Substring(state.Length));
+                    return concept != null && (state == "Struggling_" ? Struggling(concept) : Confident(concept));
+                }
+            int cut = condition.LastIndexOf('_');
+            if (cut <= 0 || cut == condition.Length - 1) return false;
+            string gate = condition.Substring(0, cut), letter = condition.Substring(cut + 1);
+            if (gate == "S06_Prediction") return prediction == letter;
+            if (gate == "S10_Predict2V" && s10Prediction2V == letter) return true;
+            return answers.Exists(a => a.StartsWith(gate + " " + letter + " "));
+        }
+
         // One line per concept for the AI context: "voltage: 2 right, 1 wrong (thinks: ...)".
         public static string Summary()
         {
@@ -91,6 +112,14 @@ namespace OhmsLaw
     {
         public const string ElectronDrift = "electron drift direction", Voltage = "voltage", Current = "current",
             Relationship = "voltage-current relationship", Graph = "reading the V-I graph", Resistance = "resistance", OhmsLaw = "Ohm's law";
+
+        // A concept id by its field name ("Resistance" -> Resistance), for say-gate conditions; null if there is none.
+        public static string Named(string name) => name switch
+        {
+            nameof(ElectronDrift) => ElectronDrift, nameof(Voltage) => Voltage, nameof(Current) => Current,
+            nameof(Relationship) => Relationship, nameof(Graph) => Graph, nameof(Resistance) => Resistance, nameof(OhmsLaw) => OhmsLaw,
+            _ => null,
+        };
     }
 
     // Carried across a scene change so the next scene can start on the same frame (match-cuts).
