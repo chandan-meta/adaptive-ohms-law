@@ -140,7 +140,10 @@ namespace OhmsLaw.Editor
             var G = WattsonController.Gesture.Idle;
             Pose(0, end["SH02"], G, s.groupPoint);
             Pose(start["SH03"], end["SH03"], WattsonController.Gesture.Greet, s.groupPoint);
-            Pose(start["SH04"], T("SH04", 3.2), WattsonController.Gesture.Point, s.ohmPoint, s.ohmPoint);
+            // SH04 is over his shoulder: for L02's first 2 s (the line starts at 0.3) he keeps his look on the camera, so his face
+            // turns to it instead of the hat brim filling the frame, then glances at Ohm as the focus racks, then back to the group.
+            Pose(start["SH04"], T("SH04", 2.3), WattsonController.Gesture.Point, s.camera.transform, s.ohmPoint);
+            Pose(T("SH04", 2.3), T("SH04", 3.2), WattsonController.Gesture.Point, s.ohmPoint, s.ohmPoint);
             Pose(T("SH04", 3.2), end["SH04"], WattsonController.Gesture.Point, s.groupPoint, s.ohmPoint);
             Pose(start["SH05"], T("SH05", 2.6), WattsonController.Gesture.Flick, s.groupPoint);
             Pose(T("SH05", 2.6), end["SH06"], G, s.groupPoint);

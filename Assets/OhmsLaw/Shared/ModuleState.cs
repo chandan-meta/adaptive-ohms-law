@@ -30,6 +30,7 @@ namespace OhmsLaw
         public static readonly List<string> answers = new List<string>(); // every graded answer in order: "S12_Ratio B Incorrect"
         public static int tableRows;                  // observation table rows recorded so far
         public static bool resistanceTaught;          // set when Scene 12 names R and the ohm (cue readings.r 1): before that, nobody may quote R = 5 Ω
+        public static bool ratioShown;                // set when Scene 12 reveals the V / I column (cue table.ratio 1): before that, "V/I is always 5" is a spoiler
 
         public static string PredictionText =>
             prediction == "A" ? "Increase" : prediction == "B" ? "Decrease" : prediction == "C" ? "Stay the same" : "";

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text;
 using System.Threading;
 using UnityEngine;
@@ -27,6 +28,9 @@ namespace OhmsLaw
 
     static class Proxy
     {
+        // Seconds the proxy asked us to wait at its last 429 (its Retry-After header; 60 when it sent none).
+        public static float RetryAfterSeconds { get; private set; } = 60f;
+
         public static UnityWebRequest Post(ProxyConfig config, string path, byte[] body, string contentType)
         {
             // A build without a hosted proxy is simply offline (no request, no wait).
@@ -46,8 +50,10 @@ namespace OhmsLaw
                 await Awaitable.NextFrameAsync();
             }
             cancel.ThrowIfCancellationRequested();
-            if (request.result != UnityWebRequest.Result.Success)
-                throw new AgentException(request.responseCode == 429 ? "rate_limited" : "proxy_unreachable: " + request.error);
+            if (request.result == UnityWebRequest.Result.Success) return;
+            if (request.responseCode != 429) throw new AgentException("proxy_unreachable: " + request.error);
+            RetryAfterSeconds = float.TryParse(request.GetResponseHeader("Retry-After"), NumberStyles.Float, CultureInfo.InvariantCulture, out float seconds) && seconds > 0 ? seconds : 60f;
+            throw new AgentException("rate_limited");
         }
     }
 
@@ -172,7 +178,9 @@ namespace OhmsLaw
         public static byte[] Stop()
         {
             if (!clip) return null;
-            int recorded = Microphone.GetPosition(null);
+            // A hold longer than MaxSeconds ends the (non-looping) recording by itself and GetPosition is 0 again: keep
+            // what was recorded (the whole clip) instead of dropping the question.
+            int recorded = Microphone.IsRecording(null) ? Microphone.GetPosition(null) : clip.samples;
             Microphone.End(null);
             byte[] wav = null;
             if (recorded > Hz / 4)

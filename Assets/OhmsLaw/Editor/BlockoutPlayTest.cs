@@ -48,6 +48,7 @@ namespace OhmsLaw.Editor
         };
         static readonly List<(double due, string what)> captures = new List<(double, string)>();
         static PlayableDirector capturesFor;
+        static TimelineAsset sceneTimeline; // the active scene's Timeline, for Verify() when no builder owns the scene (Scene 4)
         static int shotIndex;
         static string currentScene = "", lastGate;
         static double lastTime = -1;
@@ -74,6 +75,7 @@ namespace OhmsLaw.Editor
             File.WriteAllText(Report, $"Blockout play test from {scene} ({request}) {DateTime.Now}\n");
             SessionState.SetBool(Key, true);
             SessionState.SetString(SceneKey, scene);
+            SessionState.SetString(SceneKey + ".req", request);
             SessionState.SetFloat(SpeedKey, speed);
             EditorApplication.EnterPlaymode();
             EditorApplication.LockReloadAssemblies(); // script edits during the run must not reload the domain mid-play
@@ -140,6 +142,7 @@ namespace OhmsLaw.Editor
             if (director == capturesFor || director.gameObject.scene.name != scene) return;
             capturesFor = director;
             captures.Clear();
+            sceneTimeline = director.playableAsset as TimelineAsset;
             if (!(director.playableAsset is TimelineAsset timeline)) return;
             var events = new List<(double at, string name)>();
             if (timeline.markerTrack) events.AddRange(timeline.markerTrack.GetMarkers().OfType<Cue>().Select(cue => (cue.time, cue.command)));
@@ -166,7 +169,7 @@ namespace OhmsLaw.Editor
         {
             // Play mode stopped from the editor: close the test down so playModeStartScene does not stick.
             if (!EditorApplication.isPlaying) { if (started > 0) { Note("STOPPED  play mode exited before the end card"); Finish(); } return; }
-            if (started == 0) { started = Time.realtimeSinceStartup; lastProgress = started; Application.runInBackground = true; SubtitleUI.Enabled = true; }
+            if (started == 0) { started = Time.realtimeSinceStartup; lastProgress = started; Application.runInBackground = true; SubtitleUI.Enabled = true; ReducedMotion.On = SessionState.GetString(SceneKey + ".req", "").Contains("calm"); } // captures show full motion unless the request says "calm"
             foreach (var due in pending.Where(p => Time.realtimeSinceStartup >= p.due).ToList()) { Shot(due.what); pending.Remove(due); }
             ReviewMode.autoAnswer = true;
             if (!Mathf.Approximately(ReviewMode.timeScale, SessionState.GetFloat(SpeedKey, 1f))) ReviewMode.timeScale = SessionState.GetFloat(SpeedKey, 1f);
@@ -183,8 +186,9 @@ namespace OhmsLaw.Editor
                 currentScene = scene;
                 shotIndex = 0;
                 pending.Clear(); // a shot due after the cut would land in the new scene's folder
-                captures.Clear(); capturesFor = null; // planned again from the new scene's own Timeline
+                captures.Clear(); capturesFor = null; sceneTimeline = null; // planned again from the new scene's own Timeline
                 if (Directory.Exists($"Logs/Blockout/shots/{scene}")) Directory.Delete($"Logs/Blockout/shots/{scene}", true); // no frames left over from a longer run
+                Later("enter", 0.05f); // the scene's first frame, for the match-cut review against the previous scene's "exit"
                 Note($"\n=== {scene} ===");
                 lastProgress = Time.realtimeSinceStartup;
                 lastTime = -1;
@@ -216,12 +220,14 @@ namespace OhmsLaw.Editor
             Finish();
         }
 
-        // Every subtitle clip in the scene's Timeline must have been spoken, in order.
+        // Every subtitle clip in the scene's Timeline must have been spoken, in order. A scene with no SceneBuilderBase
+        // (Scene 4) is checked against the Timeline its director was playing.
         static void Verify(string scene)
         {
             var builder = BlockoutAssets.Builders().FirstOrDefault(b => b.SceneName == scene);
-            if (builder == null) return;
-            var timeline = AssetDatabase.LoadAssetAtPath<TimelineAsset>(SceneBuilderBase.Root + "/" + builder.SceneId + "/Timeline/" + builder.SceneId + "_Timeline.playable");
+            var timeline = builder != null
+                ? AssetDatabase.LoadAssetAtPath<TimelineAsset>(SceneBuilderBase.Root + "/" + builder.SceneId + "/Timeline/" + builder.SceneId + "_Timeline.playable")
+                : sceneTimeline;
             if (!timeline) return;
             var planned = timeline.GetOutputTracks().OfType<SubtitleTrack>().SelectMany(t => t.GetClips()).OrderBy(c => c.start).Select(c => ((SubtitleClip)c.asset).line.id).ToList();
             var heard = spoken.Where(planned.Contains).ToList();

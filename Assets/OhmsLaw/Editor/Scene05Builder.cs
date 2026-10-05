@@ -189,8 +189,10 @@ namespace OhmsLaw.Editor
 
             // A quick check at a natural pause, before current is defined; the drift keeps playing under the panel.
             Gesture(WattsonController.Gesture.Listening);
+            Hide("Card Voltage"); // the top-centre question panel would sit on the card; both labelled ends stay in view
             Gate("S05_Drift", "MCQ (graded): Which way are the free electrons drifting now? A. From the − end toward the + end (correct) · B. From the + end toward the − end · C. Every which way, with no overall direction (partly right). Hint + retry; LearnerSession ElectronDrift",
                 "S05_Drift_Q", "S05_Drift_FA", "S05_Drift_FB", "S05_Drift_FC", "S05_Drift_H", "S05_Drift_X");
+            Show("Card Voltage");
             Show("Drift Arrow");
             Visual("A faint arrow under the conduit confirms it: electron drift, − end → + end", 1.5);
 

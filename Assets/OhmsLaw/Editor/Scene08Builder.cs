@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -47,6 +48,28 @@ namespace OhmsLaw.Editor
             ("What does a voltmeter measure?", "A voltmeter measures the potential difference, the voltage, between two points. In our circuit it will tell us the push across the two ends of the nichrome wire, X and Y, in volts."),
             ("Why not use Ohm's old instruments?", "We could, but Ohm's torsion galvanometer needed a steady hand and a lot of patience, and his thermoelectric source gave only a tiny push. Today's ammeter and voltmeter give clear numbers straight away, so we can see the relationship much more clearly."));
 
+        // Under the study's warm fill the near-white bench top clips to a white slab, so it appears in a darker copy of its
+        // material and the "look" crossfade lerps it to the classroom top (SceneDirector.Lab.cs LabLook.tinted).
+        void StudyBenchTop(SceneDirector.LabLook classroom)
+        {
+            var top = Lit("Classroom_BenchTop", new Color(0.86f, 0.87f, 0.89f), 0f, 0.55f);
+            var studyTop = Lit("Classroom_BenchTop_Study", new Color(0.5f, 0.5f, 0.52f), 0f, 0.45f);
+            var tinted = new List<Renderer>();
+            foreach (var renderer in refs["Bench"].GetComponentsInChildren<Renderer>(true))
+            {
+                var materials = renderer.sharedMaterials;
+                bool changed = false;
+                for (int i = 0; i < materials.Length; i++)
+                    if (materials[i] == top) { materials[i] = studyTop; changed = true; }
+                if (!changed) continue;
+                renderer.sharedMaterials = materials;
+                tinted.Add(renderer);
+            }
+            classroom.tinted = tinted.ToArray();
+            classroom.tintFrom = studyTop;
+            classroom.tintTo = top;
+        }
+
         protected override void Stage()
         {
             // The classroom lab first, alone, so its reflection probe bakes without the study; captured as the "classroom"
@@ -63,6 +86,7 @@ namespace OhmsLaw.Editor
             var study = CaptureLook("study", refs["Study Lighting"].transform);
             StartIn(study, classroom);
             director.looks = new[] { study, classroom };
+            StudyBenchTop(classroom);
             director.matchCutFrom = "Scene07_BackToOhm";
             ClassroomApparatus();
             Wattson(WattsonStudyC, StudyWideCamC);
@@ -94,13 +118,15 @@ namespace OhmsLaw.Editor
             var ohm = refs["Georg Ohm"].transform;
             Goal("Georg Ohm").transform.position = ohm.position + Vector3.forward * 0.12f;
 
-            // Labels (ART_DIRECTION §4) for the Study Desk frame, top and middle anchors only (P01's subtitle is up while
-            // they show): the source top-left, the meters stacked top-right, the wire mid-left, the key mid-right.
+            // Labels (ART_DIRECTION §4) for the Study Desk frame (Callouts reserves the subtitle band for every anchor): the
+            // source and the wire stacked top-left (the wire's panel at mid-left clipped Wattson's hat at Transform Point), the
+            // meters stacked top-right, the key bottom-right on the bench front (a third right-column panel would stack down
+            // onto the key itself).
             Callout("source", refs[Source], CalloutDef.Anchor.TopLeft, new Vector3(0f, 0.10f, 0f));
             Callout("ammeter", refs["AMMETER"], CalloutDef.Anchor.TopRight, new Vector3(0f, 0.04f, 0f));
             Callout("voltmeter", refs["VOLTMETER"], CalloutDef.Anchor.TopRight, new Vector3(0f, 0.02f, 0f));
-            Callout("wire", refs[Wire], CalloutDef.Anchor.MidLeft);
-            Callout("key", refs[Key], CalloutDef.Anchor.MidRight, new Vector3(0.115f, 0.095f, 0f));
+            Callout("wire", refs[Wire], CalloutDef.Anchor.TopLeft);
+            Callout("key", refs[Key], CalloutDef.Anchor.BottomRight, new Vector3(0.115f, 0.095f, 0f));
 
             Effects();
         }
@@ -125,13 +151,16 @@ namespace OhmsLaw.Editor
         }
 
         // The restrained effects: cyan glowing dust swirling round each prop as it changes (one-shot "fx" objects, thinned
-        // under reduced motion), a slow glow over the desk while the instruments change, a gold dust as Ohm goes back to his
-        // time, and the wave of light that runs out from the bench across the floor as the room changes. The two "[VFX]"
-        // phases carry a soft shimmer (Scene 4's) on the effects bus, under the voice.
+        // under reduced motion by the fx cue: SceneDirector.Lab Soften), a slow glow over the desk while the instruments
+        // change, a gold dust as Ohm goes back to his time, and the wave of light that runs out from the bench across the
+        // floor as the room changes. The two "[VFX]" phases carry a soft shimmer (Scene 4's) on the effects bus, under the
+        // voice. Effects a plain `show` cue activates (the freeze burst, the apparatus glow) carry ReducedMotionFx instead;
+        // never both, or the thinning would apply twice.
         void Effects()
         {
             var cyan = palette.wattsonAccent;
-            Burst("[VFX] freeze (Ohm holds still)", null, refs["Georg Ohm"].transform.position + new Vector3(0f, 1.0f, -0.12f), palette.charge, new Vector3(0.6f, 0.8f, 0.5f), 80, 0.2f);
+            Burst("[VFX] freeze (Ohm holds still)", null, refs["Georg Ohm"].transform.position + new Vector3(0f, 1.0f, -0.12f), palette.charge, new Vector3(0.6f, 0.8f, 0.5f), 80, 0.2f)
+                .AddComponent<ReducedMotionFx>().calm = 0.35f;
 
             Burst("Dust Galvanometer", null, ApparatusC + Vector3.up * 0.1f, cyan, new Vector3(0.28f, 0.22f, 0.28f), 70, 0.12f, swirl: 2.2f);
             Burst("Dust Source", null, SourceStudyC + Vector3.up * 0.08f, cyan, new Vector3(0.36f, 0.18f, 0.24f), 70, 0.12f, swirl: 2.2f);
@@ -145,8 +174,13 @@ namespace OhmsLaw.Editor
             var ohm = refs["Georg Ohm"].transform.position;
             Burst("Ohm Farewell Dust", null, ohm + new Vector3(0f, 0.9f, 0f), new Color(1f, 0.8f, 0.48f), new Vector3(0.6f, 1.8f, 0.5f), 180, 0.25f, swirl: 1.2f, lifetime: 1.6f);
 
-            // Phase panels: a slow glow over the desk while the instruments change; the wave runs from the bench.
+            // Phase panels: a slow glow over the desk while the instruments change; the wave runs from the bench. The apparatus
+            // panel sits top-centre (at top-left it covered the slate's "Voltage → V" until the source callout pushed it over).
             var apparatusFx = Ref(Node(ApparatusFx, null, OhmDeskC + new Vector3(0f, 0.2f, 0.05f)));
+            apparatusFx.AddComponent<ReducedMotionFx>().calm = 0.35f;
+            var apparatusPanel = apparatusFx.AddComponent<CalloutDef>();
+            apparatusPanel.kind = CalloutDef.Kind.Vfx;
+            apparatusPanel.anchor = CalloutDef.Anchor.TopCentre;
             Emitter("Glow Dust", apparatusFx.transform, Vector3.zero, Glow("Glow_TransformDust", Hdr(cyan, 2.2f)), ps =>
             {
                 var main = ps.main;

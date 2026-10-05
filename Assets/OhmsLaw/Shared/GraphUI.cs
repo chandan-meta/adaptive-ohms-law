@@ -173,8 +173,9 @@ namespace OhmsLaw
         void FollowRig()
         {
             var rig = CircuitRig.Active;
-            if (live.gameObject.activeSelf != (bool)rig) live.gameObject.SetActive(rig);
-            if (!rig) return;
+            bool shown = rig && rig.readoutsShown; // no live reading while the meters' plates are hidden (Scenes 9-10 before the baseline)
+            if (live.gameObject.activeSelf != shown) live.gameObject.SetActive(shown);
+            if (!shown) return;
             Vector2 target = At(rig.Amps, rig.Volts);
             if (!Mathf.Approximately(rig.state.voltage, liveVolts))
             {

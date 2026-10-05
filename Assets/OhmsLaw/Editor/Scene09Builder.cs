@@ -57,6 +57,10 @@ namespace OhmsLaw.Editor
             Wattson(WattsonHomeC, BenchWideCamC); // Scene 8's last frame: Wattson at "Wattson Home", Bench Wide, no Ohm (Lab Continuity)
             director.matchCutFrom = "Scene08_OurLab";
             director.rig = Rig(assembled: false, keyClosed: false, voltage: 0);
+            // Closing the key is a needle move, not a number: the digital plates stay off all scene (they also sat in the Boards
+            // shot's subtitle band), so no reading precedes Scene 10's 1 V baseline and the S10_Predict2V prediction (rig.readouts 1).
+            director.rig.readoutsShown = false;
+            director.showLearnerPrediction = true; // "Remember your prediction?": the learner's Scene 6 pick in amber under the reminder
             // The path label is chalk on the board ("Board Path"); the rig's floating copy would duplicate it over the readouts.
             if (director.rig.pathLabel) { Object.DestroyImmediate(director.rig.pathLabel.gameObject); director.rig.pathLabel = null; }
 

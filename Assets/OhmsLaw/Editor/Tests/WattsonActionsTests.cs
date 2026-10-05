@@ -25,7 +25,7 @@ namespace OhmsLaw
 
         public sealed class FakeBench : WattsonActions.IBench
         {
-            public bool present = true, controlsOpen = true, keyClosed = true, ammeterIn = true, resistanceTaught;
+            public bool present = true, controlsOpen = true, keyClosed = true, ammeterIn = true, readoutsShown = true, resistanceTaught, ratioShown;
             public double volts = 1, start = 0.5, targetAmps = -1, controlsMax = 5;
             public int scene = 10, tableRows, setCalls;
             public string gate;
@@ -38,13 +38,15 @@ namespace OhmsLaw
             public double Amps => keyClosed && ammeterIn ? AmpsAt(volts) : 0;
             public bool KeyClosed => keyClosed;
             public bool AmmeterIn => ammeterIn;
+            public bool ReadoutsShown => readoutsShown;
             public int Scene => scene;
             public int TableRows => tableRows;
             public bool ResistanceTaught => resistanceTaught;
+            public bool RatioShown => ratioShown;
             public string Gate => gate;
+            public double StartVoltage => start;
             public double AmpsAt(double v) => v / 5.0;   // ExperimentData: R = 5
             public double SetVoltage(double v) { setCalls++; return volts = Math.Max(0, Math.Min(5, v)); }
-            public double ResetVoltage() => SetVoltage(start);
         }
 
         static int Check(Action<string> log, string name, bool ok, string detail)
@@ -110,6 +112,22 @@ namespace OhmsLaw
             Parses("show me ohms law", WattsonActions.Kind.None);
             Parses("make it brighter", WattsonActions.Kind.None);
             Parses("", WattsonActions.Kind.None);
+            // Thinking aloud, checking an understanding or reporting what happened: comparatives and set-verbs in a question
+            // or a story never move the knob (pass 3: a checking sentence during S11_Target used to cost the activity).
+            Parses("current goes up when voltage goes up?", WattsonActions.Kind.None);
+            Parses("higher voltage gives higher current, right?", WattsonActions.Kind.None);
+            Parses("less voltage, less current?", WattsonActions.Kind.None);
+            Parses("the voltage is up at 3 volts now", WattsonActions.Kind.None);
+            Parses("I set the voltage to 4 volts and the current was 0.8", WattsonActions.Kind.None);
+            Parses("the current went down when the voltage went down", WattsonActions.Kind.None);
+            Parses("more voltage means more current", WattsonActions.Kind.None);
+            Parses("what happens if I double the voltage?", WattsonActions.Kind.None);
+            // ...while the orders with the same words still are.
+            Parses("raise the voltage by 2 volts", WattsonActions.Kind.ChangeVoltage, 2);
+            Parses("turn the voltage up", WattsonActions.Kind.ChangeVoltage, 1);
+            Parses("turn it up to 3 volts", WattsonActions.Kind.SetVoltage, 3);
+            Parses("can you turn it up?", WattsonActions.Kind.Unclear);
+            Parses("make the current go up", WattsonActions.Kind.Current);
 
             // Validation and execution against a fake bench: replies quote the applied value and the live ammeter.
             void Does(string name, FakeBench bench, string text, double expectVolts, int expectSets, params string[] replyHas)
@@ -133,6 +151,13 @@ namespace OhmsLaw
             Does("resistance in Scene 12 before ohms are taught", new FakeBench { volts = 2, scene = 12, gate = "S12_Ratio", controlsOpen = false }, "lower the resistance", 2, 0, "resistance stays the same", "change the voltage instead", "!ohm", "!5", "!Ω");
             Does("resistance value once ohms are taught", new FakeBench { volts = 2, scene = 12, resistanceTaught = true }, "lower the resistance", 2, 0, "stays at 5 ohms");
             Does("reset", new FakeBench { volts = 4, start = 0.5 }, "reset the experiment", 0.5, 1, "starting 0.5 V");
+            Does("reset already at the start", new FakeBench { volts = 0.5, start = 0.5 }, "start over", 0.5, 1, "already at the starting 0.5 V");
+            // Reset goes through the same cap check as every setting: a start value above a lowered cap is refused, not applied and undone.
+            Does("reset above the cap is refused", new FakeBench { volts = 1, start = 2, scene = 10, gate = "S10_Record", controlsMax = 1 }, "reset the experiment", 1, 0, "knob stops at 1 V", "!Done", "!starting");
+            // Scenes 9-10 hide the digital plates until the 1 V baseline: no chat text quotes the hidden number.
+            Does("hidden readouts: the confirmation quotes no reading", new FakeBench { volts = 0.5, readoutsShown = false, scene = 10, gate = "S10_Set1V", controlsMax = 1 }, "set the voltage to 1 volt", 1, 1, "Done: 1 V.", "isn't shown yet", "!0.20", "!0.10");
+            string hiddenGuide = WattsonActions.Guidance(new FakeBench { volts = 0.5, readoutsShown = false, scene = 10 });
+            failed += Check(log, "hidden readouts: offline guidance quotes the source, not the ammeter", hiddenGuide.Contains("0.5 V") && hiddenGuide.Contains("isn't shown yet") && !hiddenGuide.Contains("0.10"), hiddenGuide);
             Does("out of range", new FakeBench { volts = 2 }, "set the voltage to 7 volts", 2, 0, "0 to 5 volts", "!Done");
             Does("negative", new FakeBench { volts = 2 }, "set the voltage to minus 2", 2, 0, "0 to 5 volts");
             Does("not a whole volt", new FakeBench { volts = 2 }, "set the voltage to 2.5 volts", 2, 0, "whole volts", "2 V or 3 V");
@@ -213,7 +238,18 @@ namespace OhmsLaw
                 failed += Check(log, name, allowed == expect, $"allowed={allowed}");
             }
             Saved("saved answer: none during an activity", new FakeBench { scene = 5, gate = "S05_Drift" }, true, "Which way do electrons move?", "From the negative end toward the positive end.", false);
-            Saved("saved answer: allowed outside an activity", new FakeBench { scene = 12 }, false, "Why is V divided by I always 5?", "Because this nichrome wire always opposes current by the same amount.", true);
+            Saved("saved answer: allowed outside an activity", new FakeBench { scene = 12, ratioShown = true }, false, "Why is V divided by I always 5?", "Because this nichrome wire always opposes current by the same amount.", true);
+            // Scene 12's punchline (and the S12_Ratio answer) stays out of the chips and the covered facts until the board shows the V / I column.
+            Saved("saved answer: no 'V divided by I always 5' chip before the ratio column", new FakeBench { scene = 12 }, false, "Why is V divided by I always 5?", "Because this nichrome wire always opposes current by the same amount.", false);
+            Saved("saved answer: the thicker-wire chip stays before the ratio column", new FakeBench { scene = 12 }, false, "Does a thicker wire have more resistance?", "Careful, detective: it is the other way round. A thicker wire gives the charges more room to flow, so it has less resistance.", true);
+            var ratioPending = new FakeBench { scene = 12 };
+            failed += Check(log, "covered facts before the ratio column: V/I, ΔV/ΔI, ÷ and '= 5' go; the definition of R stays",
+                !WattsonActions.FactAllowed(ratioPending, "For the nichrome wire XY, V/I is the same for every reading (1.0 ÷ 0.20 = 5, 2.0 ÷ 0.40 = 5, ...). R = V / I.")
+                && !WattsonActions.FactAllowed(ratioPending, "The slope of the V-I graph, ΔV/ΔI, is the resistance: 2.0 V ÷ 0.40 A = 5.")
+                && !WattsonActions.FactAllowed(ratioPending, "Volts divided by amperes comes out at 5 every single time.")
+                && WattsonActions.FactAllowed(ratioPending, "The material of a conductor opposes the flow of current. That opposition is electrical resistance, symbol R."), "");
+            failed += Check(log, "covered facts: the ratio is not filtered once shown, nor outside Scene 12",
+                WattsonActions.FactAllowed(new FakeBench { scene = 12, ratioShown = true }, "V/I is the same for every reading.") && WattsonActions.FactAllowed(new FakeBench { scene = 13 }, "R = V / I, always 5 for this wire."), "");
             Saved("saved answer: no ohm before it is taught", new FakeBench { scene = 12 }, false, "What is one ohm?", "Its resistance is five ohms.", false);
             Saved("saved answer: no Ω before it is taught", new FakeBench { scene = 12 }, false, "What is R?", "R = 5 Ω.", false);
             Saved("saved answer: the ohm once taught", new FakeBench { scene = 12, resistanceTaught = true }, false, "What is one ohm?", "Its resistance is five ohms.", true);
@@ -239,6 +275,10 @@ namespace OhmsLaw
             var quiet = new FakeBench { volts = 2 };
             bool handledQuestion = WattsonActions.TryHandle("What happens if I set the voltage to 4 volts?", quiet, out _);
             failed += Check(log, "a hypothetical question goes to the AI and changes nothing", !handledQuestion && quiet.setCalls == 0, $"handled={handledQuestion} sets={quiet.setCalls}");
+            // Nor does a checking-my-understanding sentence during a target activity (it used to be judged as a miss).
+            var checking = new FakeBench { volts = 2, scene = 11, gate = "S11_Target", targetAmps = 0.6 };
+            bool handledChecking = WattsonActions.TryHandle("less voltage, less current?", checking, out _);
+            failed += Check(log, "a checking sentence during S11_Target goes to the AI and changes nothing", !handledChecking && checking.setCalls == 0 && Math.Abs(checking.volts - 2) < 1e-6, $"handled={handledChecking} sets={checking.setCalls} volts={checking.volts}");
 
             // Offline guidance quotes the real readings.
             string guide = WattsonActions.Guidance(new FakeBench { volts = 2 });

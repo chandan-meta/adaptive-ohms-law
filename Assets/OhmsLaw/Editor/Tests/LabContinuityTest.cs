@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Cinemachine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -34,6 +35,7 @@ namespace OhmsLaw.Editor
                 if (s4.IsValid() && s7.IsValid()) Scene4To7(s4, s7);
                 if (s7.IsValid() && s8.IsValid()) Scene7To8(s7, s8);
                 if (s8.IsValid()) CueTargets(s8);
+                if (s7.IsValid() && s8.IsValid() && s9.IsValid()) Polish(s4, s7, s8, s9);
                 if (s8.IsValid() && s9.IsValid())
                 {
                     if (opened.Contains(s8)) Scene8EndIs9(s8, s9);
@@ -138,6 +140,46 @@ namespace OhmsLaw.Editor
                 director ? string.Join(", ", director.looks.Select(l => l.name + ":" + l.lights.Length)) : "no director");
             if (director && director.looks.Length == 2)
                 Check("Scene 8 starts in the study look (classroom lights off)", director.looks[1].lights.All(l => !l.enabled) && director.looks[0].lights.Any(l => l.enabled));
+        }
+
+        // The polish pass on the lab scenes (Logs/Blockout/wow_review.json pass1/pass2): the study flames match Scene 4's and
+        // stay accents, every handheld camera and every show-driven effect root reads reduced motion, Scene 8's labels keep the
+        // key and Wattson's hat clear, the transformation panels sit top-centre, and Scene 9 opens with the meters' plates
+        // hidden and the learner's prediction on.
+        static void Polish(Scene s4, Scene s7, Scene s8, Scene s9)
+        {
+            foreach (var name in new[] { "Oil Lamp", "Desk Candle" })
+            {
+                var a = s4.IsValid() ? Find(s4, name) : null;
+                var b = Find(s7, name);
+                var la = a ? a.GetComponent<Light>() : null;
+                var lb = b ? b.GetComponent<Light>() : null;
+                if (la && lb) Check($"4→7 {name} burns alike", Mathf.Approximately(la.intensity, lb.intensity) && Mathf.Approximately(la.range, lb.range), $"Scene 4 {la.intensity}/{la.range}, Scene 7 {lb.intensity}/{lb.range}");
+            }
+            var lamp = Find(s7, "Oil Lamp");
+            var candle = Find(s7, "Desk Candle");
+            Check("Scene 7 flames are accents (lamp ≤ 1.6, candle ≤ 0.7): Ohm's face reads",
+                lamp && candle && lamp.TryGetComponent(out Light lampLight) && candle.TryGetComponent(out Light candleLight) && lampLight.intensity <= 1.6f + 1e-3f && candleLight.intensity <= 0.7f + 1e-3f);
+            foreach (var (scene, label) in new[] { (s7, "Scene 7"), (s8, "Scene 8"), (s9, "Scene 9") })
+            {
+                var noisy = scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<CinemachineBasicMultiChannelPerlin>(true)).ToArray();
+                Check($"{label}: every handheld camera reads reduced motion", noisy.Length > 0 && noisy.All(p => p.TryGetComponent<ReducedMotionCamera>(out _)),
+                    string.Join(", ", noisy.Where(p => !p.TryGetComponent<ReducedMotionCamera>(out _)).Select(p => p.name)));
+            }
+            var defs = s8.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<CalloutDef>(true)).ToList();
+            var key = defs.FirstOrDefault(d => d.id == "key");
+            var wire = defs.FirstOrDefault(d => d.id == "wire");
+            Check("Scene 8 key label sits bottom-right (off the key and the meters)", key && key.anchor == CalloutDef.Anchor.BottomRight);
+            Check("Scene 8 wire label sits top-left (clear of Wattson's hat)", wire && wire.anchor == CalloutDef.Anchor.TopLeft);
+            foreach (var (scene, name) in new[] { (s7, "[VFX] historical apparatus starts transforming → modern circuit"), (s8, "[VFX] Ohm's apparatus becomes today's instruments") })
+            {
+                var fx = Find(scene, name);
+                Check($"'{name}' panel is placed top-centre", fx && fx.TryGetComponent(out CalloutDef tag) && tag.kind == CalloutDef.Kind.Vfx && tag.anchor == CalloutDef.Anchor.TopCentre);
+                Check($"'{name}' reads reduced motion", fx && fx.TryGetComponent<ReducedMotionFx>(out _));
+            }
+            var director9 = s9.GetRootGameObjects().Select(r => r.GetComponentInChildren<SceneDirector>(true)).FirstOrDefault(d => d);
+            Check("Scene 9 opens with the meters' digital plates hidden (needle move only on key-close)", director9 && director9.rig && !director9.rig.readoutsShown);
+            Check("Scene 9 shows the learner's Scene 6 prediction under the reminder", director9 && director9.showLearnerPrediction);
         }
 
         static readonly HashSet<string> Named = new HashSet<string> { "show", "hide", "vanish", "retract", "appear", "rise", "spread", "glide", "settle", "fx" };

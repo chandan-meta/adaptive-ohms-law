@@ -161,8 +161,9 @@ namespace OhmsLaw.Editor
 
             // Lean-in on the graph for the triangle and the slope question: the graph fills the left 8-56 % of the frame so a
             // right-docked MCQ leaves it readable; Wattson stands at its lower right ("Graph Point"), under the docked panel.
-            // Under the Boards Set (a plain node) so the tableInWire move takes them along.
-            Vcam("Graph Close", new Vector3(1.33f, 1.6f, 0.2f), new Vector3(1.33f, BoardCentreC.y, BoardCentreC.z), BoardsFov, refs["Graph"].transform, lensMedium);
+            // The look point sits 0.08 m under the board's centre so the frame rises ~40 px and the x-axis title "Current, I (A)"
+            // clears the subtitle band. Under the Boards Set (a plain node) so the tableInWire move takes them along.
+            Vcam("Graph Close", new Vector3(1.33f, 1.6f, 0.2f), new Vector3(1.33f, BoardCentreC.y - 0.08f, BoardCentreC.z), BoardsFov, refs["Graph"].transform, lensMedium);
             refs["Cam Graph Close"].transform.SetParent(refs["Boards Set"].transform, true);
             Marker("Graph Point", new Vector3(2.0f, 1.3f, 2.2f)).transform.SetParent(refs["Boards Set"].transform, true);
         }
@@ -187,10 +188,12 @@ namespace OhmsLaw.Editor
             Wait(0.3);
             Gesture(WattsonController.Gesture.Aim, look: "NICHROME WIRE — XY", point: "NICHROME WIRE — XY", moveTo: "Niscope Point", gadget: true);
             Wait(0.7);
-            // The bench first: Wattson sets it to 1 V (row 1) while the camera holds still, then the dive.
+            // The bench first: Wattson sets it to 1 V (row 1) as the camera goes to the bench; the 1 s blend and the meters'
+            // easing (from Scene 11's last setting) are done before "One volt on the bench" names the reading. Then the dive.
+            Cue("rig.voltage 1", "Wattson sets the bench to 1 V: the meters ease to 1.0 V and 0.20 A (ExperimentData row 1)");
             Shot("Bench Wide");
             Show("Beam", 0.3);
-            Cue("rig.voltage 1", "Wattson sets the bench to 1 V: the meters read 1.0 V and 0.20 A (ExperimentData row 1)", 0.3);
+            Visual("The camera settles on the bench; the meters settle at 1.0 V, 0.20 A", 1.0);
             Line("S12_W01");
             Shot("Dive");
             Show("Dive Streaks", 0.5);

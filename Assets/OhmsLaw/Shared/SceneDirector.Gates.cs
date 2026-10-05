@@ -129,11 +129,11 @@ namespace OhmsLaw
             if (rig.IsPlaced(part)) yield break;
             bool auto = buildMode == BuildMode.AutoPlace || ReviewMode.autoAnswer;
             rig.draggable = part; // its slot glows in auto runs too, until the part lands (CircuitRig clears it)
-            if (auto) { yield return new WaitForSeconds(auto && buildMode != BuildMode.AutoPlace ? ReviewMode.autoDelay : 1f); rig.Place(part); }
+            if (auto) { yield return Wait(auto && buildMode != BuildMode.AutoPlace ? ReviewMode.autoDelay : 1f); rig.Place(part); }
             float waited = 0;
             while (!rig.IsPlaced(part))
             {
-                waited += Time.deltaTime;
+                if (!AskWattsonUI.IsOpen) waited += Dt;
                 if (ReviewMode.autoAnswer && waited > ReviewMode.autoDelay + 2f) rig.PlaceNow(part);
                 yield return null;
             }
@@ -151,7 +151,7 @@ namespace OhmsLaw
             float waited = 0;
             while (!rig.state.keyClosed)
             {
-                waited += Time.deltaTime;
+                if (!AskWattsonUI.IsOpen) waited += Dt;
                 if (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay) rig.CloseKey();
                 yield return null;
             }
@@ -188,7 +188,7 @@ namespace OhmsLaw
             while (true)
             {
                 var q = run.Question;
-                if (panel == null) panel = new MCQPanel(q.text, q.Texts, dockRight: true, width: q.width);
+                if (panel == null) panel = new MCQPanel(q.text, q.Texts, dockRight: q.dockRight, width: q.width);
                 yield return Pick(panel, spoken);
                 spoken = null;
                 int pick = panel.Picked;
@@ -209,7 +209,7 @@ namespace OhmsLaw
                     panel.Hint(q.reveal);
                 }
                 yield return Say(feedback);
-                if (step.grade != Grade.Incorrect) { yield return new WaitForSeconds(1f); break; }
+                if (step.grade != Grade.Incorrect) { yield return Wait(1f); break; }
 
                 if (step.retry)
                 {
@@ -231,7 +231,7 @@ namespace OhmsLaw
                 panel.Hint(q.reveal);
                 if (reveal != null)
                 {
-                    yield return new WaitForSeconds(1.2f);
+                    yield return Wait(1.2f);
                     panel.Close();
                     panel = null;
                     yield return reveal();
@@ -239,7 +239,7 @@ namespace OhmsLaw
                 else
                 {
                     yield return Say(Line(gate, id + "_X"));
-                    yield return new WaitForSeconds(1f);
+                    yield return Wait(1f);
                 }
                 break;
             }
@@ -265,12 +265,12 @@ namespace OhmsLaw
         IEnumerator Predict2V(InteractionGate gate)
         {
             var q = QuestionBank.S10Predict2V;
-            var panel = new MCQPanel(q.text, q.Texts, dockRight: true, width: q.width);
+            var panel = new MCQPanel(q.text, q.Texts, dockRight: q.dockRight, width: q.width);
             yield return Pick(panel, Line(gate, gate.gateId + "_Q"));
             LearnerSession.s10Prediction2V = LearnerSession.Letter(panel.Picked);
             panel.Mark(panel.Picked, UI.AccentFill); // "your prediction", neither right nor wrong yet
             yield return Say(Line(gate, gate.gateId + "_OK"));
-            yield return new WaitForSeconds(0.6f);
+            yield return Wait(0.6f);
             panel.Close();
         }
 
@@ -314,12 +314,12 @@ namespace OhmsLaw
             void OnRow(int row) { if (row <= 1) revealed = true; }
             table.RowTapped += OnRow;
             var chip = ScreenButton("Times Two", "× 2", new Vector2(720, 250), () => revealed = true);
-            for (float t = 0; t < 5f && !revealed; t += Time.deltaTime) yield return null;
+            for (float t = 0; t < 5f && !revealed; t += Dt) yield return null;
             table.RowTapped -= OnRow;
             Destroy(chip.gameObject);
             SetActive("Card Discovery", true);
             if (sfx && pop) sfx.PlayOneShot(pop);
-            yield return new WaitForSeconds(1.5f);
+            yield return Wait(1.5f);
             if (LearnerSession.prediction != "") yield return Say(Line(gate, "S10_Discover_F" + LearnerSession.prediction));
         }
 
@@ -336,7 +336,7 @@ namespace OhmsLaw
         IEnumerator WorkRow(int row)
         {
             table.SetRatio(row, true);
-            yield return new WaitForSeconds(1.5f);
+            yield return Wait(1.5f);
         }
 
         // Scene 12 slope (storyboard: wrong -> shake, show 2.0 ÷ 0.40, re-ask once, then continue). Adaptive: a learner
@@ -355,7 +355,7 @@ namespace OhmsLaw
         IEnumerator PulseGraph()
         {
             if (graph) graph.Pulse();
-            yield return new WaitForSeconds(1.5f);
+            yield return Wait(1.5f);
         }
 
         // Storyboard AQ1, now in Scene 12 after resistance is defined. Skipped for a learner already confident with the

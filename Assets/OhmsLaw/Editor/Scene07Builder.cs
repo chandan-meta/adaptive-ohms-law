@@ -93,10 +93,15 @@ namespace OhmsLaw.Editor
         }
 
         // The first flicker of Scene 8's transformation: a sparkle shimmer over the apparatus while the cue is on.
-        // The "[VFX]" name keeps the cue text and puts up its screen panel.
+        // The "[VFX]" name keeps the cue text and puts up its screen panel, placed top-centre: at top-left it sat on the slate's
+        // "Voltage → V". Shown by a plain `show` cue (no Soften), so the root reads reduced motion itself.
         void TransformShimmer()
         {
             var fx = Ref(Node(Transforming, null, OhmDeskC + new Vector3(0f, 0.12f, 0.05f)));
+            fx.AddComponent<ReducedMotionFx>().calm = 0.35f;
+            var panel = fx.AddComponent<CalloutDef>();
+            panel.kind = CalloutDef.Kind.Vfx;
+            panel.anchor = CalloutDef.Anchor.TopCentre;
             Emitter("Shimmer", fx.transform, Vector3.zero, Glow("Glow_TransformShimmer", Hdr(palette.wattsonAccent, 3f)), ps =>
             {
                 var main = ps.main;

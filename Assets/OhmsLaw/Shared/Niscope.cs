@@ -33,9 +33,10 @@ namespace OhmsLaw
                 rings[i].localScale = scales[i] * ease;
                 rings[i].Rotate(0, 0, (i % 2 == 0 ? 1 : -1) * (120f + 70f * i) * dt, Space.Self);
             }
-            // One bright flash once the last ring is open, then a steady glow.
+            // One bright flash once the last ring is open, then a steady glow. The gadget replays this burst on every activation
+            // (gadget gestures, Transform, Ask Wattson thinking): under reduced motion it is a soft pulse, read per frame.
             float sinceOpen = time - (0.25f * rings.Length + 0.5f);
-            float burst = sinceOpen < 0 ? 0 : Mathf.Exp(-sinceOpen * 3f);
+            float burst = sinceOpen < 0 ? 0 : Mathf.Exp(-sinceOpen * 3f) * (ReducedMotion.On ? 0.3f : 1f);
             float glow = Mathf.Clamp01(time / 1.2f);
             if (flare) flare.intensity = flarePeak * burst + 0.8f * glow;
             if (flash) flash.transform.localScale = flashScale * (0.35f * glow + 2.2f * burst);

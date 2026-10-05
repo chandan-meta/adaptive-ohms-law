@@ -71,6 +71,9 @@ namespace OhmsLaw.Editor
                 Check($"bank {q.id} '{q.text}': correct option first (autoAnswer), exactly one, wrong options tagged",
                     shape && q.options[0].grade == Grade.Correct && correct == 1 && tagged && q.CorrectIndex == 0);
             }
+            // The only top-centre panel: 640 px between the − end and the + end it asks about (WOW_PLAN §8); every other question docks right.
+            Check("bank S05_Drift docks top-centre at 640 px, the rest right",
+                !QuestionBank.S05Drift.dockRight && QuestionBank.S05Drift.width == 640f && System.Array.TrueForAll(QuestionBank.All, q => q == QuestionBank.S05Drift || q.dockRight));
         }
 
         static void CorrectFirstTime()

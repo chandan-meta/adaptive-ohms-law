@@ -226,8 +226,13 @@ namespace OhmsLaw.Editor
             }
             AxisFlash(root.transform, "X Axis", amber, GraphPoint(0, 0, FxLift), GraphPoint(GraphUI.MaxI, 0, FxLift));
             AxisFlash(root.transform, "Y Axis", blue, GraphPoint(0, 0, FxLift), GraphPoint(0, GraphUI.MaxV, FxLift));
+            Calm(root);
             root.SetActive(false);
         }
+
+        // The graph effects are activated by plain `show` cues (no Soften from the fx cue), so each root reads reduced motion
+        // itself: about a third of the sparks, dimmer (Soften's 0.35).
+        static void Calm(GameObject root) => root.AddComponent<ReducedMotionFx>().calm = 0.35f;
 
         // A cloud of sparks the size of a cell's digits, flying in a straight line from the cell to its tick.
         void CellFlight(Transform root, string name, Material glow, Vector3 from, Vector3 to, Vector2 size) =>
@@ -317,6 +322,7 @@ namespace OhmsLaw.Editor
                 ps.GetComponent<ParticleSystemRenderer>().trailMaterial = lineGlow;
                 Hold(ps);
             });
+            Calm(sweep.gameObject);
             sweep.gameObject.SetActive(false);
             Ref(sweep.gameObject);
         }
@@ -342,6 +348,7 @@ namespace OhmsLaw.Editor
                 shape.shapeType = ParticleSystemShapeType.Sphere;
                 shape.radius = 0.015f;
             });
+            Calm(spark.gameObject);
             spark.gameObject.SetActive(false);
             Ref(spark.gameObject);
         }
@@ -398,6 +405,7 @@ namespace OhmsLaw.Editor
                     shape.radius = 0.02f;
                 });
             }
+            Calm(root);
             root.SetActive(false);
         }
 

@@ -114,6 +114,9 @@ namespace OhmsLaw
 
         public bool IsPaused(PauseReason reason) => (paused & reason) != 0;
 
+        // The learner pressed PAUSE. The gates run outside the Timeline, so their lines, timers and inputs read this.
+        public static bool UserPaused => Instance && Instance.IsPaused(PauseReason.User);
+
         // The scene's Timeline is playing at normal speed (nothing holds it): its scripted voice is audible.
         public bool TimelineRunning => paused == 0 && Director && Director.state == PlayState.Playing;
 
@@ -152,6 +155,16 @@ namespace OhmsLaw
             if (fadeOut) yield return FadeTo(1);
             if (next != null && Application.CanStreamedLevelBeLoaded(next)) { yield return SceneManager.LoadSceneAsync(next); yield break; }
             if (!fadeOut) yield return FadeTo(1);
+            // Holding on the card: the scene underneath stops (a SKIP in Scene 13 arrives here mid-Timeline or mid-gate), and
+            // no voice keeps talking under it.
+            var director = Director ? Director.GetComponent<SceneDirector>() : null;
+            if (director) director.Shutdown();
+            if (Director) Director.Stop();
+            foreach (var wattson in FindObjectsByType<WattsonController>(FindObjectsSortMode.None))
+            {
+                if (wattson.voice) wattson.voice.Stop();
+                if (wattson.liveVoice) wattson.liveVoice.Stop();
+            }
             if (next != null) { devNote.text = next + " is not built yet. Holding on white."; yield break; }
 
             // End of the Unity section.
@@ -177,16 +190,21 @@ namespace OhmsLaw
             return fading = StartCoroutine(Fade(alpha));
         }
 
+        // Reduced motion: the flash goes to a warm off-white instead of hard white, read every frame so the HUD toggle takes
+        // mid-fade. The length stays: Scenes 5, 6 and 12 swap their sets 0.6-0.8 s after "fade 1" and need the cover by then.
+        static readonly Color SoftWhite = new Color(0.86f, 0.84f, 0.80f);
+        static Color FadeColor => ReducedMotion.On ? SoftWhite : Color.white;
+
         IEnumerator Fade(float alpha)
         {
             fade.raycastTarget = true;
             float from = fade.color.a;
             for (float t = 0; t < 1; t += Time.unscaledDeltaTime / fadeSeconds)
             {
-                fade.color = new Color(1, 1, 1, Mathf.Lerp(from, alpha, t));
+                fade.color = UI.Alpha(FadeColor, Mathf.Lerp(from, alpha, t));
                 yield return null;
             }
-            fade.color = new Color(1, 1, 1, alpha);
+            fade.color = UI.Alpha(FadeColor, alpha);
             fade.raycastTarget = alpha > 0;
         }
     }

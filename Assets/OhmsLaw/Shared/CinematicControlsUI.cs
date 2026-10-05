@@ -39,7 +39,7 @@ namespace OhmsLaw
                 .GetComponentInParent<Button>();
             subtitleLabel = Add(root, 2, "CC ON", () => SubtitleUI.Enabled = !SubtitleUI.Enabled);
             Add(root, 1, "VOLUME", () => volumePanel.gameObject.SetActive(!volumePanel.gameObject.activeSelf));
-            skipLabel = Add(root, 0, "SKIP", () => { if (ModuleFlow.Instance.debugMode) ModuleFlow.Instance.CompleteScene(); });
+            skipLabel = Add(root, 0, "SKIP", () => { if (ModuleFlow.Instance.debugMode) Skip(); });
             var hold = skipLabel.transform.parent.gameObject.AddComponent<EventTrigger>();
             On(hold, EventTriggerType.PointerDown, () => skipPressed = Time.unscaledTime);
             On(hold, EventTriggerType.PointerUp, () => skipPressed = -1);
@@ -95,6 +95,14 @@ namespace OhmsLaw
             slider.onValueChanged.AddListener(onChange);
         }
 
+        // Through the scene's director when there is one, so the hand-off state (camera pose, circuit) survives a skip.
+        public static void Skip()
+        {
+            var flow = ModuleFlow.Instance;
+            var director = flow.Director ? flow.Director.GetComponent<SceneDirector>() : null;
+            if (director) director.Complete(); else flow.CompleteScene();
+        }
+
         void TogglePause()
         {
             var flow = ModuleFlow.Instance;
@@ -112,7 +120,7 @@ namespace OhmsLaw
 
             // Long-press guards Skip so a stray tap cannot jump the scene.
             skipLabel.text = skipPressed >= 0 ? "HOLD..." : "SKIP";
-            if (skipPressed >= 0 && Time.unscaledTime - skipPressed > SkipHold) { skipPressed = -1; flow.CompleteScene(); }
+            if (skipPressed >= 0 && Time.unscaledTime - skipPressed > SkipHold) { skipPressed = -1; Skip(); }
 
             var pointer = Pointer.current;
             if (pointer != null && (pointer.press.isPressed || pointer.delta.ReadValue().sqrMagnitude > 0)) lastActivity = Time.unscaledTime;

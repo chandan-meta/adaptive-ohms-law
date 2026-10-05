@@ -30,7 +30,7 @@ namespace OhmsLaw
 
         [Header("Review toggles")]
         [Tooltip("Scene 9: the learner drags the meters in, or they fly in by themselves (the key tap stays).")] public BuildMode buildMode = BuildMode.LearnerPlaces;
-        [Tooltip("Scene 9: add \"Your prediction: ...\" from Scene 6 under the reminder card.")] public bool showLearnerPrediction;
+        [Tooltip("Scene 9: add \"Your prediction: ...\" from Scene 6 under the reminder card (Reminder() leaves it off when none was recorded).")] public bool showLearnerPrediction = true;
         [Tooltip("Scene 12: the tunnel narrows while the material opposes the flow (a metaphor, not real geometry).")] public bool narrowingMetaphor = true;
         [Tooltip("Scene 12: keep the table and graph inside the wire instead of cutting back to the bench.")] public bool tableInWire;
         [Tooltip("Scenes 12-13: ask the storyboard's adaptive questions (S12_AQ1 = AQ1 / AQ_EASY, S13_AQ2 = AQ2).")] public bool checkpointEnabled = true;
@@ -56,6 +56,18 @@ namespace OhmsLaw
 
         static ModuleFlow Flow => ModuleFlow.Instance;
         GameObject Ref(string name) => refs.FirstOrDefault(r => r && r.name == name);
+
+        // A gate line holds while the Ask panel is open or the learner pressed PAUSE (the Timeline is already frozen by then;
+        // the gates run outside it, so they hold themselves). Gate timers (settle, idle hint, reveal beats) advance by Dt,
+        // which is zero under PAUSE; autoAnswer timers also stop while the Ask panel is open (each caller checks IsOpen).
+        static bool Held => AskWattsonUI.IsOpen || ModuleFlow.UserPaused;
+        static float Dt => ModuleFlow.UserPaused ? 0f : Time.deltaTime;
+
+        // WaitForSeconds that PAUSE holds (for beats inside gate coroutines).
+        static IEnumerator Wait(float seconds)
+        {
+            for (float t = 0; t < seconds; t += Dt) yield return null;
+        }
 
         void Start()
         {
@@ -89,7 +101,8 @@ namespace OhmsLaw
             if (rig.controlsOpen && rig.state.voltage > ControlsMax + 0.001f) { rig.SetVoltage(ControlsMax); capPushed = true; }
             if (!slider) return;
             slider.SetValueWithoutNotify(rig.state.voltage);
-            if (slider.interactable != rig.controlsOpen) slider.interactable = rig.controlsOpen;
+            bool open = rig.controlsOpen && !ModuleFlow.UserPaused; // PAUSE holds the knob too
+            if (slider.interactable != open) slider.interactable = open;
             if (!Mathf.Approximately(ticksShownMax, ControlsMax))
             {
                 ticksShownMax = ControlsMax;
@@ -135,12 +148,12 @@ namespace OhmsLaw
             SubtitleTrack.Started(line);
             if (voice) { voice.clip = line.vo; if (line.vo) voice.Play(); }
             float length = line.Duration;
-            for (float t = 0; t < length; t += Time.deltaTime)
+            for (float t = 0; t < length; t += Dt)
             {
-                if (AskWattsonUI.IsOpen)
+                if (Held) // the Ask panel is open, or PAUSE: the voice and the subtitle wait where they are
                 {
                     if (voice) voice.Pause();
-                    yield return new WaitWhile(() => AskWattsonUI.IsOpen);
+                    yield return new WaitWhile(() => Held);
                     yield return VoiceChannel.WaitTurn(voice); // an answer still finishing after the panel closed
                     if (voice) voice.UnPause();
                 }
@@ -150,7 +163,7 @@ namespace OhmsLaw
             }
             if (SubtitleUI.Instance) SubtitleUI.Instance.Hide(this);
             Speaking = null;
-            yield return new WaitForSeconds(0.3f);
+            yield return Wait(0.3f);
         }
 
         // Cuts a line started with StartCoroutine(Say(line)) short, e.g. a question the learner has already answered.
@@ -190,7 +203,7 @@ namespace OhmsLaw
                 case "rig.place": rig.Place(arg); break;
                 case "rig.slider": Slider(on); break;
                 case "table.rows": table.ShowRows(Int(1)); LearnerSession.tableRows = Mathf.Max(LearnerSession.tableRows, Int(1)); break;
-                case "table.ratio": table.ShowRatio(on); break;
+                case "table.ratio": table.ShowRatio(on); if (on) LearnerSession.ratioShown = true; break;
                 case "table.work": table.SetRatio(Int(1), true); break;
                 case "table.result": table.SetRatio(Int(1), false); break;
                 case "table.highlight": foreach (var w in words.Skip(1)) table.Highlight(int.Parse(w), true, table.Pair(int.Parse(w))); break;
@@ -505,12 +518,31 @@ namespace OhmsLaw
             Destroy(ring.gameObject);
         }
 
-        void OnDestroy()
+        void OnDestroy() => Shutdown();
+
+        // Ends whatever a gate was doing: SKIP / NEXT SCENE unloads the scene mid-gate (OnDestroy), and the Scene 14 card
+        // comes up over a running Scene 13 (ModuleFlow.Load). The gate coroutines die, the gate's spoken line and subtitle
+        // stop, and everything a gate put on the module canvas (which outlives the scene) is swept: the MCQ panel, RECORD,
+        // the × 2 chip and the tap hint, besides the prompt, slider and readings this director tracks. Collected, deactivated
+        // and destroyed (no DestroyImmediate): an orphaned panel would stay interactable and make Ask Wattson see a question
+        // in every later scene. Safe to call twice.
+        public void Shutdown()
         {
+            StopAllCoroutines();
+            if (voice && Speaking) voice.Stop();
+            if (SubtitleUI.Instance) SubtitleUI.Instance.Hide(this);
+            Speaking = null;
+            Gate = null;
             ControlsMax = CircuitRig.MaxVolts; // static: never carried into a scene left mid-gate
             if (prompt) Destroy(prompt.gameObject);
             if (slider) Destroy(slider.gameObject);
             if (readings) Destroy(readings.gameObject); // the HUD variant lives on the module canvas, which outlives the scene
+            if (!Flow) return;
+            var dead = new List<GameObject>();
+            var safe = Flow.transform.Find("SafeArea");
+            if (safe) foreach (Transform child in safe) if (child.name == "MCQ Panel" || child.name == "Record" || child.name == "Times Two") dead.Add(child.gameObject);
+            foreach (Transform child in Flow.transform) if (child.name == "Tap Hint") dead.Add(child.gameObject);
+            foreach (var go in dead) { go.SetActive(false); Destroy(go); }
         }
     }
 }

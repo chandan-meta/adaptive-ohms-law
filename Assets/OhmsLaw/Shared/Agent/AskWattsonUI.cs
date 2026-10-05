@@ -40,7 +40,7 @@ namespace OhmsLaw
         TextMeshProUGUI status, mode, historyLabel, micLabel, sendLabel;
         Image micImage;
         readonly List<View> views = new List<View>();
-        bool expanded, scrollToEnd;
+        bool expanded, scrollToEnd, spaceTalk;   // spaceTalk: the Space bar (not the mic button) started the current hold
         int dirtyFrames, scene;   // scene bumps on every load: the collapsed view shows only this scene's latest exchange
         float contentHeight;
         double resumeTime = -1;
@@ -103,7 +103,7 @@ namespace OhmsLaw
             var header = Band("Header", Pad, HeaderHeight, true);
             var title = UI.Label(UI.Rect("Title", header, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, new Vector2(208, 46)), "ASK WATTSON", 28, accent, TextAlignmentOptions.MidlineLeft);
             title.fontStyle = FontStyles.Bold;
-            mode = UI.Label(UI.Rect("Mode", header, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, -46), new Vector2(208, 42)), "", 16, OfflineTint, TextAlignmentOptions.TopLeft);
+            mode = Fit(UI.Label(UI.Rect("Mode", header, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, -46), new Vector2(208, 42)), "", 16, OfflineTint, TextAlignmentOptions.TopLeft));
             mode.fontStyle = FontStyles.Bold;
             var back = UI.Button("Back", header, new Vector2(1, 0.5f), new Vector2(1, 0.5f), Vector2.zero, new Vector2(132, HeaderHeight), "BACK TO\nTHE CASE", Close, 22);
             back.GetComponent<Image>().color = MicIdle;
@@ -342,19 +342,22 @@ namespace OhmsLaw
             if (!IsOpen && x < -Width - 40) { panel.gameObject.SetActive(false); return; }
 
             status.text = StatusText();
-            mode.text = agent.Offline && agent.VoiceInputDown ? "OFFLINE MODE\nVOICE INPUT OFF" :
-                        agent.Offline ? "OFFLINE MODE" : agent.VoiceInputDown ? "VOICE INPUT OFF" : "";
+            // What is true: unreachable is OFFLINE, a rate limit is RESTING (the server is up; saved answers meanwhile).
+            string chat = agent.Offline ? "OFFLINE MODE" : agent.Resting ? "RESTING: too many questions" : "";
+            string voice = agent.VoiceInputDown ? "VOICE INPUT OFF" : "";
+            mode.text = chat.Length > 0 && voice.Length > 0 ? chat + "\n" + voice : chat + voice;
             bool listening = agent.Current == WattsonAgent.State.Listening;
             micLabel.text = listening ? "LET GO\nTO SEND" : "HOLD\nTO TALK";
             micImage.color = listening ? MicLive : agent.VoiceInputDown ? MicDim : MicIdle;
             sendLabel.text = Busy && string.IsNullOrWhiteSpace(input.text) ? "STOP" : "SEND";
             historyLabel.text = expanded ? "LATEST\nONLY" : "HISTORY";
 
-            // Spacebar is push-to-talk on PC, unless the student is typing.
+            // Spacebar is push-to-talk on PC, unless the student is typing. Letting go always ends a hold Space started,
+            // even if the text field took focus meanwhile (otherwise he stays Listening with the mic running).
             var keyboard = Keyboard.current;
-            if (!IsOpen || keyboard == null || input.isFocused) return;
-            if (keyboard.spaceKey.wasPressedThisFrame) agent.StartListening();
-            if (keyboard.spaceKey.wasReleasedThisFrame) agent.StopListening();
+            if (!IsOpen || keyboard == null) return;
+            if (spaceTalk && !keyboard.spaceKey.isPressed) { spaceTalk = false; agent.StopListening(); }
+            if (!input.isFocused && keyboard.spaceKey.wasPressedThisFrame) { spaceTalk = true; agent.StartListening(); }
         }
 
         void LateUpdate()
@@ -369,7 +372,7 @@ namespace OhmsLaw
                     if (views[i].scene == scene && views[i].message.FromLearner) latest = i;
                 for (int i = 0; i < views.Count; i++) views[i].root.SetActive(expanded || (latest >= 0 && i >= latest));
                 bool offlineLast = views.Count > 0 && views[views.Count - 1].message.speaker == WattsonAgent.Speaker.Offline;
-                suggestions.gameObject.SetActive(expanded || latest < 0 || offlineLast || agent.Offline);
+                suggestions.gameObject.SetActive(expanded || latest < 0 || offlineLast || agent.Offline || agent.Resting);
                 LayoutRebuilder.ForceRebuildLayoutImmediate(content); // text heights depend on the width the layout gives them
                 contentHeight = LayoutUtility.GetPreferredHeight(content);
                 scrollToEnd = true;

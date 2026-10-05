@@ -1,6 +1,6 @@
 # Ohm's Law module flow
 
-Generated 2026-10-05 15:23 from the scene Timelines. Scene 4 is the polished build; Scenes 5-13 are blockouts.
+Generated 2026-10-05 16:36 from the scene Timelines. Scene 4 is the polished build; Scenes 5-13 are blockouts.
 
 ## Scene05 — Journey Inside the Wire
 
@@ -189,6 +189,7 @@ Generated 2026-10-05 15:23 from the scene Timelines. Scene 4 is the polished bui
 | 4.5 s | Visual | on-screen prompt takes over as the subtitle ends (`prompt Let's start low. Set the battery to 1 volt.`) |  |
 | 4.7 s | Interaction | `S10_Set1V` — Set the slider to 1 V (mouse/touch, or ask Wattson). Ammeter needle moves to 0.20 A. A wrong setting held 0.8 s: prompt 'N V now. Set the battery to 1 V.' + S10_Set1V_H once. autoAnswer sets it.<br>Lines: `S10_Set1V_H` Slide the battery knob to the 1 V tick. | waits |
 | 4.9 s | VO | `S10_L02` Note the reading of Potential difference in voltmeter. | 3.2 s |
+| 4.9 s | Visual | the digital plates appear at the baseline: 1.0 V, 0.20 A (the first numbers the learner reads) (`rig.readouts 1`) |  |
 | 8.4 s | VO | `S10_L03` Record the current reading in ammeter. | 2.6 s |
 | 11.0 s | Visual | on-screen prompt takes over as the subtitle ends (`prompt Record the current reading in ammeter.`) |  |
 | 11.2 s | Interaction | `S10_Record` — Tap RECORD (or the ammeter). Row 1 takes the meters' live values (1, 0.2); only at 1 V, otherwise the controls open and the prompt says to go back to 1 V. | waits |
@@ -275,78 +276,79 @@ Generated 2026-10-05 15:23 from the scene Timelines. Scene 4 is the polished bui
 | 0.0 s | Camera | Boards |  |
 | 0.0 s | Visual | match-cut from Scene 11: table and graph visible (`table.rows 5`) |  |
 | 1.0 s | Camera | Bench Wide |  |
-| 1.0 s | VO | `S12_W01` One volt on the bench. Now let's see it from inside the wire. | 4.5 s |
-| 1.3 s | Visual | Wattson sets the bench to 1 V: the meters read 1.0 V and 0.20 A (ExperimentData row 1) (`rig.voltage 1`) |  |
-| 5.8 s | Camera | Dive |  |
-| 5.8 s | Visual | Dolly-zoom into the nichrome wire XY: streaks race out of the rod | 1.4 s |
-| 7.2 s | Visual | fade 1 — flash |  |
-| 7.8 s | Camera | Wire Inside |  |
-| 7.8 s | Visual | the counter counts the net charges through the ring each second (`wire.count 1`) |  |
-| 7.8 s | Visual | Inside the nichrome wire at 1 V: electrons drift past the fading-in lattice; the counter completes its first second | 1.5 s |
-| 7.9 s | Visual | the lattice of ions fades in (Scene 12 only) (`wire.lattice 1`) |  |
-| 7.9 s | Visual | Wattson is on his spot before the white clears (`wire.warp Platform Point`) |  |
-| 8.2 s | Visual | fade 0 — the white clears inside the nichrome wire |  |
-| 9.3 s | VO | `S12_W02` Inside the nichrome wire. Count the charges crossing the ring each second. | 5.1 s |
-| 14.6 s | Visual | Baseline: V = 1.0 V, I = 0.20 A; the counter reads 2 charges per second | 1.5 s |
-| 16.1 s | VO | `S12_W03` Now I'll double the voltage to 2 volts. | 2.8 s |
-| 19.1 s | Visual | the bench goes to 2 V: the readings show 2.0 V and 0.40 A; every electron's drift doubles at once (`rig.voltage 2`) |  |
-| 19.1 s | Visual | The whole stream drifts twice as fast; after a full second the counter reads 4 | 2.5 s |
-| 21.6 s | VO | `S12_W04` Double the push, double the charge per second. Just like your table. | 4.9 s |
-| 26.7 s | VO | `S12_L01` We've seen what pushes charge... | 2.3 s |
-| 29.4 s | VO | `S12_L02` ...and we've measured how much charge flows... | 2.8 s |
-| 32.5 s | VO | `S12_L03` But if voltage pushes charge...why doesn't charge move through every conductor equally easily? | 5.6 s |
-| 38.4 s | VO | `S12_L04` The material itself opposes the flow of current. | 3.3 s |
-| 38.4 s | Visual | electrons slow and bounce off the lattice ions (`wire.impede 0.8`) |  |
-| 38.4 s | Visual | conduit narrows ~17 % (narrowingMetaphor toggle; WireInterior clamps the narrowing at 20 %) (`wire.radius 0.5`) |  |
-| 42.4 s | VO | `S12_L05` That opposition to the flow of electric current is called electrical resistance. | 5.1 s |
-| 47.8 s | Visual | Symbol: R card | 1.0 s |
-| 48.8 s | VO | `S12_L06` And the best part? | 1.7 s |
-| 50.7 s | Visual | fade 1 — white: out of the wire (tableInWire keeps the boards inside it instead) |  |
-| 51.3 s | Camera | Dive Out |  |
-| 51.3 s | Visual | the bench and the board are back; the electron space goes (`lab`) |  |
-| 51.3 s | Visual | the conduit is back to its built radius (`wire.radius 0.6`) |  |
-| 51.4 s | Visual | Wattson beside the end of the bench, where he dived from (`wire.warp Niscope Point`) |  |
-| 51.5 s | Visual | fade 0 — the white clears on the nichrome wire XY, up close |  |
-| 52.1 s | Camera | Bench Wide |  |
-| 52.1 s | Visual | The camera pulls back off the rod to the whole bench: the same wire XY, its meters at 2.0 V and 0.40 A | 1.6 s |
-| 53.7 s | Camera | Boards |  |
-| 53.7 s | Visual | To the board: Wattson flies back beside the table | 1.4 s |
-| 55.1 s | VO | `S12_L07` You've already measured it. | 2.0 s |
-| 57.5 s | Visual | a new column V / I appears (`table.ratio 1`) |  |
-| 57.5 s | Visual | V / I column appears | 0.8 s |
-| 58.3 s | Visual | Wattson works row 1: 1.0 ÷ 0.20 = 5 (`table.work 0`) |  |
-| 59.5 s | Visual | Wattson works row 2: 2.0 ÷ 0.40 = 5 (`table.work 1`) |  |
-| 60.7 s | Interaction | `S12_Ratio` — MCQ (graded): 3.0 ÷ 0.60 = ? · 5 (correct) · 0.2 (divides I by V) · 1.8 (multiplies). Hint + retry; Resistance. The answer fills row 3.<br>Lines: `S12_Ratio_Q` Your turn, detective. What is 3.0 divided by 0.60?; `S12_Ratio_FA` Five again. The same as rows one and two.; `S12_Ratio_FB` That's 0.60 divided by 3.0. Flip it: volts divided by amps.; `S12_Ratio_FC` That's 3.0 times 0.60. We need to divide: volts by amps.; `S12_Ratio_H` Think: how many times does 0.60 go into 3.0?; `S12_Ratio_X` Watch: 3.0 divided by 0.60 is 5. Five, again. | waits |
-| 60.9 s | Visual | row 3: 3.0 ÷ 0.60 = 5 (`table.work 2`) |  |
-| 61.5 s | Visual | 5 (`table.result 3`) |  |
-| 61.5 s | Visual | the last two fill rapidly | 0.7 s |
-| 61.8 s | Visual | 5 (`table.result 4`) |  |
-| 62.2 s | VO | `S12_L08` The value of V/I is the same every time. | 3.5 s |
-| 62.2 s | Visual | the whole V/I column glows (`table.glow 2 1`) |  |
-| 65.9 s | Visual | V / I = CONSTANT card above the table | 0.8 s |
-| 66.7 s | VO | `S12_L09` This constant tells us how strongly the conductor opposes current. | 4.3 s |
-| 71.1 s | Visual | CONSTANT | 0.8 s |
-| 71.9 s | Visual | CONSTANT morphs into RESISTANCE — R | 1.0 s |
-| 72.9 s | Visual | R = V / I | 0.8 s |
-| 73.7 s | VO | `S12_L10` We call that constant value resistance of the nichrome wire XY. | 4.6 s |
-| 78.7 s | Interaction | `S12_AQ1` — Storyboard AQ1 (graded, moved from Scene 13): A. It doubles (correct) · B. It halves · C. It stays the same. Wrong: S12_AQ1_FB/_FC, AQ_EXPLAIN, then AQ_EASY; out of tries: S12_AQ1_X over 2 V → 4 V on the readings strip. Skipped when Confident(Relationship); checkpointEnabled gates it.<br>Lines: `AQ1` If resistance stays constant and voltage doubles, what happens to current?; `AQ_EASY` When the potential difference across the nichrome wire went up, what happened to the current?; `AQ_EXPLAIN` Remember the table, detective: every time V went up, I went up with it, and V divided by I stayed at 5.; `AQ_GOOD` Case closed, detective.; `S12_AQ1_FB` More push, but less flow? That's not what our wire did.; `S12_AQ1_FC` If the current stayed put, the I column would never change. It does!; `S12_AQ1_X` Watch the readings: 2 volts gives 0.40 amperes, 4 volts gives 0.80. | waits |
-| 78.9 s | Visual | Wattson moves beside the graph | 1.0 s |
-| 79.9 s | Camera | Graph Close |  |
-| 80.5 s | VO | `S12_L11` And remember the straight line you made in the graph? | 3.1 s |
-| 83.8 s | Visual | triangle between (0.20, 1.0) and (0.60, 3.0): ΔV = 2.0 V, ΔI = 0.40 A (`graph.triangle 0 2`) |  |
-| 83.8 s | Visual | Wattson draws the ΔV/ΔI triangle; Slope = ΔV / ΔI in chalk above the graph | 1.2 s |
-| 85.0 s | VO | `S12_L12` Every straight line has a slope. | 2.4 s |
-| 87.6 s | Interaction | `S12_Slope` — MCQ (proposed format): Slope = ΔV / ΔI = ? · 5 · 0.2 · 2.5 (correct 5). Wrong: shake, show 2.0 ÷ 0.40, re-ask once, then continue.<br>Lines: `S12_Slope_Q` So, what is the slope? ΔV divided by ΔI.; `S12_Slope_FA` Five. The same five as V divided by I.; `S12_Slope_FB` That's ΔI divided by ΔV, upside down. Volts go on top.; `S12_Slope_FC` Careful: use the two differences, 2.0 volts and 0.40 amps.; `S12_Slope_H` ΔV is 2.0 volts, ΔI is 0.40 amps. Divide them.; `S12_Slope_X` 2.0 divided by 0.40 is 5. The slope is 5. | waits |
-| 87.8 s | VO | `S12_L13` So for a V-versus-I graph, the slope tells us the resistance of the nichrome wire XY. | 6.1 s |
-| 94.2 s | Camera | Boards |  |
-| 94.2 s | VO | `S12_L14` Resistance is measured in ohms. | 2.4 s |
-| 94.2 s | Visual | Wattson beside the table again (hidden by the cut) (`wire.warp Boards Point`) |  |
-| 96.9 s | VO | `S12_L15` A conductor has a resistance of one ohm when a potential difference of one volt produces a current of one ampere. | 6.4 s |
-| 96.9 s | Visual | R and the ohm are taught: the readings may show R (`readings.r 1`) |  |
-| 103.5 s | Visual | handoff |  |
-| 104.0 s | Hand-off | Scene12Complete → next scene |  |
+| 1.0 s | Visual | Wattson sets the bench to 1 V: the meters ease to 1.0 V and 0.20 A (ExperimentData row 1) (`rig.voltage 1`) |  |
+| 1.0 s | Visual | The camera settles on the bench; the meters settle at 1.0 V, 0.20 A | 1.0 s |
+| 2.0 s | VO | `S12_W01` One volt on the bench. Now let's see it from inside the wire. | 4.5 s |
+| 6.8 s | Camera | Dive |  |
+| 6.8 s | Visual | Dolly-zoom into the nichrome wire XY: streaks race out of the rod | 1.4 s |
+| 8.2 s | Visual | fade 1 — flash |  |
+| 8.8 s | Camera | Wire Inside |  |
+| 8.8 s | Visual | the counter counts the net charges through the ring each second (`wire.count 1`) |  |
+| 8.8 s | Visual | Inside the nichrome wire at 1 V: electrons drift past the fading-in lattice; the counter completes its first second | 1.5 s |
+| 8.9 s | Visual | the lattice of ions fades in (Scene 12 only) (`wire.lattice 1`) |  |
+| 8.9 s | Visual | Wattson is on his spot before the white clears (`wire.warp Platform Point`) |  |
+| 9.2 s | Visual | fade 0 — the white clears inside the nichrome wire |  |
+| 10.3 s | VO | `S12_W02` Inside the nichrome wire. Count the charges crossing the ring each second. | 5.1 s |
+| 15.6 s | Visual | Baseline: V = 1.0 V, I = 0.20 A; the counter reads 2 charges per second | 1.5 s |
+| 17.1 s | VO | `S12_W03` Now I'll double the voltage to 2 volts. | 2.8 s |
+| 20.1 s | Visual | the bench goes to 2 V: the readings show 2.0 V and 0.40 A; every electron's drift doubles at once (`rig.voltage 2`) |  |
+| 20.1 s | Visual | The whole stream drifts twice as fast; after a full second the counter reads 4 | 2.5 s |
+| 22.6 s | VO | `S12_W04` Double the push, double the charge per second. Just like your table. | 4.9 s |
+| 27.7 s | VO | `S12_L01` We've seen what pushes charge... | 2.3 s |
+| 30.4 s | VO | `S12_L02` ...and we've measured how much charge flows... | 2.8 s |
+| 33.5 s | VO | `S12_L03` But if voltage pushes charge...why doesn't charge move through every conductor equally easily? | 5.6 s |
+| 39.4 s | VO | `S12_L04` The material itself opposes the flow of current. | 3.3 s |
+| 39.4 s | Visual | electrons slow and bounce off the lattice ions (`wire.impede 0.8`) |  |
+| 39.4 s | Visual | conduit narrows ~17 % (narrowingMetaphor toggle; WireInterior clamps the narrowing at 20 %) (`wire.radius 0.5`) |  |
+| 43.4 s | VO | `S12_L05` That opposition to the flow of electric current is called electrical resistance. | 5.1 s |
+| 48.8 s | Visual | Symbol: R card | 1.0 s |
+| 49.8 s | VO | `S12_L06` And the best part? | 1.7 s |
+| 51.7 s | Visual | fade 1 — white: out of the wire (tableInWire keeps the boards inside it instead) |  |
+| 52.3 s | Camera | Dive Out |  |
+| 52.3 s | Visual | the bench and the board are back; the electron space goes (`lab`) |  |
+| 52.3 s | Visual | the conduit is back to its built radius (`wire.radius 0.6`) |  |
+| 52.4 s | Visual | Wattson beside the end of the bench, where he dived from (`wire.warp Niscope Point`) |  |
+| 52.5 s | Visual | fade 0 — the white clears on the nichrome wire XY, up close |  |
+| 53.1 s | Camera | Bench Wide |  |
+| 53.1 s | Visual | The camera pulls back off the rod to the whole bench: the same wire XY, its meters at 2.0 V and 0.40 A | 1.6 s |
+| 54.7 s | Camera | Boards |  |
+| 54.7 s | Visual | To the board: Wattson flies back beside the table | 1.4 s |
+| 56.1 s | VO | `S12_L07` You've already measured it. | 2.0 s |
+| 58.5 s | Visual | a new column V / I appears (`table.ratio 1`) |  |
+| 58.5 s | Visual | V / I column appears | 0.8 s |
+| 59.3 s | Visual | Wattson works row 1: 1.0 ÷ 0.20 = 5 (`table.work 0`) |  |
+| 60.5 s | Visual | Wattson works row 2: 2.0 ÷ 0.40 = 5 (`table.work 1`) |  |
+| 61.7 s | Interaction | `S12_Ratio` — MCQ (graded): 3.0 ÷ 0.60 = ? · 5 (correct) · 0.2 (divides I by V) · 1.8 (multiplies). Hint + retry; Resistance. The answer fills row 3.<br>Lines: `S12_Ratio_Q` Your turn, detective. What is 3.0 divided by 0.60?; `S12_Ratio_FA` Five again. The same as rows one and two.; `S12_Ratio_FB` That's 0.60 divided by 3.0. Flip it: volts divided by amps.; `S12_Ratio_FC` That's 3.0 times 0.60. We need to divide: volts by amps.; `S12_Ratio_H` Think: how many times does 0.60 go into 3.0?; `S12_Ratio_X` Watch: 3.0 divided by 0.60 is 5. Five, again. | waits |
+| 61.9 s | Visual | row 3: 3.0 ÷ 0.60 = 5 (`table.work 2`) |  |
+| 62.5 s | Visual | 5 (`table.result 3`) |  |
+| 62.5 s | Visual | the last two fill rapidly | 0.7 s |
+| 62.8 s | Visual | 5 (`table.result 4`) |  |
+| 63.2 s | VO | `S12_L08` The value of V/I is the same every time. | 3.5 s |
+| 63.2 s | Visual | the whole V/I column glows (`table.glow 2 1`) |  |
+| 66.9 s | Visual | V / I = CONSTANT card above the table | 0.8 s |
+| 67.7 s | VO | `S12_L09` This constant tells us how strongly the conductor opposes current. | 4.3 s |
+| 72.1 s | Visual | CONSTANT | 0.8 s |
+| 72.9 s | Visual | CONSTANT morphs into RESISTANCE — R | 1.0 s |
+| 73.9 s | Visual | R = V / I | 0.8 s |
+| 74.7 s | VO | `S12_L10` We call that constant value resistance of the nichrome wire XY. | 4.6 s |
+| 79.7 s | Interaction | `S12_AQ1` — Storyboard AQ1 (graded, moved from Scene 13): A. It doubles (correct) · B. It halves · C. It stays the same. Wrong: S12_AQ1_FB/_FC, AQ_EXPLAIN, then AQ_EASY; out of tries: S12_AQ1_X over 2 V → 4 V on the readings strip. Skipped when Confident(Relationship); checkpointEnabled gates it.<br>Lines: `AQ1` If resistance stays constant and voltage doubles, what happens to current?; `AQ_EASY` When the potential difference across the nichrome wire went up, what happened to the current?; `AQ_EXPLAIN` Remember the table, detective: every time V went up, I went up with it, and V divided by I stayed at 5.; `AQ_GOOD` Case closed, detective.; `S12_AQ1_FB` More push, but less flow? That's not what our wire did.; `S12_AQ1_FC` If the current stayed put, the I column would never change. It does!; `S12_AQ1_X` Watch the readings: 2 volts gives 0.40 amperes, 4 volts gives 0.80. | waits |
+| 79.9 s | Visual | Wattson moves beside the graph | 1.0 s |
+| 80.9 s | Camera | Graph Close |  |
+| 81.5 s | VO | `S12_L11` And remember the straight line you made in the graph? | 3.1 s |
+| 84.8 s | Visual | triangle between (0.20, 1.0) and (0.60, 3.0): ΔV = 2.0 V, ΔI = 0.40 A (`graph.triangle 0 2`) |  |
+| 84.8 s | Visual | Wattson draws the ΔV/ΔI triangle; Slope = ΔV / ΔI in chalk above the graph | 1.2 s |
+| 86.0 s | VO | `S12_L12` Every straight line has a slope. | 2.4 s |
+| 88.6 s | Interaction | `S12_Slope` — MCQ (proposed format): Slope = ΔV / ΔI = ? · 5 · 0.2 · 2.5 (correct 5). Wrong: shake, show 2.0 ÷ 0.40, re-ask once, then continue.<br>Lines: `S12_Slope_Q` So, what is the slope? ΔV divided by ΔI.; `S12_Slope_FA` Five. The same five as V divided by I.; `S12_Slope_FB` That's ΔI divided by ΔV, upside down. Volts go on top.; `S12_Slope_FC` Careful: use the two differences, 2.0 volts and 0.40 amps.; `S12_Slope_H` ΔV is 2.0 volts, ΔI is 0.40 amps. Divide them.; `S12_Slope_X` 2.0 divided by 0.40 is 5. The slope is 5. | waits |
+| 88.8 s | VO | `S12_L13` So for a V-versus-I graph, the slope tells us the resistance of the nichrome wire XY. | 6.1 s |
+| 95.2 s | Camera | Boards |  |
+| 95.2 s | VO | `S12_L14` Resistance is measured in ohms. | 2.4 s |
+| 95.2 s | Visual | Wattson beside the table again (hidden by the cut) (`wire.warp Boards Point`) |  |
+| 97.9 s | VO | `S12_L15` A conductor has a resistance of one ohm when a potential difference of one volt produces a current of one ampere. | 6.4 s |
+| 97.9 s | Visual | R and the ohm are taught: the readings may show R (`readings.r 1`) |  |
+| 104.5 s | Visual | handoff |  |
+| 105.0 s | Hand-off | Scene12Complete → next scene |  |
 
-**Scene total:** 105.1 s of Timeline, plus time spent at 3 interaction gate(s).
+**Scene total:** 106.1 s of Timeline, plus time spent at 3 interaction gate(s).
 
 ## Scene13 — The Law Gets Its Name
 
@@ -407,10 +409,10 @@ Generated 2026-10-05 15:23 from the scene Timelines. Scene 4 is the polished bui
 | Scene09 | 53.9 s | 12 | 4 |
 | Scene10 | 51.4 s | 13 | 7 |
 | Scene11 | 34.5 s | 5 | 1 |
-| Scene12 | 105.1 s | 19 | 3 |
+| Scene12 | 106.1 s | 19 | 3 |
 | Scene13 | 35.9 s | 8 | 3 |
 
-**Module Timeline total (Scenes 5-13):** 451.7 s ≈ 7.5 min, before interaction wait times. Scene 4 adds about 50 s.
+**Module Timeline total (Scenes 5-13):** 452.7 s ≈ 7.5 min, before interaction wait times. Scene 4 adds about 50 s.
 
 ## Proposed lines (not in the storyboard)
 

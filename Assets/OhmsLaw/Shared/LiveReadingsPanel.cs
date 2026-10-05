@@ -83,6 +83,7 @@ namespace OhmsLaw
         {
             var rig = CircuitRig.Active;
             if (!rig) return; // the rig is hidden (Scene 12's dive): keep the last readings rather than invent a change to 0
+            if (!rig.readoutsShown) return; // the meters' plates are hidden (Scenes 9-10 before the 1 V baseline): no number here either
             float v = rig.Volts, i = rig.Amps;
             if (float.IsNaN(volts)) { volts = v; amps = i; }
             else if (!Mathf.Approximately(v, volts) || !Mathf.Approximately(i, amps))

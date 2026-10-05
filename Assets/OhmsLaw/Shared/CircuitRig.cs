@@ -46,6 +46,7 @@ namespace OhmsLaw
         [Tooltip("Amber overlay along the cables Source → Ammeter → X; lit once the ammeter is in (and showPath). Nothing runs along XY.")] public LineRenderer currentPath;
         [Tooltip("The path's return leg along the cables Y → Key → Source, lit with currentPath.")] public LineRenderer currentPathReturn;
         [Tooltip("Builders and cues turn the lit path off where the bench should show plain red / black cables.")] public bool showPath = true;
+        [Tooltip("The digital plates above the meters. Scenes 9-10 hide them until the 1 V baseline, so the key-close reading is a needle move, not a number a learner can pattern-match before the prediction.")] public bool readoutsShown = true;
         [Tooltip("Leads X → voltmeter and Y → voltmeter; shown once the voltmeter is in.")] public LineRenderer voltmeterLeads, voltmeterLeadY;
         [Tooltip("Leads Source → ammeter → X; shown once the ammeter is in.")] public GameObject ammeterLeads;
         public GameObject seriesGlow, parallelGlow, wireHighlight;
@@ -122,8 +123,6 @@ namespace OhmsLaw
             return applied;
         }
 
-        // Back to the voltage the scene started with (the match-cut value).
-        public float ResetVoltage() => SetVoltage(StartVoltage);
 
         // Match-cut: take over the previous scene's circuit as this scene's starting state, settled (no needle swing-up).
         public void Restore(CircuitState carried)
@@ -219,8 +218,8 @@ namespace OhmsLaw
             shownAmps = Mathf.Lerp(shownAmps, Amps, ease);
             shownKnob = Mathf.Lerp(shownKnob, state.voltage, ease);
             // A meter waiting in the tray is not in the circuit, so it shows no readout.
-            Readout(voltmeterReading, voltmeterPlaced, shownVolts.ToString("0.0") + " V");
-            Readout(ammeterReading, ammeterPlaced, shownAmps.ToString("0.00") + " A");
+            Readout(voltmeterReading, voltmeterPlaced && readoutsShown, shownVolts.ToString("0.0") + " V");
+            Readout(ammeterReading, ammeterPlaced && readoutsShown, shownAmps.ToString("0.00") + " A");
             Swing(voltmeterNeedle, voltmeterZero, needleSweep * Mathf.Clamp01(shownVolts / voltmeterFullScale));
             Swing(ammeterNeedle, ammeterZero, needleSweep * Mathf.Clamp01(shownAmps / ammeterFullScale));
             Swing(sourceKnob, knobZero, knobDegreesPerVolt * shownKnob);
@@ -330,12 +329,13 @@ namespace OhmsLaw
             sourceBody.SetPropertyBlock(block, lampMaterialIndex);
         }
 
-        // Drag a part into its glowing slot, or just tap it. Tap the key to close the circuit. Mouse and touch.
+        // Drag a part into its glowing slot, or just tap it. Tap the key to close the circuit. Mouse and touch. Nothing while
+        // the learner has pressed PAUSE (a part mid-drag waits where it is).
         void Pointing()
         {
             var pointer = Pointer.current;
             var cam = Camera.main;
-            if (pointer == null || !cam) return;
+            if (pointer == null || !cam || ModuleFlow.UserPaused) return;
             Vector2 screen = pointer.position.ReadValue();
 
             if (pointer.press.wasPressedThisFrame && !(EventSystem.current && EventSystem.current.IsPointerOverGameObject()))

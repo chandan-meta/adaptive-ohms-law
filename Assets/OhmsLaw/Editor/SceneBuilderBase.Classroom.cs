@@ -592,18 +592,19 @@ namespace OhmsLaw.Editor
         }
 
         // Battery-wire loop in chalk (Scene07_two_clues board), lower-left of the board where neither Ohm nor Wattson
-        // stands: a cell on the left side of the loop with the "V" clue beside it, the "I" clue over the current arrow
-        // on the top wire. Conventional current leaves the long (+) plate, so the arrow on the top wire points right.
+        // stands: a cell on the left side of the loop with the "V" clue beside it, the "I" clue over the top wire. No
+        // direction arrow: conventional current (+ → −) is labelled where it is first explained (Scene 9, S09_Conventional),
+        // and an unlabelled arrow here would run against the drift the learner just answered at S05_Drift. The loop starts
+        // at u 0.12 so the "V" (0.05 left of it) stays inside the slate's frame.
         Transform TwoCluesSketch()
         {
             var loop = BoardGroup("Circuit");
-            const float l = 0.08f, r = 0.28f, b = 0.10f, t = 0.34f, minus = 0.19f, plus = 0.26f, width = 0.014f;
+            const float l = 0.12f, r = 0.32f, b = 0.10f, t = 0.34f, minus = 0.19f, plus = 0.26f, width = 0.014f;
             BoardLine(new[] { new Vector2(l, plus), new Vector2(l, t), new Vector2(r, t), new Vector2(r, b), new Vector2(l, b), new Vector2(l, minus) }, Chalk, width, loop);
             BoardLine(new[] { new Vector2(l - 0.025f, plus), new Vector2(l + 0.025f, plus) }, Chalk, width, loop);
             BoardLine(new[] { new Vector2(l - 0.012f, minus), new Vector2(l + 0.012f, minus) }, Chalk, width * 1.7f, loop);
-            BoardLine(new[] { new Vector2(0.165f, t + 0.025f), new Vector2(0.18f, t), new Vector2(0.165f, t - 0.025f) }, Chalk, width, loop);
             Board("V", palette.voltage, new Vector2(l - 0.05f, (plus + minus) * 0.5f), TwoCluesSmallCap, parent: loop);
-            Board("I", palette.current, new Vector2(0.18f, t + 0.065f), TwoCluesSmallCap, parent: loop);
+            Board("I", palette.current, new Vector2((l + r) * 0.5f, t + 0.065f), TwoCluesSmallCap, parent: loop);
             return loop;
         }
 

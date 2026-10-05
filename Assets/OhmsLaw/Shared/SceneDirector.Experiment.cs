@@ -31,6 +31,7 @@ namespace OhmsLaw
                 case "graph.live": if (graph) graph.Live(on); return true;
                 case "rig.drag": if (rig) rig.draggable = rest == "" || rest == "none" || rig.IsPlaced(rest) ? "" : rest; return true;
                 case "rig.path": if (rig) rig.showPath = on; return true;
+                case "rig.readouts": if (rig) rig.readoutsShown = on; return true; // the digital plates above the meters
                 default: return false;
             }
         }
@@ -67,9 +68,9 @@ namespace OhmsLaw
             bool hinted = false;
             while (!Mathf.Approximately(rig.state.voltage, volts))
             {
-                waited += Time.deltaTime;
+                if (!AskWattsonUI.IsOpen) waited += Dt; // autoAnswer never acts behind the Ask panel or under PAUSE
                 float v = rig.state.voltage;
-                if (!Mathf.Approximately(v, last)) { last = v; held = 0; } else held += Time.deltaTime;
+                if (!Mathf.Approximately(v, last)) { last = v; held = 0; } else held += Dt;
                 if (held >= SettleSeconds && !Pressing && !Mathf.Approximately(v, judged))
                 {
                     judged = v;
@@ -82,7 +83,7 @@ namespace OhmsLaw
             rig.controlsOpen = false;
             if (capPushed) Prompt($"The knob stops at {Volts(ControlsMax)} for this reading."); // until the builder's next prompt cue
             else if (promptText != instruction) Prompt(instruction);
-            yield return new WaitForSeconds(1.2f); // let the needles settle on the reading
+            yield return Wait(1.2f); // let the needles settle on the reading
         }
 
         // Scene 10: tap RECORD (or the ammeter) to write row `row` from the meters as they read now. The row belongs to one
@@ -99,7 +100,10 @@ namespace OhmsLaw
             float waited = 0;
             while (!done)
             {
-                waited += Time.deltaTime;
+                // PAUSE: the button greys out and taps (button, ammeter) are ignored until PLAY.
+                if (ModuleFlow.UserPaused) { button.interactable = false; tapped = false; yield return null; continue; }
+                button.interactable = true;
+                if (!AskWattsonUI.IsOpen) waited += Dt; // autoAnswer never acts behind the Ask panel
                 if (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay) { rig.SetVoltage(want); tapped = true; }
                 var pointer = Pointer.current;
                 if (pointer != null && pointer.press.wasPressedThisFrame && Camera.main &&
@@ -123,7 +127,7 @@ namespace OhmsLaw
             if (sfx && pop) sfx.PlayOneShot(pop);
             table.Record(row, rig.Volts, rig.Amps);
             LearnerSession.tableRows = Mathf.Max(LearnerSession.tableRows, row + 1);
-            yield return new WaitForSeconds(0.8f);
+            yield return Wait(0.8f);
         }
 
         // S11_Target / S13_Apply: make the ammeter read `amps` with the slider or by asking Wattson. The live readings show
@@ -158,9 +162,9 @@ namespace OhmsLaw
             bool hinted = false;
             while (true)
             {
-                if (!AskWattsonUI.IsOpen) waited += Time.deltaTime; // talking to Wattson is not being idle
+                if (!AskWattsonUI.IsOpen) waited += Dt; // talking to Wattson is not being idle; PAUSE holds the clock
                 float v = rig.state.voltage;
-                if (!Mathf.Approximately(v, last)) { last = v; held = 0; } else held += Time.deltaTime;
+                if (!Mathf.Approximately(v, last)) { last = v; held = 0; } else held += Dt;
                 if (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay && Mathf.Approximately(v, judged)) rig.SetVoltage(run.TargetVolts);
 
                 if (held >= SettleSeconds && !Pressing && !Mathf.Approximately(v, judged))
@@ -205,7 +209,7 @@ namespace OhmsLaw
                 rig.SetVoltage(v);
                 int row = System.Array.FindIndex(data.voltages, x => Mathf.Approximately(x, v));
                 if (graph && row >= 0) graph.Highlight(row, true);
-                yield return new WaitForSeconds(1.8f);
+                yield return Wait(1.8f);
                 if (graph && row >= 0) graph.Highlight(row, false);
             }
             if (!keep) rig.SetVoltage(before);

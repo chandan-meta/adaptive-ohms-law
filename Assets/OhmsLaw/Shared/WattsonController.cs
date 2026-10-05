@@ -60,11 +60,16 @@ namespace OhmsLaw
         static readonly int Emission = Shader.PropertyToID("_EmissionColor");
         const float PointTurnShare = 0.35f, AcrossLimit = 15f, MaxTurn = 75f;
         const float HeadYaw = 20f, HeadPitch = 12f, EyeYaw = 10f, EyePitch = 8f, ChestMax = 10f;
+        // Where he holds while the Ask panel is open: viewport x 0.42 (right of the 544 px panel plus his half-width, the
+        // empty band between the table and the graph in the Boards shots), in the middle band (under the readings strip,
+        // above the subtitles).
+        const float AskViewportX = 0.42f, AskViewportYMin = 0.35f, AskViewportYMax = 0.62f;
 
         readonly float[] samples = new float[256];
         MaterialPropertyBlock block;
         Gesture? agentGesture;
         Transform agentLook;
+        Vector3? askHome;
         Vector3 home, velocity, visualHome, chase, chaseVelocity, lastPosition;
         float loudness, rollTime = -1, nextRoll, pose, flash;
         bool pointLeft, ready, placed;
@@ -269,11 +274,22 @@ namespace OhmsLaw
 
         // ------------------------------------------------------------------ API
 
-        // Ask Wattson takes over the pose while the cinematic is paused; pass null to hand it back to the Timeline.
+        // Ask Wattson takes over the pose while the cinematic is paused; pass null to hand it back to the Timeline. While it
+        // holds he also moves to the Ask spot beside the panel, computed once from the camera (the look transform when it
+        // is one, else Camera.main) at his own depth. home, path and pathT stay untouched, so the Timeline's per-frame
+        // MoveTo and the resumed flight behave exactly as before, and he springs back when the pose is handed back.
         public void SetAgentPose(Gesture? agentPose, Transform look)
         {
             agentGesture = agentPose;
             agentLook = look;
+            if (agentPose == null) { askHome = null; return; }
+            if (askHome.HasValue) return;
+            var cam = look ? look.GetComponent<Camera>() : null;
+            if (!cam) cam = Camera.main;
+            if (!cam) return;
+            Vector3 vp = cam.WorldToViewportPoint(transform.position);
+            if (vp.z <= 0) return; // behind the camera: leave him where he is
+            askHome = cam.ViewportToWorldPoint(new Vector3(AskViewportX, Mathf.Clamp(vp.y, AskViewportYMin, AskViewportYMax), vp.z));
         }
 
         // Blockout scenes fly him between markers instead of along a spline.
@@ -386,7 +402,7 @@ namespace OhmsLaw
 
         void Fly(float dt)
         {
-            Vector3 target = path ? (Vector3)path.EvaluatePosition(pathT) : home;
+            Vector3 target = askHome ?? (path ? (Vector3)path.EvaluatePosition(pathT) : home);
             // Something else moved him (a director cue under a fade): he settles where he was put, no spring back.
             if (placed && (transform.position - lastPosition).sqrMagnitude > 1e-8f)
             {
@@ -394,7 +410,8 @@ namespace OhmsLaw
                 velocity = chaseVelocity = Vector3.zero;
             }
             placed = true;
-            if (path) { chase = target; chaseVelocity = Vector3.zero; } // the Timeline's flight is already eased
+            if (askHome.HasValue && ReducedMotion.On) { transform.position = chase = target; velocity = chaseVelocity = Vector3.zero; } // no glide to the Ask spot (read every frame: the toggle flips mid-shot)
+            else if (path && !askHome.HasValue) { chase = target; chaseVelocity = Vector3.zero; } // the Timeline's flight is already eased
             else if (dt > 0) chase = Vector3.SmoothDamp(chase, target, ref chaseVelocity, Mathf.Max(0.05f, moveTime), Mathf.Infinity, dt);
             velocity += (chase - transform.position) * (spring * dt);
             velocity *= Mathf.Exp(-damping * dt);

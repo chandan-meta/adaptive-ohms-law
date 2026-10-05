@@ -38,7 +38,10 @@ namespace OhmsLaw
         public ISpeechToText Hearing;
 
         public State Current { get; private set; }
-        public bool Offline { get; private set; }            // the chat proxy did not answer last time
+        public bool Offline { get; private set; }            // the chat proxy could not be reached last time
+        // The proxy is up but answered "rate_limited" / "busy": saved answers until its Retry-After has passed or a live
+        // answer arrives. Labelled RESTING, not OFFLINE, because that is what is true.
+        public bool Resting => Time.realtimeSinceStartup < restUntil;
         public bool VoiceInputDown { get; private set; }     // speech-to-text failed last time; typing still works
         public string Problem { get; private set; } = "";    // what went wrong, shown while State.Error
         public string Note { get; private set; } = "";       // a calm status line shown while Idle
@@ -56,6 +59,8 @@ namespace OhmsLaw
         bool runningIsAction;   // a lab-controls confirmation stays valid when the activity it completed ends
         int momentScene;        // the scene and activity the running answer belongs to
         string momentGate;
+        float restUntil;        // realtime until which the chat proxy is Resting
+        const float BusyRestSeconds = 30f; // an upstream "busy" carries no Retry-After
 
         static ProxyConfig Config => ModuleFlow.Instance ? ModuleFlow.Instance.proxy : null;
         static WattsonController Wattson => WattsonController.Active;
@@ -153,15 +158,16 @@ namespace OhmsLaw
                 }
                 else
                 {
-                    // While the proxy is down, the suggested questions answer from the local FAQ without retrying it.
-                    var saved = Offline ? Saved(question) : null;
+                    // While the proxy is down or resting, the suggested questions answer from the local FAQ without retrying it.
+                    var saved = Offline || Resting ? Saved(question) : null;
                     if (saved) await SayOffline(saved, cancel);
                     else
                     {
                         SetState(State.Thinking);
                         string answer = await Answer(question, cancel);
                         Offline = false;
-                        Remember(question, answer);
+                        restUntil = 0;
+                        if (answer != null) Remember(question, answer); // null: cut short, never shown to the model as a whole turn
                     }
                 }
             }
@@ -170,8 +176,14 @@ namespace OhmsLaw
             {
                 if (cancel.IsCancellationRequested) return;
                 Debug.LogWarning("Wattson proxy: " + error.Message);
-                Offline = true;
-                if (error.Message == "rate_limited" || error.Message == "busy") Note = "My radio needs a short rest: lots of questions just now. Saved answers still work.";
+                // Honest labels: a 429 or an upstream "busy" means the server is up but resting; only a server that cannot be
+                // reached (or is not configured) is offline.
+                if (error.Message == "rate_limited" || error.Message == "busy")
+                {
+                    restUntil = Time.realtimeSinceStartup + (error.Message == "busy" ? BusyRestSeconds : Proxy.RetryAfterSeconds);
+                    Note = "My radio needs a short rest: lots of questions just now. Saved answers still work.";
+                }
+                else Offline = true;
                 try { await Fallback(question, cancel); } catch (OperationCanceledException) { return; }
             }
             if (cancel.IsCancellationRequested) return;
@@ -284,6 +296,14 @@ namespace OhmsLaw
             foreach (var clip in clips) if (clip) Destroy(clip); // fetched but never played (interrupted)
             cancel.ThrowIfCancellationRequested();
             if (failure != null && full.Length == 0) throw failure;
+            if (failure != null)
+            {
+                // The stream broke part-way: the learner sees that it was cut and can ask again; the fragment is not remembered.
+                Debug.LogWarning("Wattson proxy: answer cut short: " + failure.Message);
+                Note = "That answer was cut short; ask again for the rest.";
+                if (message != null) { message.text = full.ToString() + " ..."; MessageChanged?.Invoke(message); }
+                return null;
+            }
             return full.ToString();
         }
 
@@ -319,8 +339,9 @@ namespace OhmsLaw
             if (rig)
             {
                 var bench = new StringBuilder("Bench: source set to " + WattsonActions.Volts(rig.state.voltage) + " V, key " + (rig.state.keyClosed ? "closed" : "open"));
-                bench.Append(rig.ammeterPlaced ? ", ammeter reads " + WattsonActions.Amps(rig.Amps) + " A" : ", ammeter not connected yet");
-                bench.Append(rig.voltmeterPlaced ? ", voltmeter reads " + WattsonActions.Volts(rig.Volts) + " V" : ", voltmeter not connected yet");
+                // Scenes 9-10 hide the digital plates until the 1 V baseline (rig.readoutsShown): the AI gets no number the screen does not show.
+                bench.Append(!rig.ammeterPlaced ? ", ammeter not connected yet" : !rig.readoutsShown ? ", ammeter connected, its reading is not shown yet" : ", ammeter reads " + WattsonActions.Amps(rig.Amps) + " A");
+                bench.Append(!rig.voltmeterPlaced ? ", voltmeter not connected yet" : !rig.readoutsShown ? ", voltmeter connected, its reading is not shown yet" : ", voltmeter reads " + WattsonActions.Volts(rig.Volts) + " V");
                 bench.Append(rig.controlsOpen ? ". The learner may change the voltage now (battery slider, or by asking you; whole volts 0-" + WattsonActions.Volts(SceneDirector.ControlsMax) + " V)" : ". The voltage controls are locked right now");
                 if (rig.targetAmps >= 0) bench.Append(". Target activity: the learner must make the ammeter read " + WattsonActions.Amps(rig.targetAmps) + " A by choosing the voltage");
                 if (!Mathf.Approximately(rig.PreviousVoltage, rig.state.voltage)) bench.Append(". Previous source setting: " + WattsonActions.Volts(rig.PreviousVoltage) + " V");
@@ -354,20 +375,28 @@ namespace OhmsLaw
             return label ? label.text.Trim() : "";
         }
 
-        // The MCQ on screen: its question and options (MCQPanel: a "Label" child, then "Option A", "Option B", ...).
+        // The MCQ on screen: its question, then its options, then the hint after a wrong answer (MCQPanel creates the
+        // question label first, "Option A", "Option B", ... next and the hint label last; both labels are named "Label").
         static string OnScreenQuestion()
         {
             var flow = ModuleFlow.Instance;
             var panel = flow ? flow.transform.Find("SafeArea/MCQ Panel") : null;
             if (!panel) return "";
-            var parts = new List<string>();
+            string question = "", hint = "";
+            var options = new List<string>();
             foreach (Transform child in panel)
             {
                 var label = child.GetComponentInChildren<TMP_Text>();
                 if (!label || string.IsNullOrWhiteSpace(label.text)) continue;
-                if (child.name.StartsWith("Option ")) parts.Add(child.name.Substring(7) + ". " + label.text.Trim());
-                else if (child.name == "Label") parts.Insert(0, label.text.Trim());
+                string text = label.text.Trim();
+                if (child.name.StartsWith("Option ")) options.Add(child.name.Substring(7) + ". " + text);
+                else if (child.name == "Hint" || (child.name == "Label" && question.Length > 0)) hint = text;
+                else if (child.name == "Label") question = text;
             }
+            var parts = new List<string>();
+            if (question.Length > 0) parts.Add(question);
+            parts.AddRange(options);
+            if (hint.Length > 0) parts.Add("Hint: " + hint);
             return string.Join(" ", parts);
         }
 

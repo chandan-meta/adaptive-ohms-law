@@ -636,9 +636,10 @@ namespace OhmsLaw.Editor
                 light.gameObject.AddComponent<FlickerLight>();
                 return light;
             }
-            // Two realtime shadow casters in total: the window and the desk lamp.
-            Flame("Oil Lamp", new Vector3(-1.7f, 0.16f, -1.72f), 3.2f, 4f, true);
-            Flame("Desk Candle", new Vector3(-2.36f, 0.1f, -1.9f), 1.6f, 2.4f, false);
+            // Two realtime shadow casters in total: the window and the desk lamp. The lamp and candle are accents (same numbers
+            // as SceneBuilderBase.StudyLighting, which Scenes 7-8 light this room with): brighter, they clipped Ohm's face.
+            Flame("Oil Lamp", new Vector3(-1.7f, 0.16f, -1.72f), 1.6f, 3f, true);
+            Flame("Desk Candle", new Vector3(-2.36f, 0.1f, -1.9f), 0.7f, 1.8f, false);
             Flame("Fireplace", new Vector3(-1.35f, -0.5f, -3.15f), 4.5f, 4.5f, false).GetComponent<FlickerLight>().speed = 4f;
             Flame("Bookcase Candle", new Vector3(-2.85f, 0.22f, 0.87f), 1.4f, 3f, false);
 
@@ -758,6 +759,9 @@ namespace OhmsLaw.Editor
                 new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.15f), new GradientAlphaKey(1, 0.6f), new GradientAlphaKey(0, 1) });
             fade.color = gradient;
             setup(ps);
+            // Scene 4 has no SceneDirector to soften fx-cued effects, so every emitter calms itself under MOTION REDUCED
+            // (the spark trail is already scaled by WattsonController).
+            if (name != "Spark Trail") ps.gameObject.AddComponent<ReducedMotionFx>().calm = 0.35f;
             return ps;
         }
 
@@ -1001,6 +1005,7 @@ namespace OhmsLaw.Editor
                 shake.NoiseProfile = guid != null ? AssetDatabase.LoadAssetAtPath<NoiseSettings>(AssetDatabase.GUIDToAssetPath(guid)) : null;
                 shake.AmplitudeGain = noise;
                 shake.FrequencyGain = 0.8f;
+                go.AddComponent<ReducedMotionCamera>(); // no handheld noise while the HUD's MOTION toggle is on
             }
             // Per-shot lens: Bokeh depth of field that follows the focus target, so blends between cameras rack focus.
             var post = go.AddComponent<CinemachineVolumeSettings>();

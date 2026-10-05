@@ -19,7 +19,8 @@ namespace OhmsLaw
         public Option[] options;
         public string hint = "";           // on the panel before a retry
         public string reveal = "";         // on the panel when Wattson gives the answer, or after a partly right one
-        public float width = 900f;         // MCQPanel width, docked right
+        public float width = 900f;         // MCQPanel width
+        public bool dockRight = true;      // MCQPanel dock: against the right edge, or (false) top-centre
         // Line ids. null: the gate's own scheme (<gate>_Q, <gate>_H); the storyboard AQ items keep their own ids.
         public string questionLine, hintLine, correctFallbackLine;
 
@@ -36,7 +37,9 @@ namespace OhmsLaw
     {
         public static readonly Question S05Drift = new Question
         {
-            id = "S05_Drift", concept = Concepts.ElectronDrift, width = 640f, // narrow: both labelled tunnel ends stay in view
+            // 640 px top-centre (x 640-1280): the − disc and label, Wattson, the + badge and its label stay in view either side
+            // (docked right it covered the whole + end the question asks about).
+            id = "S05_Drift", concept = Concepts.ElectronDrift, width = 640f, dockRight = false,
             text = "Which way are the free electrons drifting now?",
             options = new[]
             {

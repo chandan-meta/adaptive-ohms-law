@@ -88,6 +88,7 @@ namespace OhmsLaw.Editor
             // Scene 9 closed the key at the small default voltage; the hand-off carries the live value across the cut.
             director.rig = Rig(assembled: true, keyClosed: true, voltage: CircuitRig.KeyClosedDefaultVolts);
             director.rig.showPath = false; // Scene 9 cues "rig.path 0" before its last frame: plain cables on both sides of the cut (Scenes 11-13 too)
+            director.rig.readoutsShown = false; // plates hidden since Scene 9; they come up with the 1 V baseline (rig.readouts 1 after S10_Set1V)
             Boards(withTable: true, withGraph: false);
 
             // Wattson's spots: behind the source for the bench beats (see SourceSide), and the kit's spot beside the board's
@@ -111,6 +112,7 @@ namespace OhmsLaw.Editor
             Cue("prompt Let's start low. Set the battery to 1 volt.", "on-screen prompt takes over as the subtitle ends", -0.2);
             Gate("S10_Set1V", "Set the slider to 1 V (mouse/touch, or ask Wattson). Ammeter needle moves to 0.20 A. A wrong setting held 0.8 s: prompt 'N V now. Set the battery to 1 V.' + S10_Set1V_H once. autoAnswer sets it.",
                 "S10_Set1V_H");
+            Cue("rig.readouts 1", "the digital plates appear at the baseline: 1.0 V, 0.20 A (the first numbers the learner reads)");
             Cue("prompt", "");
             Gesture(WattsonController.Gesture.Point, point: "VOLTMETER");
             Line("S10_L02");

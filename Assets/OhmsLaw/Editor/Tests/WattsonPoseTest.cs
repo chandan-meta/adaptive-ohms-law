@@ -296,12 +296,24 @@ namespace OhmsLaw.Editor
                 if (g == WattsonController.Gesture.Greet || g == WattsonController.Gesture.Thinking || g == WattsonController.Gesture.Aim || g == WattsonController.Gesture.Flick)
                     Shot(r, preview, "09_" + g.ToString().ToLowerInvariant());
             }
-            // Talking (Ask Wattson without a voice clip): the mouth moves and the head stays in range.
-            r.w.SetAgentPose(WattsonController.Gesture.Talking, r.cam);
+            // Talking (Ask Wattson without a voice clip): the mouth moves and the head stays in range. While the agent pose
+            // holds he moves to the Ask spot beside the panel (viewport x 0.42, the middle band) and springs back to his
+            // marker when it is handed back. The preview camera stands in for Camera.main.
+            var askCam = preview.camera;
+            askCam.transform.position = r.cam.position;
+            askCam.transform.LookAt(r.root.position);
+            askCam.aspect = 16f / 9f;
+            r.w.SetAgentPose(WattsonController.Gesture.Talking, askCam.transform);
             Play(r, WattsonController.Gesture.Idle, false, null, 1.5f);
             Check("Talking: loudness drives the mouth", r.w.Loudness > 0.01f && (!r.w.mouth || r.w.mouth.GetBlendShapeWeight(r.w.mouthShape) > 1f), $"loudness {r.w.Loudness:0.00}");
             Limits(r, "Talking");
+            Vector3 vp = askCam.WorldToViewportPoint(r.root.position);
+            Check("Ask pose: he holds the spot beside the panel (viewport x 0.42, y 0.35-0.62)", Mathf.Abs(vp.x - 0.42f) < 0.04f && vp.y > 0.33f && vp.y < 0.64f, $"viewport {vp.x:0.00}, {vp.y:0.00}");
             r.w.SetAgentPose(null, null);
+            Play(r, WattsonController.Gesture.Idle, false, null, 2f);
+            float back = Vector3.Distance(r.root.position, r.home.position);
+            Check("Ask pose handed back: he returns to his marker", back < 0.05f, $"{back:0.000} m off");
+            askCam.ResetAspect();
         }
 
         static void Flight(Rig r)

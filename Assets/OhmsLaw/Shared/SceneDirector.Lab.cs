@@ -35,6 +35,9 @@ namespace OhmsLaw
             public Color ambientSky, ambientEquator, ambientGround, background, fogColor;
             public bool fog;
             public float fogDensity;
+            [Tooltip("Renderers wearing tintFrom (Scene 8's bench top under the study light, a darker copy so it does not clip to white); the crossfade into this look lerps them to tintTo's colour, then assigns tintTo.")]
+            public Renderer[] tinted = new Renderer[0];
+            public Material tintFrom, tintTo;
         }
 
         [Header("Lab looks (Scene 8: the study becomes the classroom)")]
@@ -217,9 +220,24 @@ namespace OhmsLaw
             float density = RenderSettings.fog ? RenderSettings.fogDensity : 0f, targetDensity = to.fog ? to.fogDensity : 0f;
             RenderSettings.fog = density > 0f || targetDensity > 0f;
             bool swapped = false;
+            bool tinting = to.tintFrom && to.tintTo && to.tinted.Length > 0;
+            Color tintA = tinting ? to.tintFrom.GetColor("_BaseColor") : Color.white, tintB = tinting ? to.tintTo.GetColor("_BaseColor") : Color.white;
+            var block = new MaterialPropertyBlock();
+            void Tint(float k)
+            {
+                if (!tinting) return;
+                foreach (var r in to.tinted)
+                {
+                    if (!r) continue;
+                    var materials = r.sharedMaterials;
+                    for (int i = 0; i < materials.Length; i++)
+                        if (materials[i] == to.tintFrom) { block.SetColor("_BaseColor", Color.Lerp(tintA, tintB, k)); r.SetPropertyBlock(block, i); }
+                }
+            }
 
             void Apply(float k)
             {
+                Tint(k);
                 foreach (var f in fades) if (f.light) f.light.intensity = Mathf.Lerp(f.from, f.to, k);
                 foreach (var v in volumes) if (v.volume) v.volume.weight = Mathf.Lerp(v.from, v.to, k);
                 RenderSettings.ambientSkyColor = Color.Lerp(sky, to.ambientSky, k);
@@ -243,6 +261,16 @@ namespace OhmsLaw
                 yield return null;
             }
             Apply(1f);
+            if (tinting) // the real material from here on (a replay finds nothing left to tint and keeps this state)
+                foreach (var r in to.tinted)
+                {
+                    if (!r) continue;
+                    var materials = r.sharedMaterials;
+                    bool changed = false;
+                    for (int i = 0; i < materials.Length; i++)
+                        if (materials[i] == to.tintFrom) { materials[i] = to.tintTo; r.SetPropertyBlock(null, i); changed = true; }
+                    if (changed) r.sharedMaterials = materials;
+                }
             RenderSettings.fog = to.fog;
             foreach (var f in fades)
             {

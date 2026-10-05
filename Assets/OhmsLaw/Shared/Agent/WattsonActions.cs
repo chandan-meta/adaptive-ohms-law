@@ -30,14 +30,16 @@ namespace OhmsLaw
             double Amps { get; }           // the ammeter's reading: 0 while the key is open or the meter is out
             bool KeyClosed { get; }
             bool AmmeterIn { get; }
+            bool ReadoutsShown { get; }    // the meters' digital plates are up (CircuitRig.readoutsShown): until then no reading is quoted
             int Scene { get; }             // 4..13: what has been taught so far (spoiler rules)
             int TableRows { get; }         // observation table rows recorded so far (LearnerSession.tableRows)
             bool ResistanceTaught { get; } // R and the ohm have been named (Scene 12, after S12_L14): only then is R = 5 ohms quoted
+            bool RatioShown { get; }       // Scene 12 has revealed the V / I column (cue table.ratio 1): before that "V/I is always 5" is a spoiler
             string Gate { get; }           // the activity in progress, or null
             double TargetAmps { get; }     // the current a target activity asks for (S11_Target, S13_Apply); negative when none
+            double StartVoltage { get; }   // the scene's starting setting (CircuitRig.StartVoltage), what "reset" goes back to
             double AmpsAt(double volts);   // this wire's current at a voltage (ExperimentData)
             double SetVoltage(double volts); // returns the value applied
-            double ResetVoltage();
         }
 
         public const double MinVolts = 0, MaxVolts = 5;
@@ -69,8 +71,15 @@ namespace OhmsLaw
         static readonly HashSet<string> CurrentWords = Set("current", "amps", "amp", "ampere", "amperes", "ammeter");
         static readonly HashSet<string> ResistWords = Set("resistance", "resistances", "resistor", "ohms", "ω");
         static readonly HashSet<string> SetVerbs = Set("set", "make", "put", "turn", "change", "switch", "go", "move", "adjust", "bring", "use", "apply", "select", "slide", "give", "try", "pick", "choose");
-        static readonly HashSet<string> UpVerbs = Set("increase", "increases", "increased", "raise", "raised", "up", "higher", "more", "add", "boost", "bump", "crank", "plus", "increment", "rise");
-        static readonly HashSet<string> DownVerbs = Set("decrease", "decreases", "decreased", "lower", "lowered", "reduce", "reduced", "drop", "less", "down", "minus", "subtract", "decrement", "lessen", "smaller", "fewer");
+        static readonly HashSet<string> UpVerbs = Set("increase", "increases", "increased", "raise", "raised", "add", "boost", "bump", "crank", "increment");
+        static readonly HashSet<string> DownVerbs = Set("decrease", "decreases", "decreased", "lower", "lowered", "reduce", "reduced", "drop", "subtract", "decrement", "lessen");
+        // Bare comparatives count as a direction only in an order ("turn it up", "go up to 4 volts", "the voltage up by 1"):
+        // "more voltage means more current" and "less voltage, less current?" are the learner thinking aloud, for the AI.
+        static readonly HashSet<string> UpWords = Set("up", "higher", "more", "plus", "rise", "bigger");
+        static readonly HashSet<string> DownWords = Set("down", "less", "minus", "smaller", "fewer");
+        static readonly HashSet<string> Directing = Set("it", "that", "this", "by", "to");
+        // A report of what happened, not an order: "I set the voltage to 4 volts and the current was 0.8".
+        static readonly HashSet<string> Narrative = Set("was", "were", "went", "had", "got", "gave", "showed", "earlier", "before", "already", "because", "since");
         static readonly HashSet<string> DoubleWords = Set("double", "doubles", "doubled", "doubling", "twice");
         static readonly HashSet<string> HalveWords = Set("halve", "halves", "halved", "halving", "half");
         static readonly HashSet<string> ResetWords = Set("reset", "resets", "restart");
@@ -116,16 +125,21 @@ namespace OhmsLaw
             bool polite = (lead == "can" || lead == "could" || lead == "would" || lead == "will") && (next == "you" || next == "u" || next == "we");
             bool showMe = Phrase("show", "me") || Phrase("show", "us") || Phrase("let's") || Phrase("lets") || Phrase("let", "us") || Has(Set("demonstrate"));
             if (!showMe && (Has(ChatVerbs) || (lead != null && QuestionStarts.Contains(lead) && !polite))) return none;
+            // A question mark or a told story ("current goes up when voltage goes up?", "the current went down when the
+            // voltage went down") is never an order, whatever words it uses.
+            if (!showMe && !polite && ((text ?? "").TrimEnd().EndsWith("?") || Has(Narrative))) return none;
 
             bool reset = Has(ResetWords) || Phrase("start", "over") || Phrase("start", "again");
             bool resist = tokens.Exists(t => t.unit == "ohm");
             for (int i = 0; i < tokens.Count; i++)   // "ohms law" is the law, not the wire
                 resist |= tokens[i].word != null && ResistWords.Contains(tokens[i].word) && !(i + 1 < tokens.Count && tokens[i + 1].word == "law");
-            bool up = Has(UpVerbs), down = Has(DownVerbs), set = Has(SetVerbs);
+            bool set = Has(SetVerbs);
+            bool it = Has(Set("it", "that", "this"));
+            bool directed = set || showMe || Has(Directing);
+            bool up = Has(UpVerbs) || (directed && Has(UpWords)), down = Has(DownVerbs) || (directed && Has(DownWords));
             bool twice = Has(DoubleWords) || TwoTimes(tokens);
             bool half = Has(HalveWords);
             bool verb = up || down || set || twice || half;
-            bool it = Has(Set("it", "that", "this"));
 
             double voltsNumber = First(tokens, "V", 0), ampsNumber = First(tokens, "A", 0), plain = First(tokens, null, 0);
             double extreme = Has(MaxWords) ? MaxVolts : Has(MinWords) ? MinVolts : double.NaN;
@@ -168,6 +182,8 @@ namespace OhmsLaw
                     if (up && down) return Make(Kind.Unclear, double.NaN, "Up or down? Try \"increase the voltage by 1 volt\".");
                     if (!double.IsNaN(to) && double.IsNaN(by)) return Make(Kind.SetVoltage, to);
                     if (!double.IsNaN(extreme)) return Make(Kind.SetVoltage, extreme);
+                    // With a comparative and no real verb, a volts number is the target ("turn it up, 3 volts"); a step only after "by".
+                    if (!double.IsNaN(voltsNumber) && double.IsNaN(by) && !Has(UpVerbs) && !Has(DownVerbs)) return Make(Kind.SetVoltage, voltsNumber);
                     double step = !double.IsNaN(by) ? by : !double.IsNaN(voltsNumber) ? voltsNumber : !double.IsNaN(plain) ? plain : 1;
                     return Make(Kind.ChangeVoltage, up ? step : -step);
                 }
@@ -281,7 +297,8 @@ namespace OhmsLaw
             switch (intent.kind)
             {
                 case Kind.Reset:
-                    return Applied(bench, now, ampsBefore, bench.ResetVoltage(), "back to the starting", false, Kind.Reset);
+                    target = bench.StartVoltage; // the scene's start value, through the same cap check as every other setting
+                    break;
                 case Kind.SetVoltage:
                     target = intent.value;
                     if (target < MinVolts || target > MaxVolts) return $"This source goes from 0 to 5 volts, so I can't set {Volts(target)} V.";
@@ -313,7 +330,8 @@ namespace OhmsLaw
             double applied = bench.SetVoltage(target);
             string verb = intent.kind == Kind.Double ? "doubled from " + Volts(now) + " V to" :
                           intent.kind == Kind.Halve ? "halved from " + Volts(now) + " V to" :
-                          intent.kind == Kind.ChangeVoltage ? (applied > now ? "up to" : "down to") : "";
+                          intent.kind == Kind.ChangeVoltage ? (applied > now ? "up to" : "down to") :
+                          intent.kind == Kind.Reset ? "back to the starting" : "";
             string reply = Applied(bench, now, ampsBefore, applied, verb, snapped, intent.kind);
             return reply;
         }
@@ -329,10 +347,11 @@ namespace OhmsLaw
                 : $"Done: {(verb.Length > 0 ? verb + " " : "")}{Volts(applied)} V." + (snapped ? " The control clicks in whole volts." : "");
             string reading = !bench.AmmeterIn ? "" :
                              !bench.KeyClosed ? " The key is open, so no current flows yet." :
+                             !bench.ReadoutsShown ? ReadoutHidden :
                              (kind == Kind.Double || kind == Kind.Halve) && changed ? $" The ammeter went from {Amps(ampsBefore)} A to {Amps(bench.Amps)} A." :
                              $" The ammeter {(changed ? "now reads" : "reads")} {Amps(bench.Amps)} A.";
             string explain = "";
-            if (changed && bench.Scene >= 11 && bench.AmmeterIn && bench.KeyClosed)
+            if (changed && bench.Scene >= 11 && bench.AmmeterIn && bench.KeyClosed && bench.ReadoutsShown)
                 explain = kind == Kind.Double ? " Double the voltage, double the current." :
                           kind == Kind.Halve ? " Half the voltage, half the current." :
                           kind == Kind.ChangeVoltage ? (applied > before ? " More push, more current." : " Less push, less current.") :
@@ -376,9 +395,9 @@ namespace OhmsLaw
         // ------------------------------------------------------------------ the AI's rules for this moment
 
         // The app's rules inside the AI's live state (WattsonAgent.DescribeState). The proxy prompt follows text in this form
-        // and ignores any other instruction in the app's sections. The proxy keeps only rules whose text starts with one of
-        // its known prefixes (Server/wattson-proxy/index.js APP_RULE_PREFIXES) and drops any other, so a new rule here
-        // needs its prefix added there.
+        // and ignores any other instruction in the app's sections. The proxy keeps only the rules whose text is, word for
+        // word, one of the seven it knows (Server/wattson-proxy/index.js APP_RULES) and drops any other, so a new or
+        // reworded rule here needs its full text copied there.
         public static string Rule(string text) => "[App rule: " + text + "]";
 
         // Activities are the learner's own puzzles: a prediction favours no option, a question or a target gets one
@@ -413,9 +432,17 @@ namespace OhmsLaw
             !activity && FactAllowed(bench, question) && FactAllowed(bench, answer);
 
         // A scene's covered fact (or saved answer) the AI may be given now: the ohm only once taught; a reading above 1 V
-        // or the way the current goes with the voltage only once Scene 10 has recorded row 2.
+        // or the way the current goes with the voltage only once Scene 10 has recorded row 2; the constant V / I only once
+        // Scene 12's board has shown the column (its punchline, and the S12_Ratio answer).
         public static bool FactAllowed(IBench bench, string text) =>
-            (bench.ResistanceTaught || !NamesOhm(text)) && !(OneVoltOnly(bench) && RevealsRelationship(text));
+            (bench.ResistanceTaught || !NamesOhm(text)) && !(OneVoltOnly(bench) && RevealsRelationship(text)) && !(RatioPending(bench) && RevealsRatio(text));
+
+        // Scene 12 before the cue "table.ratio 1" (the dive and the first board lines): "V/I is always 5" stays out.
+        public static bool RatioPending(IBench bench) => bench.Scene == 12 && !bench.RatioShown;
+
+        // "V / I", "ΔV/ΔI", "V ÷ I", "divided by", "always 5", "= 5", "comes out at 5".
+        static readonly Regex RatioFact = new Regex(@"(?<![A-Za-z])Δ?V\s*[/÷]\s*Δ?I\b|÷|divided by|(?:\b(?:always|comes out at)|=)\s*5\b", RegexOptions.IgnoreCase);
+        public static bool RevealsRatio(string text) => RatioFact.IsMatch(text ?? "");
 
         // Scene 10 before row 2 (S10_Record2): the learner has measured only 1 V, and S10_Predict2V / S10_Pattern ask what
         // comes next. Until then the facts "2 V → 0.4 A" and "the current increases with the voltage" stay out.
@@ -450,13 +477,17 @@ namespace OhmsLaw
             return Example;
         }
 
+        // Scenes 9-10 hide the meters' digital plates until the 1 V baseline (CircuitRig.readoutsShown): no chat text quotes a
+        // number the screen does not show.
+        const string ReadoutHidden = " The ammeter is connected, but its reading isn't shown yet.";
+
         // Essential guidance when the AI is unreachable: the real readings and what the learner can still do. App text,
         // shown as an offline answer.
         public static string Guidance(IBench bench)
         {
             if (!bench.Present) return "You can still tap a suggested question for a saved answer, or carry on with the case.";
             string s = $"Here's what I can see: the source is set to {Volts(bench.Voltage)} V";
-            s += !bench.AmmeterIn ? "." : !bench.KeyClosed ? " and the key is open, so no current flows." : $" and the ammeter reads {Amps(bench.Amps)} A.";
+            s += !bench.AmmeterIn ? "." : !bench.KeyClosed ? " and the key is open, so no current flows." : !bench.ReadoutsShown ? "." + ReadoutHidden : $" and the ammeter reads {Amps(bench.Amps)} A.";
             if (bench.ControlsOpen) s += $" You can move the battery slider, or type \"{ExampleCommand(bench)}\": I can still do that without my radio.";
             return s;
         }
@@ -500,11 +531,15 @@ namespace OhmsLaw
             public double Amps => Rig ? Rig.Amps : 0;
             public bool KeyClosed => Rig && Rig.state.keyClosed;
             public bool AmmeterIn => Rig && Rig.ammeterPlaced;
+            public bool ReadoutsShown => Rig && Rig.readoutsShown;
             public string Gate => SceneDirector.Gate;
             public double TargetAmps => Rig ? Rig.targetAmps : -1;
+            public double StartVoltage => Rig ? Rig.StartVoltage : 0;
             public int TableRows => LearnerSession.tableRows;
             // Set by the cue "readings.r 1" after S12_L14. Scene 13 comes after that teaching, so a direct jump there counts too.
             public bool ResistanceTaught => LearnerSession.resistanceTaught || Scene >= 13;
+            // Set by the cue "table.ratio 1" (Scene 12's board stretch); only Scene 12 before it filters the ratio facts.
+            public bool RatioShown => LearnerSession.ratioShown;
             public int Scene
             {
                 get
@@ -516,7 +551,6 @@ namespace OhmsLaw
             }
             public double AmpsAt(double volts) => ExperimentData.Main ? ExperimentData.Main.CurrentAt((float)volts) : volts / 5.0;
             public double SetVoltage(double volts) => Rig ? Rig.SetVoltage((float)volts) : 0;
-            public double ResetVoltage() => Rig ? Rig.ResetVoltage() : 0;
         }
 #endif
     }

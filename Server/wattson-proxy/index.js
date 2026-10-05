@@ -73,21 +73,21 @@ export function retryAfter(hits, key, now = Date.now()) {
 }
 
 // The prompt follows "[App rule: ...]" text in LIVE STATE, and `state` is a field of an unauthenticated request. So only
-// the rules Unity itself writes pass: those whose text starts with one of these prefixes (WattsonActions.Rule callers,
-// WattsonAgent.DescribeState). Any other bracketed rule, in any field, is dropped before the model sees it. A new rule in
-// Unity needs its prefix here.
-export const APP_RULE_PREFIXES = [
-  'the app itself changes the voltage',
-  'the learner is making a prediction',
-  'target activity:',
-  'on-screen question:',
-  'resistance is being introduced',
-  'resistance has not been taught yet',
-  'the learner has measured only 1 V',
+// the rules Unity itself writes pass: these seven, word for word (WattsonActions.Rule callers and WattsonAgent.DescribeState).
+// Any other bracketed rule, in any field, is dropped before the model sees it, a known rule with extra text too. A new or
+// reworded rule in Unity needs its full text here.
+export const APP_RULES = [
+  'the app itself changes the voltage when the learner asks; never say you changed, set or measured anything',
+  'the learner is making a prediction; do not favour any option or hint which one is right: any honest guess is fine, and the experiment will tell',
+  'target activity: never say the voltage that hits the target; give one hint about the reasoning and ask what they notice',
+  'on-screen question: never give the option, its letter or the number it asks for; give one hint about the reasoning and ask what they notice',
+  'resistance is being introduced in this scene; do not state its value or its unit yet',
+  'resistance has not been taught yet; never give its value or mention ohms. If asked to change it, this experiment keeps the same wire, so its resistance stays the same',
+  'the learner has measured only 1 V so far; never say what the ammeter reads at another voltage or how the current changes with the voltage: the experiment will show it',
 ];
 const APP_RULE = /\[\s*app\s*rules?\s*:\s*([^\]]*)\]/gi;
 export const appRules = (text, keepKnown) =>
-  text.replace(APP_RULE, (match, rule) => (keepKnown && APP_RULE_PREFIXES.some((prefix) => rule.trimStart().startsWith(prefix)) ? match : '')).trim();
+  text.replace(APP_RULE, (match, rule) => (keepKnown && APP_RULES.includes(rule.trim()) ? match : '')).trim();
 
 export function systemPrompt(body) {
   const list = (items) => (Array.isArray(items) ? items.slice(0, 12).map((x) => appRules(clean(x, 200), false)).filter(Boolean).join('; ') : '') || 'none';
