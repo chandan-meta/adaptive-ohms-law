@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'Use V = IR: set the voltage so the current is 0.80 amperes.'
   ttsText: 'Use V = IR: set the voltage so the current is 0.80 amperes.'
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 38c9a6be017a5b746a502b7c220740e3, type: 3}
   fallbackDuration: 4.4

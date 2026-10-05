@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Inside the nichrome wire. Count the charges crossing the ring each second.
   ttsText: Inside the nichrome wire. Count the charges crossing the ring each second.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 5291d34b8e5886d45bb5ff589659e095, type: 3}
   fallbackDuration: 3.8

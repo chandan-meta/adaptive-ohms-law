@@ -18,5 +18,5 @@ MonoBehaviour:
     do?'
   ttsText: 'Rows 1 and 2: when the potential difference went up, what did the current
     do?'
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 4a7ec6755cf08f54d97b971c9697abe0, type: 3}
   fallbackDuration: 4.6

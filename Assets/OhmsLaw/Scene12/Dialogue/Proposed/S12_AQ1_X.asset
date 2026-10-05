@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'Watch the readings: 2 volts gives 0.40 amperes, 4 volts gives 0.80.'
   ttsText: 'Watch the readings: 2 volts gives 0.40 amperes, 4 volts gives 0.80.'
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 9e3ddab324a6a774b9de805b27ff6b1f, type: 3}
   fallbackDuration: 4.8

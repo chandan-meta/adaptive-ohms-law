@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'Watch: 3.0 divided by 0.60 is 5. Five, again.'
   ttsText: 'Watch: 3.0 divided by 0.60 is 5. Five, again.'
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: c936a166f5dbe6c40bd89585cf58ca75, type: 3}
   fallbackDuration: 3.2

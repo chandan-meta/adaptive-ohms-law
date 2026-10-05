@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'The trick: amperes times ohms gives the volts you need. Every time.'
   ttsText: 'The trick: amperes times ohms gives the volts you need. Every time.'
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: cf72df7ccec76e1499095b0e04ca1927, type: 3}
   fallbackDuration: 3.8

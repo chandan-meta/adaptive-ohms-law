@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 4 volts, 0.80 amperes. Every volt, another 0.20. The pattern holds!
   ttsText: 4 volts, 0.80 amperes. Every volt, another 0.20. The pattern holds!
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: acde0321a8690f5479fe6e38849719fc, type: 3}
   fallbackDuration: 3.8

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: You said it would stay at 0.20, but the meter jumped to 0.40.
   ttsText: You said it would stay at 0.20, but the meter jumped to 0.40.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 0a60f5d02a1e3e8488bd568445bd3491, type: 3}
   fallbackDuration: 3.8

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: You said 0.40, and the meter agrees. Your hunch survived the test.
   ttsText: You said 0.40, and the meter agrees. Your hunch survived the test.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 6647b778a8e23f0449afa45b049abf49, type: 3}
   fallbackDuration: 3.8

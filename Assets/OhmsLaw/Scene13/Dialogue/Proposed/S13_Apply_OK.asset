@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 4 volts gives 0.80 amperes. V = IR works.
   ttsText: 4 volts gives 0.80 amperes. V = IR works.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 86002db61ba24e140b186986c5ae8442, type: 3}
   fallbackDuration: 3.2

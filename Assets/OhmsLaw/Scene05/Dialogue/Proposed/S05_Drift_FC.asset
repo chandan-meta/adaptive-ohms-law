@@ -17,5 +17,5 @@ MonoBehaviour:
   text: They still jiggle, yes. But now they all drift toward the positive end too.
   ttsText: They still jiggle, yes. But now they all drift toward the positive end
     too.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: b4a92f63ccf5d5c4c85a19086cc72898, type: 3}
   fallbackDuration: 4.2

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: If resistance stays constant and voltage doubles, what happens to current?
   ttsText: If resistance stays constant and voltage doubles, what happens to current?
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: deb315dc41789014d92d68f10b3cd0cc, type: 3}
   fallbackDuration: 4.5

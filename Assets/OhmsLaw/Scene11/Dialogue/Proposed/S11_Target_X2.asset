@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'Watch: four steps of 0.20 make 0.80. So, 4 volts.'
   ttsText: 'Watch: four steps of 0.20 make 0.80. So, 4 volts.'
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: bdd883e09ffafbe44a7632006fd043d7, type: 3}
   fallbackDuration: 3.2

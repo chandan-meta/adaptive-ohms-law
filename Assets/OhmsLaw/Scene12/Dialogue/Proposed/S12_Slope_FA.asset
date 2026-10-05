@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Five. The same five as V divided by I.
   ttsText: Five. The same five as V divided by I.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 3069b22dd7486b448af276f7a674fb38, type: 3}
   fallbackDuration: 2.8

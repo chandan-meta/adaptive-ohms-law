@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Same current, different pushes, so their resistances can't match.
   ttsText: Same current, different pushes, so their resistances can't match.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: fd2a7500ace587d4ab30a43cf6f3acc1, type: 3}
   fallbackDuration: 3.6

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Look at the labelled ends. Which one attracts negative charge?
   ttsText: Look at the labelled ends. Which one attracts negative charge?
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 038bb13189fd3844081bf649ee5c57fb, type: 3}
   fallbackDuration: 3.4

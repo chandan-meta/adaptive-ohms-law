@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'Let me show you: three steps of 0.20 make 0.60. So, 3 volts.'
   ttsText: 'Let me show you: three steps of 0.20 make 0.60. So, 3 volts.'
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 21810d02c1b887242b231a6225de6077, type: 3}
   fallbackDuration: 3.8

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'Check the I column: each row is bigger than the one above.'
   ttsText: 'Check the I column: each row is bigger than the one above.'
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: c79dd454b47f1754fb855e276aa28095, type: 3}
   fallbackDuration: 3.4

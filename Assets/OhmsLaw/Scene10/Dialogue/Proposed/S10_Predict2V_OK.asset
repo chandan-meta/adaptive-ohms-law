@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Locked in. Let's test it.
   ttsText: Locked in. Let's test it.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 3a26ad9c87d6fda4e966ced692225902, type: 3}
   fallbackDuration: 1.8

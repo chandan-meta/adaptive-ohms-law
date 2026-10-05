@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Moment of truth! Record the ammeter reading.
   ttsText: Moment of truth! Record the ammeter reading.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: bb8e9958904ef424b8f59bf983ab63a4, type: 3}
   fallbackDuration: 2.8

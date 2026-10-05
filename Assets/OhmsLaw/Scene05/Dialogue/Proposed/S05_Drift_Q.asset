@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Which way are the free electrons drifting now?
   ttsText: Which way are the free electrons drifting now?
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 97605644a62939d4abb93fb024d89831, type: 3}
   fallbackDuration: 2.8

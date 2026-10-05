@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: One volt on the bench. Now let's see it from inside the wire.
   ttsText: One volt on the bench. Now let's see it from inside the wire.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 7de58615aff795d409815d9a50f3c0b6, type: 3}
   fallbackDuration: 3.8

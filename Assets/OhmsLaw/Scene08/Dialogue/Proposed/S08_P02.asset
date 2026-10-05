@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Thank you, Georg Ohm! Back to 1826 you go.
   ttsText: Thank you, Georg Ohm! Back to 1826 you go.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: ff2aeae1a91e3ef4bbcbc492d204eafa, type: 3}
   fallbackDuration: 3

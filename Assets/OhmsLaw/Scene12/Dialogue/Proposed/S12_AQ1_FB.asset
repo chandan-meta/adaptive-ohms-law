@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: More push, but less flow? That's not what our wire did.
   ttsText: More push, but less flow? That's not what our wire did.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 03f041a44c6c0ad4d8b89dbf3da26655, type: 3}
   fallbackDuration: 3.2

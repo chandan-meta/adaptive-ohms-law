@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'Watch the columns: the volts climb row by row, and so do the amperes.'
   ttsText: 'Watch the columns: the volts climb row by row, and so do the amperes.'
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 9b1847bdbc947ac4d804dffcaf2a33b5, type: 3}
   fallbackDuration: 4

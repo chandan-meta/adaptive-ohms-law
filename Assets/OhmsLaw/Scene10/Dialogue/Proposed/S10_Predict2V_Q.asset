@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'Detective prediction: 1 volt gave 0.20 amperes. What will 2 volts give?'
   ttsText: 'Detective prediction: 1 volt gave 0.20 amperes. What will 2 volts give?'
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 1fa2bf1513c265341adf1406620e9fa9, type: 3}
   fallbackDuration: 4.4

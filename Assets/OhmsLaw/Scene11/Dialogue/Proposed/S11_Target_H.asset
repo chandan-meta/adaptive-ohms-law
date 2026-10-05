@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Each volt adds 0.20 amperes. So how many volts reach your target?
   ttsText: Each volt adds 0.20 amperes. So how many volts reach your target?
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 375d4a916255f6b46aea2e26ff48e8fa, type: 3}
   fallbackDuration: 3.8

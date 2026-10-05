@@ -18,5 +18,5 @@ MonoBehaviour:
     I."
   ttsText: "Remember: more push for the same current means more resistance. R = V
     \xF7 I."
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: fbbe1176be4442c4385cf1a668942f4d, type: 3}
   fallbackDuration: 4.6

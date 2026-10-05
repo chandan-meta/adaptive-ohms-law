@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: "R is 5 ohms. V = I times R: 0.80 times 5 is\u2026?"
   ttsText: "R is 5 ohms. V = I times R: 0.80 times 5 is\u2026?"
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: bc2533cbf3832184cbe36a67b9293244, type: 3}
   fallbackDuration: 4.2

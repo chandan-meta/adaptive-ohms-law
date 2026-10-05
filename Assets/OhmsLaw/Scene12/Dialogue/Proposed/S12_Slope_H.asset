@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: "\u0394V is 2.0 volts, \u0394I is 0.40 amps. Divide them."
   ttsText: "\u0394V is 2.0 volts, \u0394I is 0.40 amps. Divide them."
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 9b8d29d1335e1d34fb88efe4df7266ff, type: 3}
   fallbackDuration: 3.4

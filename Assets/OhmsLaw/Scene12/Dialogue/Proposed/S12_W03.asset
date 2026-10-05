@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Now I'll double the voltage to 2 volts.
   ttsText: Now I'll double the voltage to 2 volts.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 5021e118380d4574c910f7e7149561f4, type: 3}
   fallbackDuration: 2.8

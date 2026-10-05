@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Now set the battery to 2 volts.
   ttsText: Now set the battery to 2 volts.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: a1ab1305f7a5bcd4784aac3c0a71d8c0, type: 3}
   fallbackDuration: 2.4

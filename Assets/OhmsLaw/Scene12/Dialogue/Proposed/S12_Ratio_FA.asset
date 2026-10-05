@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Five again. The same as rows one and two.
   ttsText: Five again. The same as rows one and two.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: bdfdfeff47500a34fb367961cb21b577, type: 3}
   fallbackDuration: 2.8

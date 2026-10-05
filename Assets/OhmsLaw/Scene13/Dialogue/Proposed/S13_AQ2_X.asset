@@ -18,5 +18,5 @@ MonoBehaviour:
     R.'
   ttsText: 'Same current, bigger push needed: that one opposes more. Bigger V, bigger
     R.'
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: b836d5e6ba2d14e4e96939f1108a8e31, type: 3}
   fallbackDuration: 4.6

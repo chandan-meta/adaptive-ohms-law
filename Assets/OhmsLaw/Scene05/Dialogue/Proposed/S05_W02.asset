@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: This end connects to the battery's negative terminal.
   ttsText: This end connects to the battery's negative terminal.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 6f634e19e78cfd24e9cbf71505253871, type: 3}
   fallbackDuration: 2.8

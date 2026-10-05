@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: There is one! Read the amperes from top to bottom.
   ttsText: There is one! Read the amperes from top to bottom.
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: cd9e01535682d1c46982e054d8cf3d90, type: 3}
   fallbackDuration: 3

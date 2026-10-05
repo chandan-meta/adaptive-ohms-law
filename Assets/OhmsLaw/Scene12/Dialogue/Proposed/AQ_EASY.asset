@@ -18,5 +18,5 @@ MonoBehaviour:
     to the current?
   ttsText: When the potential difference across the nichrome wire went up, what happened
     to the current?
-  vo: {fileID: 0}
+  vo: {fileID: 8300000, guid: 963ea3e9ba0170d4a9e45e3bbe36da7d, type: 3}
   fallbackDuration: 5
