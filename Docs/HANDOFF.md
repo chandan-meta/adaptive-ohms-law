@@ -1,83 +1,117 @@
 # Hand-off — Ohm's Law Unity module (Scenes 4–13)
 
-Last updated 2026-10-06. Repository: `github.com/chandan-meta/adaptive-ohms-law`, branch `main`. `Environment.fbx` is in Git LFS: run `git lfs install` before cloning/pulling, then `git lfs pull` to retrieve the model.
+Last updated 2026-10-06 (after the redesign and the cinematic HUD). Repository `github.com/chandan-meta/adaptive-ohms-law`,
+branch `main`, last commit `e6389d5`. Unity 6000.3.0f1, URP, Cinemachine 3, Timeline, TextMeshPro, new Input System;
+mouse + touch; no XR. `Environment.fbx` is in Git LFS: `git lfs install` before cloning, `git lfs pull` after.
 
-## Latest handoff — 2026-10-06 (module redesign)
+## 1. What the module is now
 
-- The module was redesigned around the revised learning sequence: see `Docs/Polish/REDESIGN_REPORT.md` (what changed, what was
-  tested, what is left) and `Docs/Polish/REDESIGN_TEXT.md` (every line and panel text). Checkpoint before the work: git tag
-  `checkpoint-2026-10-06-before-redesign`. The UI was then rebuilt as a cinematic HUD from a reference screenshot:
-  `Docs/Polish/HUD_REPORT.md` (implementation, review passes, evidence) and `Docs/Polish/HUD_DESIGN.md` (design system).
-- Wattson's voice is now edge-tts `en-US-AnaNeural` (`Tools/edge_bake.py`, driven by `Ohm's Law ▸ Bake VO ▸ All Scenes` / `vo all`);
-  every line of Scenes 4–13 has an `<id>.mp3`, the scratch Windows clips are gone. The ElevenLabs proxy path is kept: with keys in
-  `Server/wattson-proxy/.env` the same menu bakes through the proxy instead.
-- All UI lives in `Shared/LessonPanel.cs` (+ `HudKit.cs`, `PanelViews.cs`, `SubtitleUI`, `MCQPanel`, `LiveReadingsPanel`, `AskWattsonUI`):
-  a cinematic HUD (top-right controls, bottom subtitle bar, round Ask Wattson bottom-right, a right dock of compact cards only
-  while a beat needs them). Design system: `Docs/Polish/HUD_DESIGN.md`. The blackboard table/graph kit (`SceneBuilderBase.Boards.cs`),
-  `CinematicControlsUI` and `QuestionBank` were deleted. Each scene's builder sets `director.dockWidth` (0 = cinematic, full frame;
-  scenes built before the field existed resolve it at runtime from their content).
-- **Hand-edited scenes.** `Scene05_InsideTheWire`, `Scene07_BackToOhm` and `Scene08_OurLab` were edited in the editor on 2026-10-06
-  (13:34: the desk-candle light removed, a light/camera moved, components added) after their last build. A rebuild from the
-  builders discards those edits; the builders now omit the desk-candle light (as Scene 4's does), but the other edits are not
-  in code. Diff the scene against git before rebuilding it.
-- Sounds: `Editor/SfxBank.cs` synthesizes the bank (`Scene04/Audio/SFX/*.wav`); the plan is `Docs/Polish/AUDIO_CUES.md`.
+Ten code-built scenes play in order from `Assets/OhmsLaw/Scenes/Scene00_ModulePlayer.unity` (first in Build Settings):
 
-## Previous handoff — 2026-10-05
-
-- Latest asset commit: `53500d8` (`Update environment, Scene 04, materials and font assets`), successfully pushed to `origin/main`, including its LFS model. The working tree was clean before this documentation update.
-- That commit contains 13 modified assets: the environment FBX, Scene 04 scene and Wattson prefab, seven shared materials, and the Nunito, Symbols and LiberationSans fallback font assets. The Wattson prefab removes its Follow Light and updates particle settings.
-- Previous implementation commit: `22b5479`. Its wow-factor pass and review fixes are documented in `Docs/Polish/WOW_REPORT.md`; use that report for completed fixes, prior verification and remaining limitations. Earlier workflow notes below provide orientation but are not a fresh validation of the latest assets.
-- Validation in this handoff session: `git diff --check` passed before the asset commit; Git confirmed the push and LFS upload. Unity compilation, scene playback, visual review and device builds were not run for these asset changes.
-- Next: open with Unity 6000.3.0f1, allow imports to finish, inspect Scene 04 lighting and particles, the environment, shared material textures and font rendering, then run the existing module checks below. Review the saved scene before rebuilding it from editor scripts, since regeneration may overwrite scene/prefab edits.
-- Continue from `Assets/OhmsLaw/Scenes/Scene00_ModulePlayer.unity` for the Scenes 4–13 module. The root README describes the older `Assets/AdaptiveLearning` entry point; this handoff and `Docs/Polish/WOW_REPORT.md` describe the newer module.
-- External follow-up remains: live proxy/voice setup, manual interaction and pause/skip checks, tablet/WebGL validation, and the Scene 14 video assignment. Keep credentials in the ignored local configuration described by the proxy README.
-
-## What exists
-| Area | State | Where |
+| Scene | What happens | Interaction |
 |---|---|---|
-| Scene 4 "Meet Wattson" | polished, built by `Ohm's Law ▸ Build Scene 04` | `Assets/OhmsLaw/Editor/Scene04Builder*.cs`, `Assets/OhmsLaw/Scenes/Scene04_MeetWattson.unity` |
-| Scenes 5–13 | **flow complete** (exact dialogue, VO, subtitles, every interaction, hand-offs, agent context); visuals being upgraded to the reference images | `Assets/OhmsLaw/Editor/Scene05Builder.cs` … `Scene13Builder.cs`, `Assets/OhmsLaw/Scenes/Scene05_*.unity` … |
-| Module player (start screen, Play all, jump, autoAnswer, speed, subtitles) | built, first in Build Settings | `Scene00_ModulePlayer.unity`, `Shared/ModulePlayer.cs` |
-| Shared runtime | see `Docs/SHARED_SYSTEMS.md` | `Assets/OhmsLaw/Shared/` |
-| Voice-over | edge-tts `en-US-AnaNeural` mp3 for every line (`<id>.mp3`), baked by `Ohm's Law ▸ Bake VO ▸ All Scenes`; the proxy (ElevenLabs) voice replaces it when keys exist (see "Real VO") | `Assets/OhmsLaw/SceneNN/Audio/VO/` |
-| Wattson proxy (Claude + ElevenLabs + OpenAI) | code present, needs API keys | `Server/wattson-proxy/` |
-| Docs | storyboard, flow, blockout report, shared systems, polish research & art direction | `Docs/` |
+| 04 Meet Wattson | Ohm's study, 1826; VOLTAGE / CURRENT reveal; "Click or tap the highlighted wire" | tap the wire |
+| 05 Inside the wire | random electron motion → voltage as potential difference → drift − → + (conventional-current note) → the counted cross-section, one second at a time | — |
+| 06 Your prediction | "If the potential difference increases…?" | one tap (never marked) |
+| 07 Back to Georg Ohm | the same study, the 1826 apparatus, why he repeated the measurement | — |
+| 08 Ohm's lab becomes our lab | each instrument transforms, the study sweeps into the classroom, Ohm presents and leaves | — |
+| 09 Build the circuit | select → place the ammeter (series), select → place the voltmeter (parallel), close the key; live schematic | three guided steps |
+| 10 The experiment | 1 V … 5 V on five buttons; readings, table and graph fill in | five taps |
+| 11 The pattern | the line through the points, V ∝ I | — |
+| 12 Resistance | copper vs nichrome inset, V/I column, slope, the ohm | — |
+| 13 Ohm's law | V, I, R → V = IR → OHM'S LAW; Ohm returns; REPLAY / EXIT | end |
 
-## Daily workflow
-- **Compile without Unity:** `bash Tools/compile_check.sh main` (≈4 s). Run after every C# change.
-- **Build a scene (editor open):** menu `Ohm's Law ▸ Build Scene NN`, or from a shell `bash Tools/unity_request.sh Scene07` (the script
-  toggles focus so the editor recompiles, waits for `Logs/ohm-reload.txt`, writes `Logs/ohm-build.req`, prints `Logs/ohm-build.txt`).
-  Requests: `Scene05`…`Scene13`, `all`, `refresh` (asset refresh + recompile of an unfocused editor; the script sends it first), `vo all` /
-  `vo Scene04` … `vo Scene13` (bake VO, re-time Timeline), `menu <path>` (runs any menu item, e.g. `menu Ohm's Law/Tests/Adaptive Questions`),
-  `report` (BLOCKOUT_REPORT.md), `flow` (FLOW.md), `inventory` (asset inventory), `player`, `hierarchy <assetPath>`. Result: `Logs/ohm-build.txt`.
-- **Self-checks (editor, no play mode):** menu `Ohm's Law ▸ Tests ▸ …`: `Voice Pipeline` (lexicon + bake text), `Wire Electrons`,
-  `Lab Continuity` (match-cuts 4→5…8→9), `Wattson Pose`, `Ohm Pose` (hands never below the desk), `Wattson Actions` (Ask Wattson action
-  layer, offline); plus `Ohm's Law ▸ Validate Scene 04 (play test)`. From a shell: `bash Tools/unity_request.sh "menu Ohm's Law/Tests/Lab Continuity"`.
-- **Hands-free dry run:** menu `Ohm's Law ▸ Play Test ▸ Whole module`, or `echo "all 2x ask" > Logs/ohm-play.req` (`ask` also opens Ask Wattson in
-  Scene 7, asks a question and closes it; the run ends with an `end_card` frame; `@1366x768` runs at that Game view size and restores 1920×1080).
-  Report: `Logs/Blockout/play-report.txt`; a screenshot of every beat: `Logs/Blockout/shots/<Scene>/`. autoAnswer picks the correct option after 3 s;
-  do not click in the Game view.
-- **Review HUD in play mode:** F1 (or three-finger tap): scene, line, gate, time, FPS, next scene, replay line, autoAnswer, speed.
-- **Voice:** `Ohm's Law ▸ Bake VO ▸ All Scenes` (or `vo all` / `vo Scene04` through the request file) renders every line with edge-tts
-  (`python Tools/edge_bake.py`, needs `pip install edge-tts` and internet) as `<id>.mp3`; a re-bake redoes only lines whose words or voice settings
-  changed; a voice actor's `<id>.wav|ogg` is never touched. With keys in `Server/wattson-proxy/.env` and the proxy running (`/health` reports
-  `tts: true`) the same menu bakes through the proxy (ElevenLabs) instead. Lines marked PROPOSED live in `SceneNN/Dialogue/Proposed/`.
+The interface is one HUD built in code on the persistent module canvas: PAUSE · REPLAY · CC · VOLUME · SKIP top-right, the
+subtitle bar at the bottom, Wattson's round avatar (Ask Wattson) bottom-right, and a dock of compact cards on the right that
+exist only while a beat needs them. Cinematic scenes (4, 7, 8) play full-frame; activity scenes reserve the dock strip and the
+camera composes into the rest. Wattson speaks every line (edge-tts "Ana"); the sound bank is synthesized in code; Ask Wattson
+answers from each scene's saved FAQ until the proxy has its keys.
 
-## Toggles (on each scene's `SceneDirector`, or `ReviewMode`)
-`buildMode` (Scene 9: LearnerPlaces / AutoPlace), `showLearnerPrediction` (Scene 9 reminder shows the Scene 6 answer), `dockWidth` (px the HUD's
-right dock reserves; 0 = cinematic), `ReviewMode.autoAnswer`, `ReviewMode.timeScale`; the HUD's CC button toggles captions and the VOLUME popup holds
-the three volumes and the reduced-motion toggle.
+Read, in this order: `Docs/Polish/HUD_REPORT.md` (the UI: what, how it was tested, what is left), `Docs/Polish/HUD_DESIGN.md`
+(the design system: anchors, sizes, colours, type, states, control behaviour), `Docs/Polish/REDESIGN_REPORT.md` (the learning
+sequence, voice, sounds, characters; its "panel" is now the dock), `Docs/Polish/REDESIGN_TEXT.md` (every line and panel text),
+`Docs/Polish/AUDIO_CUES.md` (every sound cue), `Docs/FLOW.md` (generated: every cue, line and shot per scene with its time),
+`Docs/SHARED_SYSTEMS.md` (the runtime). Evidence frames: `Docs/Polish/Evidence/` and `Evidence/HUD/`.
 
-## Visual pass (in progress)
-Target = the reference images in `Docs/Polish/References/`; spec = `Docs/Polish/ART_DIRECTION.md` (+ `USER_MASTER_PROMPT.md`, `STYLE_GUIDE.md`,
-`TYPOGRAPHY.md`, `ASSETS.md`, `REUSE.md`, `CRITIQUE.md`). Kits: `SceneBuilderBase.Look.cs` (lighting/post/lenses/materials/models),
-`.Classroom.cs` (room + teaching board), `.Callouts.cs` + `Shared/Callouts.cs` (screen-space callouts / VFX panels / concept panels),
-`.Rig.cs` + `CircuitRig.cs` (bench, instruments, X→Y pulse), `.Wire.cs` + `WireInterior.cs` (electron space), `.Lab.cs` + `OhmWorker.cs`
-(Ohm + 1826 apparatus), `.Boards.cs` (table/graph), `WorldText.cs` (typography tiers), `UI.cs`/`SubtitleUI`/`MCQPanel` (HUD).
-Content guardrails that override the references are listed in ART_DIRECTION §9 (no spoilers on boards/panels).
+## 2. Verified on 2026-10-06 (editor only, Windows)
 
-## Known gaps / next steps
-1. See `Docs/Polish/REDESIGN_REPORT.md` ("Remaining") for the redesign's open items.
-2. Live Ask Wattson (proxy + keys: Claude chat, ElevenLabs voice, OpenAI speech-to-text); tablet device test; resolutions other than 1920×1080.
-3. No student models exist (Kabir, Manav, Ishaan, Meera): the kids are the camera POV; audience silhouettes stand in for them in lecture shots.
-4. Scene 14 video: set `ModuleFlow.scene14Video` on the module root prefab to play it after Scene 13.
+- Whole module, hands-free, 1920×1080: `RESULT PASS` (every line of every scene spoken in order, all 11 gates passed, Ask
+  Wattson opened / answered offline / closed in Scene 7, finale and end card reached, no console errors).
+- HUD control probe (Scene 5): PAUSE, RESUME, CC off / on, VOLUME open / close, REPLAY, SKIP all pass.
+- Other Game view sizes, single scenes onward: 1366×768, 1280×720, 1600×900, 2048×1536 (4:3) all pass; frames reviewed.
+- Editor self-checks: Ohm Pose 20/20, Wattson Pose 118/118, Wattson Actions all, Lab Continuity 143/143, Voice Pipeline all,
+  Wire Electrons all.
+- Not done: any run on a device, tablet or player build; a human mouse / touch pass; listening to the mix (levels were measured).
+
+## 3. Read before touching a scene file
+
+**Scenes 5, 7 and 8 carry hand edits** saved in the editor on 2026-10-06 at 13:34, after their last build: the desk-candle
+light removed, a light or camera moved, components added. They were not rebuilt and are committed as they are. The builders
+now omit the desk-candle light (Scene 4's does too), but the other edits are not in code: **diff a scene against git before
+rebuilding it**, or port the edit into its builder first. The same happened on 2026-10-05 to Scene 4 and the Wattson prefab
+(Follow Light removed; the builder follows).
+
+## 4. Daily workflow
+
+- **Compile without Unity:** `bash Tools/compile_check.sh <tag>` (≈5 s, dotnet). Run after every C# change.
+- **Drive the open editor:** `bash Tools/unity_request.sh "<request>"`. It makes the editor recompile first (a `refresh`
+  request, then a focus toggle as fallback; the editor only recompiles on focus or refresh), writes `Logs/ohm-build.req`,
+  prints `Logs/ohm-build.txt`. Requests: `Scene05` … `Scene13` (build one scene), `all` (build 5–13), `menu Ohm's Law/Build
+  Scene 04`, `vo all` / `vo Scene07` (bake the voice and re-time the Timeline), `menu <menu path>` (any menu item, e.g. the
+  tests), `flow` (FLOW.md), `report`, `inventory`, `player`, `hierarchy <assetPath>`, `refresh`.
+  **Never send a build while a play test runs** (it fails with "cannot be used during play mode" and the scenes stay stale).
+- **Hands-free play test:** `echo "all 2x ask" > Logs/ohm-play.req` (menu: `Ohm's Law ▸ Play Test ▸ Whole module`). Words:
+  a scene name or id (`Scene09`, or `Scene04_MeetWattson` for Scene 4), `all`, `2x` (speed), `ask` (opens Ask Wattson in
+  Scene 7, asks, closes), `hud` (Scene 5: presses every control and checks the result), `calm` (reduced motion),
+  `@1366x768` (the Game view takes that size for the run, back to 1920×1080 after). Report `Logs/Blockout/play-report.txt`
+  (ends with `RES WxH (captured frames)` and `RESULT PASS|FAIL`); a frame per beat in `Logs/Blockout/shots/<Scene>/`.
+  autoAnswer answers every gate after 3 s: do not click in the Game view during a run.
+- **Self-checks (no play mode):** menu `Ohm's Law ▸ Tests ▸ Ohm Pose | Wattson Pose | Wattson Actions | Lab Continuity |
+  Voice Pipeline | Wire Electrons`, or `bash Tools/unity_request.sh "menu Ohm's Law/Tests/Lab Continuity"`.
+- **Voice:** `Ohm's Law ▸ Bake VO ▸ All Scenes` (or `vo all`) renders every line with edge-tts (`python Tools/edge_bake.py`;
+  needs `pip install edge-tts` and internet) as `<id>.mp3`, re-bakes only lines whose words or voice settings changed, never
+  touches a voice actor's `<id>.wav|ogg`, then rebuilds the scene to re-time it. With keys in `Server/wattson-proxy/.env` and
+  the proxy running (`/health` reports `tts: true`) the same menu bakes through the proxy (ElevenLabs) instead. Voice: `EdgeVoice`
+  in `Editor/BakeBlockoutVO.cs` (`en-US-AnaNeural`, +10 %, −4 Hz). Proposed lines live in `SceneNN/Dialogue/Proposed/`.
+- **Review HUD in play mode:** F1 (or three-finger tap): scene, line, gate, time, FPS, replay line, autoAnswer, speed.
+
+## 5. Where things live
+
+| Area | Files |
+|---|---|
+| HUD | `Shared/LessonPanel.cs` (controls, subtitle bar, avatar, dock, popup, `PanelFraming`), `Shared/HudKit.cs` (icons, button states, UI sounds), `Shared/PanelViews.cs` (voltage buttons, counter, schematic, inset), `Shared/SubtitleUI.cs`, `Shared/MCQPanel.cs`, `Shared/LiveReadingsPanel.cs`, `Shared/ObservationTableUI.cs`, `Shared/GraphUI.cs`, `Shared/Callouts.cs` (shim into the dock) |
+| Flow and cues | `Shared/ModuleFlow.cs` (scene order, pause reasons, fades, end of module), `Shared/SceneDirector.cs` + `.Cues` + `.Gates` + `.Experiment` + `.Wire` (Timeline cues and interaction gates), `Shared/Cue.cs`, `Shared/InteractionGate.cs`, `Shared/SubtitleTrack.cs` |
+| Runtime pieces | `Shared/CircuitRig.cs` (bench, select → place, one voltage path), `Shared/WireInterior.cs` (electrons, counter), `Shared/WattsonController.cs`, `Scene04/Scripts/OhmWorker.cs` (Ohm's procedural hands, desk contact), `Scene04/Scripts/Scene04Director.cs`, `Shared/Agent/*` (Wattson agent, actions, Ask Wattson UI, proxy client) |
+| Builders | `Editor/SceneBuilderBase.cs` (+ `.Rig`, `.Wire`, `.Look`, `.Lab`, `.Classroom`, `.Callouts`), `Editor/Scene05Builder.cs` … `Scene13Builder.cs`, `Editor/Scene04Builder*.cs` (Scene 4, its own Timeline), `Editor/SfxBank.cs` (the sound bank), `Editor/BakeBlockoutVO.cs`, `Editor/BlockoutPlayTest.cs`, `Editor/BlockoutCommands.cs` (the request file), `Editor/Tests/*` |
+| Proxy | `Server/wattson-proxy/` (Node 22; `/chat` Claude, `/tts` ElevenLabs, `/stt` OpenAI; keys in its ignored `.env`, names in its README) |
+| Assets | `Assets/OhmsLaw/SceneNN/{Audio/VO,Dialogue,Agent,Timeline}`, `Scene04/Audio/SFX/` (the bank), `Shared/Art/`, scenes in `Assets/OhmsLaw/Scenes/` |
+
+Toggles: `SceneDirector.buildMode` (Scene 9: LearnerPlaces / AutoPlace), `showLearnerPrediction` (Scene 9 reminder shows the
+Scene 6 answer), `dockWidth` (px the dock reserves; −1 = from the scene's content, 0 = cinematic), `ReviewMode.autoAnswer`,
+`ReviewMode.timeScale`; in the HUD, CC toggles captions and the VOLUME popup holds the three volumes and reduced motion.
+
+## 6. Open items
+
+1. **Live Ask Wattson.** Put `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `OPENAI_API_KEY` in `Server/wattson-proxy/.env`
+   (never in Unity, never committed), `npm start`, check `/health`. Until then the conversation says so and answers from the
+   saved FAQ; push-to-talk is therefore untested.
+2. **Voice licence.** The clips come from edge-tts, an unofficial client of Microsoft Edge's read-aloud service. Before
+   distribution, re-bake through the proxy (ElevenLabs) or record a voice actor; a human listen of the mix is also pending.
+3. **Device pass.** Mouse and touch by hand (the harness pressed the same Button events), a tablet, WebGL, a player build.
+4. **Not in the project:** a "Maya" character (the brief names one; only Wattson and Georg Ohm exist, the learners are the
+   camera), student models, a Scene 14 video (`ModuleFlow.scene14Video`), foley recordings (every cue is synthesized),
+   UI prefab assets (the HUD is built once in code; see HUD_REPORT §3), background blur behind the subtitle bar.
+5. **Rebuilding Scenes 5, 7, 8** means porting their hand edits first (§3).
+
+## 7. Gotchas worth knowing
+
+- Cue markers at the same Timeline time fire in no guaranteed order: offset a cue that must follow another by 0.05 s
+  (the builders' `Cue(..., offset)`); `formula.clear` keeps lines revealed in the same frame.
+- `PanelFraming` shifts the projection, so the free frame is the central part of the authored shot: keep Wattson's and the
+  apparatus' markers inside it (see the builders' `SourceSide`, `TrayPointC`, `KeyPointC`, `FrontPoint`).
+- Dock views build under a child root (`LessonPanel.Fresh`) so a card can be cleared and rebuilt; a card that must keep
+  running while hidden fades and leaves the layout (`LiveReadingsPanel`) instead of deactivating.
+- A `UI.Outline` child in a layout group needs `LayoutElement.ignoreLayout`; set a RectTransform's pivot before its offsets.
+- The play test reads the run's resolution from the first captured PNG (editor `Screen.width` is unreliable from update
+  callbacks); `@WxH` re-targets every Game view through its own size selection and waits a few editor updates.
+- `Scene04` is not a play-test scene id (Scene 4 has no builder): use `Scene04_MeetWattson`.
