@@ -53,8 +53,11 @@ namespace OhmsLaw.Editor
         static string currentScene = "", lastGate;
         static double lastTime = -1;
         static float lastProgress, started;
-        static int errors, probe;
-        static float endedAt, probeAt;
+        static int errors, probe, hud;
+        static float endedAt, probeAt, hudAt;
+        static double hudTime;
+        // "hud" in the request: the probe replays and skips, so repeated or missing lines are expected in that scene.
+        static bool HudProbe => SessionState.GetString(SceneKey + ".req", "").Contains("hud");
         static bool hooked;
 
         [MenuItem("Ohm's Law/Play Test/Whole module (autoAnswer)")] static void Module() => Run("all");
@@ -65,6 +68,7 @@ namespace OhmsLaw.Editor
         {
             string[] words = request.Split(' ');
             string scene = words[0];
+            var res = words.FirstOrDefault(w => w.StartsWith("@") && w.Contains("x"));
             float speed = words.Length > 1 && words[1].EndsWith("x") ? float.Parse(words[1].TrimEnd('x')) : 1f;
             if (scene == "all") scene = BlockoutAssets.SceneOrder[0];
             else if (!scene.Contains("_")) scene = BlockoutAssets.Builders().FirstOrDefault(b => b.SceneId == scene)?.SceneName ?? scene;
@@ -78,8 +82,25 @@ namespace OhmsLaw.Editor
             SessionState.SetString(SceneKey, scene);
             SessionState.SetString(SceneKey + ".req", request);
             SessionState.SetFloat(SpeedKey, speed);
-            EditorApplication.EnterPlaymode();
-            EditorApplication.LockReloadAssemblies(); // script edits during the run must not reload the domain mid-play
+            void Start()
+            {
+                EditorApplication.EnterPlaymode();
+                EditorApplication.LockReloadAssemblies(); // script edits during the run must not reload the domain mid-play
+            }
+            if (res == null) { Start(); return; }
+            // "@WxH": the Game view takes that size first and gets a few editor updates to lay out at it (Screen.width follows
+            // the view's own size selection, not a plain index change), then play starts.
+            var wh = res.Substring(1).Split('x');
+            bool sized = GameViewSize.Set(int.Parse(wh[0]), int.Parse(wh[1]));
+            Note(sized ? $"SIZE  Game view set to {wh[0]}x{wh[1]} ({GameViewSize.Views} view(s))" : "SIZE  Game view size could not be set (see the console); running at the current size");
+            int updates = 0;
+            void Countdown()
+            {
+                if (++updates < 4) return;
+                EditorApplication.update -= Countdown;
+                Start();
+            }
+            EditorApplication.update += Countdown;
         }
 
         [InitializeOnLoadMethod]
@@ -87,7 +108,7 @@ namespace OhmsLaw.Editor
         {
             if (!SessionState.GetBool(Key, false) || hooked) return;
             hooked = true;
-            errors = 0; probe = 0; endedAt = 0; probeAt = 0;
+            errors = 0; probe = 0; endedAt = 0; probeAt = 0; resNoted = false; firstFrame = null; hud = 0;
             spoken.Clear();
             currentScene = "";
             lastTime = -1;
@@ -121,19 +142,40 @@ namespace OhmsLaw.Editor
         {
             var director = ModuleFlow.Instance ? ModuleFlow.Instance.Director : null;
             string last = spoken.LastOrDefault();
-            Check($"{(director ? director.time : 0),6:0.0}s  {line.id}  {(line.vo ? (BlockoutAssets.IsScratch(line.vo) ? "scratch" : "real") : "silent")}  \"{line.text}\"", last != line.id);
+            Check($"{(director ? director.time : 0),6:0.0}s  {line.id}  {(line.vo ? (BlockoutAssets.IsScratch(line.vo) ? "scratch" : "real") : "silent")}  \"{line.text}\"", last != line.id || HudProbe);
             spoken.Add(line.id);
             lastProgress = Time.realtimeSinceStartup;
             Later(line.id, LineShotDelay);
         }
 
         // Game-view screenshot for the visual review: Logs/Blockout/shots/<scene>/<nn>_<what>.png
+        static bool resNoted;
+        static string firstFrame; // the first real frame of the run: its pixel size is the resolution the run played at
+
         static void Shot(string what)
         {
             if (!EditorApplication.isPlaying) return;
             string scene = SceneManager.GetActiveScene().name;
             Directory.CreateDirectory($"Logs/Blockout/shots/{scene}");
-            ScreenCapture.CaptureScreenshot($"Logs/Blockout/shots/{scene}/{++shotIndex:00}_{what}.png");
+            string path = $"Logs/Blockout/shots/{scene}/{++shotIndex:00}_{what}.png";
+            ScreenCapture.CaptureScreenshot(path);
+            if (!resNoted && what != "enter") { resNoted = true; firstFrame = path; } // the first "enter" frame can precede a Game view resize
+        }
+
+        // The resolution the run played at, read from the first captured frame's PNG header (Screen.width from an editor
+        // update callback reports whichever view painted last, so it is not trusted here).
+        static void NoteResolution()
+        {
+            try
+            {
+                if (firstFrame == null || !File.Exists(firstFrame)) return;
+                var bytes = new byte[24];
+                using (var file = File.OpenRead(firstFrame)) if (file.Read(bytes, 0, 24) < 24) return;
+                int w = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+                int h = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+                Note($"RES   {w}x{h} (captured frames)");
+            }
+            catch (Exception) { }
         }
 
         // The Captures rules for this director's Timeline, once per director (a new scene brings a new one). Only a
@@ -217,6 +259,26 @@ namespace OhmsLaw.Editor
                 lastProgress = Time.realtimeSinceStartup;
             }
 
+            // "hud" in the request: in Scene 5 the probe presses every top control (PAUSE, RESUME, CC, VOLUME, REPLAY, SKIP) and
+            // checks what each one did, with a frame of each state.
+            if (HudProbe && scene.StartsWith("Scene05") && flow && flow.Director && LessonPanel.Instance && hud < 99)
+            {
+                var panel = LessonPanel.Instance;
+                double t = flow.Director.time;
+                float since = Time.realtimeSinceStartup - hudAt;
+                switch (hud)
+                {
+                    case 0: if (t >= 4) { panel.Press("pause"); hudTime = t; hudAt = Time.realtimeSinceStartup; hud = 1; Later("hud_paused", 0.6f); } break;
+                    case 1: if (since > 1.5f) { Check($"HUD PAUSE holds the Timeline ({flow.Director.time:0.00} s, was {hudTime:0.00} s) and reads RESUME", Math.Abs(flow.Director.time - hudTime) < 0.05 && flow.IsPaused(ModuleFlow.PauseReason.User)); panel.Press("pause"); hudAt = Time.realtimeSinceStartup; hud = 2; } break;
+                    case 2: if (since > 1.0f) { Check($"HUD RESUME runs the Timeline again ({flow.Director.time:0.00} s)", flow.Director.time > hudTime + 0.3 && !flow.IsPaused(ModuleFlow.PauseReason.User)); panel.Press("cc"); hudAt = Time.realtimeSinceStartup; hud = 3; Later("hud_cc_off", 0.6f); } break;
+                    case 3: if (since > 0.9f) { Check("HUD CC OFF hides the captions", !SubtitleUI.Enabled); panel.Press("cc"); Check("HUD CC ON shows them again", SubtitleUI.Enabled); panel.Press("volume"); hudAt = Time.realtimeSinceStartup; hud = 4; Later("hud_volume", 0.6f); } break;
+                    case 4: if (since > 0.9f) { Check("HUD VOLUME opens the popup", panel.PopupOpen); panel.ClosePopup(); Check("HUD a click elsewhere closes the popup", !panel.PopupOpen); hudTime = flow.Director.time; panel.Press("replay"); hudAt = Time.realtimeSinceStartup; hud = 5; } break;
+                    case 5: if (since > 0.4f) { Check($"HUD REPLAY restarts the current line ({flow.Director.time:0.00} s, line start {SubtitleTrack.LastLineStart:0.00} s)", flow.Director.time < hudTime && Math.Abs(flow.Director.time - SubtitleTrack.LastLineStart) < 1.5); hudTime = flow.Director.time; panel.Press("skip"); hudAt = Time.realtimeSinceStartup; hud = 6; Later("hud_skipped", 0.6f); } break;
+                    case 6: if (since > 0.4f) { Check($"HUD SKIP jumps ahead to the next line ({flow.Director.time:0.00} s, was {hudTime:0.00} s)", flow.Director.time > hudTime + 0.5); hud = 99; } break;
+                }
+                lastProgress = Time.realtimeSinceStartup;
+            }
+
             bool stalled = Time.realtimeSinceStartup - lastProgress > StallSeconds;
             var note = GameObject.Find("WhiteFade") ? GameObject.Find("WhiteFade").GetComponentInChildren<TMPro.TMP_Text>() : null;
             bool ended = note && (note.text.Contains("Scene 14") || note.text.Contains("not built yet") || note.text.Contains("End of module"))
@@ -230,6 +292,7 @@ namespace OhmsLaw.Editor
             Check("module reached the finale / end card without stalling", ended && !stalled);
             if (ended) Note("END  " + (note && note.text.Length > 0 ? note.text : "finale (replay / exit offered)"));
             if (stalled) Note($"STALL  no progress for {StallSeconds} s in {scene} at {lastTime:0.0} s (gate: {lastGate ?? "none"})");
+            NoteResolution();
             Note(errors == 0 ? "RESULT PASS" : "RESULT FAIL (" + errors + ")");
             Finish();
         }
@@ -245,7 +308,8 @@ namespace OhmsLaw.Editor
             if (!timeline) return;
             var planned = timeline.GetOutputTracks().OfType<SubtitleTrack>().SelectMany(t => t.GetClips()).OrderBy(c => c.start).Select(c => ((SubtitleClip)c.asset).line.id).ToList();
             var heard = spoken.Where(planned.Contains).ToList();
-            Check($"{scene}: all {planned.Count} Timeline lines spoken in order ({heard.Count} heard)", heard.SequenceEqual(planned));
+            if (HudProbe && scene.StartsWith("Scene05")) Note($"NOTE  {scene}: {heard.Count} of {planned.Count} lines heard (the HUD probe replayed and skipped here)");
+            else Check($"{scene}: all {planned.Count} Timeline lines spoken in order ({heard.Count} heard)", heard.SequenceEqual(planned));
             spoken.Clear();
         }
 
@@ -265,6 +329,61 @@ namespace OhmsLaw.Editor
             EditorSceneManager.playModeStartScene = null;
             EditorApplication.UnlockReloadAssemblies();
             EditorApplication.ExitPlaymode();
+            if (SessionState.GetString(SceneKey + ".req", "").Contains("@")) GameViewSize.Set(1920, 1080);
+        }
+    }
+
+    // The Game view's resolution, through the editor's internal GameViewSizes (there is no public API): a custom
+    // fixed-resolution entry is added to the Standalone group when none matches, then selected.
+    public static class GameViewSize
+    {
+        public static int Views { get; private set; }
+
+        public static bool Set(int width, int height)
+        {
+            try
+            {
+                var asm = typeof(UnityEditor.Editor).Assembly;
+                var sizesType = asm.GetType("UnityEditor.GameViewSizes");
+                var singleton = typeof(ScriptableSingleton<>).MakeGenericType(sizesType);
+                var instance = singleton.GetProperty("instance", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static).GetValue(null);
+                var groupType = asm.GetType("UnityEditor.GameViewSizeGroupType");
+                var group = sizesType.GetMethod("GetGroup").Invoke(instance, new object[] { (int)Enum.Parse(groupType, "Standalone") });
+                var groupClass = asm.GetType("UnityEditor.GameViewSizeGroup");
+                var sizeClass = asm.GetType("UnityEditor.GameViewSize");
+                int count = (int)groupClass.GetMethod("GetTotalCount").Invoke(group, null);
+                int found = -1;
+                for (int i = 0; i < count && found < 0; i++)
+                {
+                    var size = groupClass.GetMethod("GetGameViewSize").Invoke(group, new object[] { i });
+                    int w = (int)sizeClass.GetProperty("width").GetValue(size), h = (int)sizeClass.GetProperty("height").GetValue(size);
+                    if (w == width && h == height && sizeClass.GetProperty("sizeType").GetValue(size).ToString() == "FixedResolution") found = i;
+                }
+                if (found < 0)
+                {
+                    var kind = asm.GetType("UnityEditor.GameViewSizeType");
+                    var size = sizeClass.GetConstructor(new[] { kind, typeof(int), typeof(int), typeof(string) }).Invoke(new object[] { Enum.Parse(kind, "FixedResolution"), width, height, $"Test {width}x{height}" });
+                    groupClass.GetMethod("AddCustomSize").Invoke(group, new[] { size });
+                    found = (int)groupClass.GetMethod("GetTotalCount").Invoke(group, null) - 1;
+                }
+                // Every Game view takes the size (Screen.width/height follow the main play-mode view, the capture the focused
+                // one; with one layout they are the same window), through the view's own selection path (what its size
+                // dropdown calls): a bare index change only re-sizes the capture.
+                var gameViewType = asm.GetType("UnityEditor.GameView");
+                var views = Resources.FindObjectsOfTypeAll(gameViewType);
+                if (views.Length == 0) views = new UnityEngine.Object[] { EditorWindow.GetWindow(gameViewType) };
+                var select = gameViewType.GetMethod("SizeSelectionCallback", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                var index = gameViewType.GetProperty("selectedSizeIndex", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                foreach (var view in views)
+                {
+                    if (select != null) select.Invoke(view, new object[] { found, null });
+                    else index.SetValue(view, found);
+                    ((EditorWindow)view).Repaint();
+                }
+                Views = views.Length;
+                return true;
+            }
+            catch (Exception error) { Debug.LogWarning("GameViewSize: " + error.Message); return false; }
         }
     }
 }

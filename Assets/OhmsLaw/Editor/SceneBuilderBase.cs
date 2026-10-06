@@ -97,6 +97,9 @@ namespace OhmsLaw.Editor
         // The lesson panel: the one instruction, a note (title | body), a formula line, a hero reveal (big | small).
         protected void Instruction(string text, double offset = 0) => Cue("prompt " + text, "", offset);
         protected void Info(string id, string title, string body) => Cue("callout show " + id, title + " / " + body);
+        // Reference px the HUD's right dock reserves in this scene; cinematic scenes return 0 and get the full frame.
+        protected virtual float DockWidth => LessonPanel.NormalWidth;
+
         protected void Formula(string text, double offset = 0) => Cue("formula " + text, "", offset);
         protected void Reveal(string big, string small, double offset = 0) => Cue("reveal " + big + "|" + small, "", offset);
 
@@ -157,6 +160,7 @@ namespace OhmsLaw.Editor
             // The whole synthesized bank, by clip name, for the "sfx" cue and the gates; two looping beds for the
             // "ambience" and "music" cues (quiet, ducked under the voice like every other source).
             director.sounds = sounds.Values.Where(c => c).ToArray();
+            director.dockWidth = DockWidth; // the HUD's right dock strip in this scene (0 = cinematic, full frame)
             director.ambience = Audio("Ambience", host.transform, AudioBus.Kind.Sfx);
             director.ambience.loop = true;
             director.ambience.GetComponent<AudioBus>().gain = 0.5f;

@@ -157,9 +157,12 @@ namespace OhmsLaw.Editor
                 if (la && lb) Check($"4→7 {name} burns alike", Mathf.Approximately(la.intensity, lb.intensity) && Mathf.Approximately(la.range, lb.range), $"Scene 4 {la.intensity}/{la.range}, Scene 7 {lb.intensity}/{lb.range}");
             }
             var lamp = Find(s7, "Oil Lamp");
-            var candle = Find(s7, "Desk Candle");
-            Check("Scene 7 flames are accents (lamp ≤ 1.6, candle ≤ 0.7): Ohm's face reads",
-                lamp && candle && lamp.TryGetComponent(out Light lampLight) && candle.TryGetComponent(out Light candleLight) && lampLight.intensity <= 1.6f + 1e-3f && candleLight.intensity <= 0.7f + 1e-3f);
+            var candle = Find(s7, "Desk Candle"); // the desk candle's light was removed from the study (2026-10-05 scene edit): none is fine
+            var lampLight = lamp ? lamp.GetComponent<Light>() : null;
+            var candleLight = candle ? candle.GetComponent<Light>() : null;
+            Check("Scene 7 flames are accents (lamp ≤ 1.6, candle ≤ 0.7 or none): Ohm's face reads",
+                lampLight && lampLight.intensity <= 1.6f + 1e-3f && (!candleLight || candleLight.intensity <= 0.7f + 1e-3f),
+                $"lamp {(lampLight ? lampLight.intensity.ToString("0.00") : "missing")}, candle {(candleLight ? candleLight.intensity.ToString("0.00") : "none")}");
             foreach (var (scene, label) in new[] { (s7, "Scene 7"), (s8, "Scene 8"), (s9, "Scene 9") })
             {
                 var noisy = scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<CinemachineBasicMultiChannelPerlin>(true)).ToArray();

@@ -1,6 +1,6 @@
 # Ohm's Law module flow
 
-Generated 2026-10-06 13:06 from the scene Timelines. Scene 4 is the polished build; Scenes 5-13 are blockouts.
+Generated 2026-10-06 16:07 from the scene Timelines. Scene 4 is the polished build; Scenes 5-13 are blockouts.
 
 ## Scene05 — Journey Inside the Wire
 

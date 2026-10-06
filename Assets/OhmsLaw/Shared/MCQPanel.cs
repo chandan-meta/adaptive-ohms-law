@@ -29,11 +29,10 @@ namespace OhmsLaw
             panel = UI.Rect("MCQ Panel", block, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
             var layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 10f;
-            layout.padding = new RectOffset(16, 16, 14, 14);
+            layout.padding = new RectOffset(2, 2, 2, 2);
             layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
-            UI.Panel(panel, UI.Alpha(Color.Lerp(UI.PanelColor, Color.white, 0.04f), 1f), true, 18f).raycastTarget = false;
 
             question = UI.Label(panel, questionText, QuestionFont, Color.white, TextAlignmentOptions.TopLeft);
             question.fontStyle = FontStyles.Bold;

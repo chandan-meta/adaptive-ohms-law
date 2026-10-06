@@ -233,7 +233,7 @@ namespace OhmsLaw.Editor
             // tonemapper's shoulder in Study Wide / Study Desk (an orange clip, the chimney a white disc). The Group Fill keys the face.
             // Scene04Builder's rig carries the same numbers (same room, same light across the Scene 4 → 7 return).
             Flame("Oil Lamp", root, new Vector3(-1.7f, 0.16f, -1.72f), 1.6f, 3f, true);
-            Flame("Desk Candle", root, new Vector3(-2.36f, 0.1f, -1.9f), 0.7f, 1.8f, false);
+            // No desk-candle point light: removed by hand from the saved scenes (4, 5, 7, 8) on 2026-10-06; the candle's mesh flame stays.
             Flame("Fireplace", root, new Vector3(-1.35f, -0.5f, -3.15f), 4.5f, 4.5f, false).GetComponent<FlickerLight>().speed = 4f;
             Flame("Bookcase Candle", root, new Vector3(-2.85f, 0.22f, 0.87f), 1.4f, 3f, false);
 

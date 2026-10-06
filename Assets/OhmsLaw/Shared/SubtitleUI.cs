@@ -4,15 +4,18 @@ using UnityEngine.UI;
 
 namespace OhmsLaw
 {
-    // Captions for every spoken line, scripted or AI, in the lesson panel's Caption block: the speaker and the text.
-    // Two lines at a time; longer text pages through, each page coming up when the voice reaches its first word.
+    // Captions for every spoken line, scripted or AI, in the HUD's bottom bar (LessonPanel.Caption): the speaker in
+    // small cyan caps, the line in large white text, two lines at a time; longer text pages through, each page coming
+    // up when the voice reaches its first word. The bar fades in and out (0.25 s) and CC OFF hides it.
     public class SubtitleUI : MonoBehaviour
     {
         public static SubtitleUI Instance { get; private set; }
 
         RectTransform box;
+        CanvasGroup group;
         TextMeshProUGUI speaker, body;
         object owner;
+        bool shown;
 
         public static bool Enabled
         {
@@ -25,22 +28,34 @@ namespace OhmsLaw
             Instance = this;
             var panel = LessonPanel.Instance;
             box = panel.Caption;
-            var layout = box.GetComponent<VerticalLayoutGroup>();
-            layout.padding = new RectOffset(18, 18, 8, 10);
-            layout.spacing = 0f;
-            UI.Panel(box, UI.Alpha(Color.Lerp(UI.PanelColor, Color.black, 0.35f), 1f), true, 16f).raycastTarget = false;
+            group = box.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = 0f;
+            group.blocksRaycasts = false;
+            var layout = box.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(26, 26, 14, 16);
+            layout.spacing = 4f;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            box.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             speaker = UI.Label(box, "", LessonPanel.SpeakerFont, UI.Theme ? UI.Theme.wattsonAccent : Color.cyan, TextAlignmentOptions.TopLeft);
             speaker.characterSpacing = 4f;
             speaker.fontStyle = FontStyles.Bold;
-            LessonPanel.Fixed(speaker.rectTransform, LessonPanel.SpeakerFont * 1.4f); // never squeezed under the text
-            body = UI.Label(box, "", LessonPanel.CaptionFont, Color.white, TextAlignmentOptions.TopLeft);
+            LessonPanel.Fixed(speaker.rectTransform, LessonPanel.SpeakerFont * 1.3f);
+            body = UI.Label(box, "", LessonPanel.CaptionFont, new Color(0.98f, 0.97f, 0.94f), TextAlignmentOptions.TopLeft);
             body.overflowMode = TextOverflowModes.Page;
-            // Two caption lines per page, whatever the panel width: the label's height is fixed, the layout keeps it.
-            LessonPanel.Fixed(body.rectTransform, LessonPanel.CaptionFont * 1.25f * 2f + 6f);
+            // Two caption lines per page, whatever the bar's width: the label's height is fixed, the layout keeps it.
+            LessonPanel.Fixed(body.rectTransform, LessonPanel.CaptionFont * 1.2f * 2f + 4f);
             Apply();
         }
 
-        void Apply() { if (box) box.gameObject.SetActive(Enabled && owner != null); }
+        void Apply() => shown = Enabled && owner != null;
+
+        void Update()
+        {
+            float target = shown ? 1f : 0f;
+            group.alpha = ReducedMotion.On ? target : Mathf.MoveTowards(group.alpha, target, Time.unscaledDeltaTime / 0.25f);
+        }
 
         // progress (0..1) through the spoken line picks which two-line page is on screen: a page comes up once the
         // voice has covered the characters before it, so a 3-line text (pages of 2 + 1 lines) turns at two thirds.
@@ -49,7 +64,7 @@ namespace OhmsLaw
             owner = shownBy;
             Apply();
             if (!Enabled) return;
-            speaker.text = speakerName;
+            speaker.text = (speakerName ?? "").ToUpperInvariant();
             if (body.text != text)
             {
                 body.text = text;

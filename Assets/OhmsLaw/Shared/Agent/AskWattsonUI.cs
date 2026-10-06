@@ -300,7 +300,7 @@ namespace OhmsLaw
         void Update()
         {
             var context = Context;
-            if (Panel && Panel.AskButton) Panel.AskButton.gameObject.SetActive(context && context.askWattsonEnabled || IsOpen);
+            if (Panel && Panel.AskRoot) Panel.AskRoot.gameObject.SetActive(context && context.askWattsonEnabled || IsOpen);
             if (!IsOpen) return;
 
             status.text = StatusText();

@@ -93,7 +93,7 @@ namespace OhmsLaw.Editor
                 return wrap;
             }
             Dress("Oil_Lamp_Large", "Study Lamp", "Oil Lamp");
-            Dress("Candle_Holder_5", "Study Candle", "Desk Candle");
+            Dress("Candle_Holder_5", "Study Candle");
             Dress("Inkstand", "Study Inkstand");
             Dress("Paper", "Study Papers");
             Dress("Globe", "Study Globe");

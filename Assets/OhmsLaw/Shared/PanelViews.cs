@@ -93,6 +93,11 @@ namespace OhmsLaw
             var view = block.gameObject.AddComponent<VoltageButtons>();
             var row = UI.Rect("Row", block, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(0, LessonPanel.ButtonHeight));
             LessonPanel.Fixed(row, LessonPanel.ButtonHeight);
+            var caption = UI.Label(block, "BATTERY VOLTAGE", 13f, LessonPanel.Muted, TextAlignmentOptions.MidlineLeft);
+            caption.characterSpacing = 4f;
+            caption.fontStyle = FontStyles.Bold;
+            LessonPanel.Fixed(caption.rectTransform, 18f);
+            caption.transform.SetAsFirstSibling();
             var layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
             layout.spacing = 8f;
             layout.childControlWidth = layout.childControlHeight = true;
@@ -100,10 +105,12 @@ namespace OhmsLaw
             for (int i = 0; i < 5; i++)
             {
                 float volts = i + 1;
-                var button = UI.Button(volts + " V", row, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, new Vector2(100, LessonPanel.ButtonHeight), volts.ToString("0") + " V", () => { if (view.set != null && (view.open == null || view.open())) view.set(volts); }, 28f);
+                var button = UI.Button(volts + " V", row, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, new Vector2(80, LessonPanel.ButtonHeight), volts.ToString("0") + " V", () => { UiSounds.Play("click"); if (view.set != null && (view.open == null || view.open())) view.set(volts); }, 22f);
                 view.buttons[i] = button;
                 view.faces[i] = button.GetComponent<Image>();
                 view.faces[i].color = UI.RaisedColor;
+                var hud = button.gameObject.AddComponent<HudButton>();
+                hud.fillColor = UI.RaisedColor;
             }
             lesson.Show("Volt", true);
             return view;
@@ -118,7 +125,9 @@ namespace OhmsLaw
                 float volts = i + 1;
                 bool selected = Mathf.Approximately(now, volts), above = volts > cap + 0.001f;
                 buttons[i].interactable = enabled && !above;
-                faces[i].color = selected ? UI.AccentFill : above ? UI.Alpha(UI.RaisedColor, 0.35f) : UI.RaisedColor;
+                var hud = buttons[i].GetComponent<HudButton>();
+                if (hud) { hud.active = selected; hud.fillColor = above ? UI.Alpha(UI.RaisedColor, 0.35f) : UI.RaisedColor; }
+                else faces[i].color = selected ? UI.AccentFill : above ? UI.Alpha(UI.RaisedColor, 0.35f) : UI.RaisedColor;
             }
         }
     }
@@ -230,7 +239,7 @@ namespace OhmsLaw
         {
             var lesson = LessonPanel.Instance;
             var block = lesson.Fresh("Schematic", new RectOffset(12, 12, 8, 8));
-            float scale = (LessonPanel.NormalWidth - 2 * LessonPanel.Pad - 24f) / Size.x;
+            float scale = (LessonPanel.Inner(false) - 24f) / Size.x;
             var area = Draw.Box(block, Size, scale);
             var view = area.gameObject.AddComponent<CircuitSchematic>();
             view.Build(area);
@@ -254,7 +263,7 @@ namespace OhmsLaw
             Draw.Bar(area, new Vector2(SourceX - 11, cellMinus), new Vector2(SourceX + 11, cellMinus), 8, chalk); // short plate: −
             Draw.Label(area, "+", new Vector2(SourceX - 36, cellPlus - 6), 22, chalk, new Vector2(30, 30));
             Draw.Label(area, UI.Glyph("−", "-"), new Vector2(SourceX - 36, cellMinus + 6), 22, chalk, new Vector2(30, 30));
-            Draw.Label(area, "source", new Vector2(SourceX + 52, Top + 32), 18, new Color(1, 1, 1, 0.7f), new Vector2(80, 24));
+            Draw.Label(area, "source", new Vector2(SourceX + 56, Top + 34), 22, new Color(1, 1, 1, 0.7f), new Vector2(90, 28));
             L(new Vector2(SourceX, wireY), new Vector2(AmmeterX - 24, wireY));
             // Ammeter in series on the top wire.
             ammeterRing = Draw.Disc(area, new Vector2(AmmeterX, wireY), 48, dim, 0.78f);
@@ -264,9 +273,9 @@ namespace OhmsLaw
             Draw.Bar(area, new Vector2(X, wireY), new Vector2(Y, wireY), 10, new Color(0.78f, 0.72f, 0.58f));
             Draw.Disc(area, new Vector2(X, wireY), 14, chalk);
             Draw.Disc(area, new Vector2(Y, wireY), 14, chalk);
-            Draw.Label(area, "X", new Vector2(X - 24, wireY - 22), 20, amber, new Vector2(30, 24));
-            Draw.Label(area, "Y", new Vector2(Y + 24, wireY - 22), 20, amber, new Vector2(30, 24));
-            Draw.Label(area, "nichrome wire", new Vector2((X + Y) / 2, wireY - 22), 18, new Color(1, 1, 1, 0.7f), new Vector2(200, 24));
+            Draw.Label(area, "X", new Vector2(X - 26, wireY - 24), 24, amber, new Vector2(30, 28));
+            Draw.Label(area, "Y", new Vector2(Y + 26, wireY - 24), 24, amber, new Vector2(30, 28));
+            Draw.Label(area, "nichrome wire", new Vector2((X + Y) / 2, wireY - 24), 22, new Color(1, 1, 1, 0.7f), new Vector2(220, 28));
             L(new Vector2(Y, wireY), new Vector2(KeyX, wireY));
             // Key on the right side: a gap whose lever swings shut.
             L(new Vector2(KeyX, wireY), new Vector2(KeyX, 95));
@@ -274,7 +283,7 @@ namespace OhmsLaw
             Draw.Disc(area, new Vector2(KeyX, 150), 12, chalk);
             lever = Draw.Bar(area, new Vector2(KeyX, 150), new Vector2(KeyX + 30, 102), Loop, chalk);
             L(new Vector2(KeyX, 150), B);
-            Draw.Label(area, "key", new Vector2(KeyX + 36, 128), 18, new Color(1, 1, 1, 0.7f), new Vector2(60, 24));
+            Draw.Label(area, "key", new Vector2(KeyX + 40, 128), 22, new Color(1, 1, 1, 0.7f), new Vector2(70, 28));
             L(B, A);
             // Voltmeter in parallel across XY, under the wire (between the wire and the return).
             voltLeadX = Draw.Bar(area, new Vector2(X, wireY), new Vector2(X, Top), Thin, dim);
@@ -282,7 +291,7 @@ namespace OhmsLaw
             voltTop = Draw.Bar(area, new Vector2(X, Top), new Vector2(Y, Top), Thin, dim);
             voltmeterRing = Draw.Disc(area, new Vector2((X + Y) / 2, Top), 48, dim, 0.78f);
             voltmeterLabel = Draw.Label(area, "V", new Vector2((X + Y) / 2, Top), 24, dim, new Vector2(40, 40));
-            note = Draw.Label(area, "Conventional current is drawn + → − (electrons drift the other way)", new Vector2(300, 215), 17, UI.Alpha(amber, 0f), new Vector2(560, 24));
+            note = Draw.Label(area, "Conventional current is drawn + → − (electrons drift the other way)", new Vector2(300, 218), 21, UI.Alpha(amber, 0f), new Vector2(600, 28));
         }
 
         void Update()
@@ -346,7 +355,7 @@ namespace OhmsLaw
             var lesson = LessonPanel.Instance;
             var block = lesson.Fresh("Inset", new RectOffset(12, 12, 8, 10));
             lesson.Expand(true);
-            float scale = (LessonPanel.WideWidth - 2 * LessonPanel.Pad - 24f) / Size.x;
+            float scale = (LessonPanel.Inner(true) - 24f) / Size.x;
             var area = Draw.Box(block, Size, scale);
             var view = area.gameObject.AddComponent<ResistanceInset>();
             view.Build(area);
@@ -357,16 +366,16 @@ namespace OhmsLaw
         void Build(RectTransform area)
         {
             var dim = new Color(1, 1, 1, 0.7f);
-            Draw.Label(area, "MAGNIFIED · same voltage · same length · same thickness · same temperature", new Vector2(Size.x / 2, 22), 18, dim, new Vector2(800, 26)).characterSpacing = 1f;
+            Draw.Label(area, "MAGNIFIED · same voltage · same length · same thickness · same temperature", new Vector2(Size.x / 2, 22), 23, dim, new Vector2(810, 30)).characterSpacing = 1f;
             copper = BuildStrip(area, "Copper", new Color(0.86f, 0.5f, 0.3f), CopperY, speed: 150f, scatter: 0.25f, ions: 0, "MORE current", 1.0f);
             nichrome = BuildStrip(area, "Nichrome", new Color(0.58f, 0.6f, 0.52f), NichromeY, speed: 60f, scatter: 1f, ions: Ions, "LESS current", 0.42f);
-            Draw.Label(area, "More opposition = more resistance. The charges still get through, just more slowly.", new Vector2(Size.x / 2, 300), 18, dim, new Vector2(800, 26));
+            Draw.Label(area, "More opposition = more resistance. The charges still get through, just more slowly.", new Vector2(Size.x / 2, 302), 23, dim, new Vector2(810, 30));
         }
 
         Strip BuildStrip(RectTransform area, string name, Color tint, float y, float speed, float scatter, int ions, string verdict, float share)
         {
             var strip = new Strip { speed = speed, scatter = scatter };
-            Draw.Label(area, name, new Vector2(78, y), 24, Color.white, new Vector2(140, 30)).fontStyle = FontStyles.Bold;
+            Draw.Label(area, name, new Vector2(78, y), 30, Color.white, new Vector2(150, 36)).fontStyle = FontStyles.Bold;
             var body = UI.Rect(name + " Strip", area, new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(StripX, -y), new Vector2(StripW, StripH));
             UI.Panel(body, UI.Alpha(tint, 0.22f), true, StripH / 2).raycastTarget = false;
             UI.Outline(UI.Stretch("Edge", body), UI.Alpha(tint, 0.9f), StripH / 2, 3f);
@@ -396,14 +405,14 @@ namespace OhmsLaw
                 strip.dots[i] = dot;
             }
             Draw.Arrow(area, new Vector2(StripX + 8, y + StripH / 2 + 16), new Vector2(StripX + 60, y + StripH / 2 + 16), 3, 10, UI.Alpha(charge, 0.8f));
-            Draw.Label(area, "electron drift", new Vector2(StripX + 130, y + StripH / 2 + 16), 16, UI.Alpha(charge, 0.8f), new Vector2(140, 22));
+            Draw.Label(area, "electron drift", new Vector2(StripX + 130, y + StripH / 2 + 17), 21, UI.Alpha(charge, 0.8f), new Vector2(170, 26));
             // The current bar: how much gets through per second, as a share of the copper strip's.
-            var track = UI.Rect(name + " Bar", area, new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(StripX + StripW + 24, -y + 10), new Vector2(150, 18));
+            var track = UI.Rect(name + " Bar", area, new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(StripX + StripW + 24, -y - 14), new Vector2(150, 16)); // below the verdict (y is down in this canvas)
             UI.Panel(track, new Color(1, 1, 1, 0.15f), true, 9f).raycastTarget = false;
-            var fill = UI.Rect("Fill", track, new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(150 * share, 18));
+            var fill = UI.Rect("Fill", track, new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(150 * share, 16));
             strip.bar = UI.Panel(fill, UI.Theme ? UI.Theme.current : Color.yellow, true, 9f);
             strip.bar.raycastTarget = false;
-            strip.amps = Draw.Label(area, verdict, new Vector2(StripX + StripW + 99, y - 14), 20, UI.Theme ? UI.Theme.current : Color.yellow, new Vector2(170, 26));
+            strip.amps = Draw.Label(area, verdict, new Vector2(StripX + StripW + 99, y - 12), 25, UI.Theme ? UI.Theme.current : Color.yellow, new Vector2(180, 30));
             strip.amps.fontStyle = FontStyles.Bold;
             return strip;
         }

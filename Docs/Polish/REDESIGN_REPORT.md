@@ -6,6 +6,10 @@ Brief: `Docs/Polish/MASTER_PROMPT.md` (the user's 20-section master prompt). Che
 Companion documents: `REDESIGN_TEXT.md` (every revised line and panel text), `AUDIO_CUES.md` (the cue plan),
 `../FLOW.md` (regenerated flow of every scene), `../HANDOFF.md` (workflow).
 
+**Later the same day** the full-height panel described below was replaced by a cinematic HUD (top-right controls,
+bottom subtitle bar, round Ask Wattson, a right dock of compact cards): see `HUD_REPORT.md` and `HUD_DESIGN.md`. The
+learning sequence, dialogue, voice, sounds and interactions below are unchanged; "the panel" now means that dock.
+
 ## 1. What was preserved, changed, shortened, removed
 
 **Preserved.** The scene order and the code-built scene pipeline (`SceneNNBuilder` → Timeline); Scene 4's study,

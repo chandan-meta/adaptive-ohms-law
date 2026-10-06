@@ -11,7 +11,7 @@ namespace OhmsLaw
     // the line under it keeps the previous value ("was 1.0 V").
     public class LiveReadingsPanel : MonoBehaviour
     {
-        const float ValueFont = 40f, NoteFont = 20f, Pad = 14f, VPad = 8f, ValueRow = 46f, NoteRow = 26f;
+        const float ValueFont = 36f, NoteFont = 18f, Pad = 14f, VPad = 4f, ValueRow = 42f, NoteRow = 24f;
         const float ChangeSeconds = 1.4f;
 
         public bool showResistance;
@@ -39,9 +39,8 @@ namespace OhmsLaw
             var block = lesson.Block("Readings");
             var root = UI.Rect("Live Readings", block, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(0, 2 * VPad + ValueRow + NoteRow));
             LessonPanel.Fixed(root, 2 * VPad + ValueRow + NoteRow);
-            UI.Panel(root, UI.Alpha(Color.Lerp(UI.PanelColor, Color.white, 0.04f), 1f), true, 16f).raycastTarget = false;
             var row = root.gameObject.AddComponent<HorizontalLayoutGroup>();
-            row.padding = new RectOffset((int)Pad, (int)Pad, (int)VPad, (int)VPad);
+            row.padding = new RectOffset(0, 0, (int)VPad, (int)VPad);
             row.childControlWidth = row.childControlHeight = true;
             row.childForceExpandWidth = true;
             row.childForceExpandHeight = true;
@@ -73,6 +72,13 @@ namespace OhmsLaw
         {
             var rig = CircuitRig.Active;
             if (!rig) return;
+            // The card waits with the meters' plates: nothing to read until the baseline shows them. The block stays active
+            // (this LateUpdate must keep running), so it is faded out and dropped from the column's layout instead.
+            var block = (RectTransform)transform.parent;
+            if (!block.TryGetComponent(out LayoutElement element)) element = block.gameObject.AddComponent<LayoutElement>();
+            if (!block.TryGetComponent(out CanvasGroup group)) group = block.gameObject.AddComponent<CanvasGroup>();
+            element.ignoreLayout = !rig.readoutsShown;
+            group.alpha = rig.readoutsShown ? 1f : 0f;
             if (!rig.readoutsShown) return;
             float v = rig.Volts, i = rig.Amps;
             if (float.IsNaN(volts)) { volts = v; amps = i; }

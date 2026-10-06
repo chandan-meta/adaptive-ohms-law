@@ -25,6 +25,8 @@ namespace OhmsLaw.Editor
         static readonly string[] Dressing = { "Study Lamp", "Study Candle", "Study Inkstand", "Study Papers", "Study Globe", "Study Eyewear", "notebook" };
         static readonly string[] ClassroomGroups = { "Classroom Floor", "Classroom Back", "Classroom Left", "Classroom Right", "Classroom Ceiling" };
 
+        protected override float DockWidth => 0f; // cinematic: the study and its transformation fill the frame
+
         protected override void Dialogue()
         {
             L("S08_L01", "Ohm didn't have the modern instruments sitting in your school laboratory today.", 4.5f);

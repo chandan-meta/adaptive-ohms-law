@@ -16,6 +16,8 @@ namespace OhmsLaw.Editor
         const float HeroFov = 44f;
         const string NeedleSwing = "[VFX] galvanometer needle swing", Transforming = "[VFX] historical apparatus starts transforming → modern circuit";
 
+        protected override float DockWidth => 0f; // cinematic: the study and its transformation fill the frame
+
         protected override void Dialogue()
         {
             L("S07_P01", "And we're back! That's the very wire we just explored.", 3.2f, proposed: true);

@@ -4,14 +4,22 @@ Last updated 2026-10-06. Repository: `github.com/chandan-meta/adaptive-ohms-law`
 
 ## Latest handoff — 2026-10-06 (module redesign)
 
-- The module was redesigned around one right-hand lesson panel: see `Docs/Polish/REDESIGN_REPORT.md` (what changed, what was
+- The module was redesigned around the revised learning sequence: see `Docs/Polish/REDESIGN_REPORT.md` (what changed, what was
   tested, what is left) and `Docs/Polish/REDESIGN_TEXT.md` (every line and panel text). Checkpoint before the work: git tag
-  `checkpoint-2026-10-06-before-redesign`.
+  `checkpoint-2026-10-06-before-redesign`. The UI was then rebuilt as a cinematic HUD from a reference screenshot:
+  `Docs/Polish/HUD_REPORT.md` (implementation, review passes, evidence) and `Docs/Polish/HUD_DESIGN.md` (design system).
 - Wattson's voice is now edge-tts `en-US-AnaNeural` (`Tools/edge_bake.py`, driven by `Ohm's Law ▸ Bake VO ▸ All Scenes` / `vo all`);
   every line of Scenes 4–13 has an `<id>.mp3`, the scratch Windows clips are gone. The ElevenLabs proxy path is kept: with keys in
   `Server/wattson-proxy/.env` the same menu bakes through the proxy instead.
-- All UI lives in `Shared/LessonPanel.cs` (+ `PanelViews.cs`, `SubtitleUI`, `MCQPanel`, `LiveReadingsPanel`, `AskWattsonUI`). The
-  blackboard table/graph kit (`SceneBuilderBase.Boards.cs`), `CinematicControlsUI` and `QuestionBank` were deleted.
+- All UI lives in `Shared/LessonPanel.cs` (+ `HudKit.cs`, `PanelViews.cs`, `SubtitleUI`, `MCQPanel`, `LiveReadingsPanel`, `AskWattsonUI`):
+  a cinematic HUD (top-right controls, bottom subtitle bar, round Ask Wattson bottom-right, a right dock of compact cards only
+  while a beat needs them). Design system: `Docs/Polish/HUD_DESIGN.md`. The blackboard table/graph kit (`SceneBuilderBase.Boards.cs`),
+  `CinematicControlsUI` and `QuestionBank` were deleted. Each scene's builder sets `director.dockWidth` (0 = cinematic, full frame;
+  scenes built before the field existed resolve it at runtime from their content).
+- **Hand-edited scenes.** `Scene05_InsideTheWire`, `Scene07_BackToOhm` and `Scene08_OurLab` were edited in the editor on 2026-10-06
+  (13:34: the desk-candle light removed, a light/camera moved, components added) after their last build. A rebuild from the
+  builders discards those edits; the builders now omit the desk-candle light (as Scene 4's does), but the other edits are not
+  in code. Diff the scene against git before rebuilding it.
 - Sounds: `Editor/SfxBank.cs` synthesizes the bank (`Scene04/Audio/SFX/*.wav`); the plan is `Docs/Polish/AUDIO_CUES.md`.
 
 ## Previous handoff — 2026-10-05
@@ -46,8 +54,9 @@ Last updated 2026-10-06. Repository: `github.com/chandan-meta/adaptive-ohms-law`
   `Lab Continuity` (match-cuts 4→5…8→9), `Wattson Pose`, `Ohm Pose` (hands never below the desk), `Wattson Actions` (Ask Wattson action
   layer, offline); plus `Ohm's Law ▸ Validate Scene 04 (play test)`. From a shell: `bash Tools/unity_request.sh "menu Ohm's Law/Tests/Lab Continuity"`.
 - **Hands-free dry run:** menu `Ohm's Law ▸ Play Test ▸ Whole module`, or `echo "all 2x ask" > Logs/ohm-play.req` (`ask` also opens Ask Wattson in
-  Scene 7, asks a question and closes it; the run ends with an `end_card` frame). Report: `Logs/Blockout/play-report.txt`; a screenshot of every
-  beat: `Logs/Blockout/shots/<Scene>/`. autoAnswer picks the correct option after 3 s; do not click in the Game view.
+  Scene 7, asks a question and closes it; the run ends with an `end_card` frame; `@1366x768` runs at that Game view size and restores 1920×1080).
+  Report: `Logs/Blockout/play-report.txt`; a screenshot of every beat: `Logs/Blockout/shots/<Scene>/`. autoAnswer picks the correct option after 3 s;
+  do not click in the Game view.
 - **Review HUD in play mode:** F1 (or three-finger tap): scene, line, gate, time, FPS, next scene, replay line, autoAnswer, speed.
 - **Voice:** `Ohm's Law ▸ Bake VO ▸ All Scenes` (or `vo all` / `vo Scene04` through the request file) renders every line with edge-tts
   (`python Tools/edge_bake.py`, needs `pip install edge-tts` and internet) as `<id>.mp3`; a re-bake redoes only lines whose words or voice settings
@@ -55,8 +64,9 @@ Last updated 2026-10-06. Repository: `github.com/chandan-meta/adaptive-ohms-law`
   `tts: true`) the same menu bakes through the proxy (ElevenLabs) instead. Lines marked PROPOSED live in `SceneNN/Dialogue/Proposed/`.
 
 ## Toggles (on each scene's `SceneDirector`, or `ReviewMode`)
-`buildMode` (Scene 9: LearnerPlaces / AutoPlace), `showLearnerPrediction` (Scene 9 reminder shows the Scene 6 answer), `ReviewMode.autoAnswer`,
-`ReviewMode.timeScale`; the panel's MORE menu holds captions, reduced motion and the three volumes.
+`buildMode` (Scene 9: LearnerPlaces / AutoPlace), `showLearnerPrediction` (Scene 9 reminder shows the Scene 6 answer), `dockWidth` (px the HUD's
+right dock reserves; 0 = cinematic), `ReviewMode.autoAnswer`, `ReviewMode.timeScale`; the HUD's CC button toggles captions and the VOLUME popup holds
+the three volumes and the reduced-motion toggle.
 
 ## Visual pass (in progress)
 Target = the reference images in `Docs/Polish/References/`; spec = `Docs/Polish/ART_DIRECTION.md` (+ `USER_MASTER_PROMPT.md`, `STYLE_GUIDE.md`,

@@ -89,7 +89,8 @@ namespace OhmsLaw
             // The 3D view composes into the part of the screen the panel leaves free.
             var cam = Camera.main;
             if (cam && !cam.GetComponent<PanelFraming>()) cam.gameObject.AddComponent<PanelFraming>();
-            if (Panel) Panel.ResetForScene("");
+            var sceneDirector = Director ? Director.GetComponent<SceneDirector>() : null;
+            if (Panel) Panel.ResetForScene("", sceneDirector ? sceneDirector.DockWidth : 0f);
 
             // Medium tier for tablets: half the particles, no point-light shadows.
             if (Application.isMobilePlatform)

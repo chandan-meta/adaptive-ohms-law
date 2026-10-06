@@ -31,6 +31,12 @@ namespace OhmsLaw
         [Header("Review toggles")]
         [Tooltip("Scene 9: the learner places the meters, or they fly in by themselves (the key tap stays).")] public BuildMode buildMode = BuildMode.LearnerPlaces;
         [Tooltip("Scene 9: add \"Your prediction: ...\" from Scene 6 under the reminder (Reminder() leaves it off when none was recorded).")] public bool showLearnerPrediction = true;
+        [Tooltip("Reference px the HUD's right dock reserves in this scene (cards: notes, readings, table, graph ...); the camera composes into the rest. 0 = cinematic, full frame; -1 = decide from the scene (a bench or a wire reserves it, a cinematic scene does not).")] public float dockWidth = -1f;
+
+        // The dock strip this scene reserves: the serialized value, or, for a scene built before the field existed (or
+        // left on -1), the rule the builders follow: activity scenes (a circuit rig or an electron wire) reserve the
+        // normal width, cinematic scenes (Ohm's study, the transformation) keep the whole frame.
+        public float DockWidth => dockWidth >= 0f ? dockWidth : (rig || wire ? LessonPanel.NormalWidth : 0f);
 
         [Header("Scene parts")]
         public WattsonController wattson;
@@ -353,7 +359,7 @@ namespace OhmsLaw
         // Draws the eye to the Ask Wattson button: a scale wobble, or under ReducedMotion.On one dip of its alpha and back.
         IEnumerator Spotlight()
         {
-            var button = Panel ? Panel.AskButton.transform : null;
+            var button = Panel ? Panel.AskRoot : null;
             if (!button) yield break;
             if (ReducedMotion.On)
             {
