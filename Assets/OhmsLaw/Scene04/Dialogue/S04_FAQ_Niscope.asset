@@ -20,5 +20,5 @@ MonoBehaviour:
   ttsText: It's my detective gadget! The Ohm-niscope lets us zoom right inside a
     wire to see what electricity is really doing in there. Stick with me and you'll
     get to look through it.
-  vo: {fileID: 8300000, guid: 6a57b2da1b37aa740b3d9160524d5570, type: 3}
+  vo: {fileID: 8300000, guid: a90ac5be2a0d8954ab9277865ebb3dab, type: 3}
   fallbackDuration: 10

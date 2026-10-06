@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
   id: S10_Set2V_GO
   speaker: WATTSON
-  text: Now set the battery to 2 volts.
-  ttsText: Now set the battery to 2 volts.
-  vo: {fileID: 8300000, guid: a1ab1305f7a5bcd4784aac3c0a71d8c0, type: 3}
-  fallbackDuration: 2.4
+  text: One volt, and the ammeter reads 0.20 amperes. Now set the voltage to 2 volts.
+  ttsText: One volt, and the ammeter reads 0.20 amperes. Now set the voltage to 2
+    volts.
+  vo: {fileID: 8300000, guid: e168fd3ca018e8946b79972b47075ba0, type: 3}
+  fallbackDuration: 4.6

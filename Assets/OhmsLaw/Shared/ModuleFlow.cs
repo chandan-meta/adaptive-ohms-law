@@ -11,14 +11,15 @@ using UnityEngine.Video;
 
 namespace OhmsLaw
 {
-    // Persistent module root: scene order, white-fade transitions, cinematic pausing and the shared UI.
+    // Persistent module root: scene order, white-fade transitions, cinematic pausing and the shared UI (the one
+    // lesson panel, which hosts the captions and the Ask Wattson conversation).
     [DefaultExecutionOrder(-100)]
     public class ModuleFlow : MonoBehaviour
     {
         [Flags] public enum PauseReason { User = 1, Ask = 2, Hold = 4 }
 
         public static ModuleFlow Instance { get; private set; }
-        // Raised once Scene 13 hands off; Scene 14 onward are external videos.
+        // Raised once Scene 13 reaches its finale; Scene 14 onward are external videos.
         public static event Action UnitySectionComplete;
         public static event Action<string> Leaving; // a scene is about to hand off (before the fade or the cut); the play test shoots its last frame
 
@@ -27,10 +28,12 @@ namespace OhmsLaw
         [Tooltip("Scene names in play order, Scene 4 to Scene 13.")] public string[] scenes;
         [Tooltip("Shows Skip without a long-press.")] public bool debugMode;
         public float fadeSeconds = 0.6f;
-        [Tooltip("Optional path or URL of the Scene 14 video, played after Scene 13. Empty holds on the end card.")] public string scene14Video;
+        [Tooltip("Optional path or URL of the Scene 14 video, played after the finale. Empty holds on the finale.")] public string scene14Video;
 
         public PlayableDirector Director { get; private set; }
         public WattsonAgent Agent { get; private set; }
+        public LessonPanel Panel { get; private set; }
+        public bool Ended { get; private set; }
 
         Image fade;
         TextMeshProUGUI devNote;
@@ -58,8 +61,8 @@ namespace OhmsLaw
             var safe = UI.Stretch("SafeArea", transform).gameObject;
             safe.AddComponent<AdaptiveOhmsLaw.SafeAreaLayout>();
             Agent = gameObject.AddComponent<WattsonAgent>();
+            Panel = LessonPanel.Create(safe.transform);   // first: the captions and the conversation build inside it
             safe.AddComponent<SubtitleUI>();
-            safe.AddComponent<CinematicControlsUI>();
             safe.AddComponent<AskWattsonUI>();
             safe.AddComponent<FlowOverlay>();
             gameObject.AddComponent<AudioDucker>(); // lowers music and effects while anyone speaks
@@ -80,8 +83,13 @@ namespace OhmsLaw
             if (scene == entered) return;
             entered = scene;
             paused = 0;
+            Ended = false;
             Director = FindFirstObjectByType<PlayableDirector>();
             if (!FindFirstObjectByType<EventSystem>()) new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+            // The 3D view composes into the part of the screen the panel leaves free.
+            var cam = Camera.main;
+            if (cam && !cam.GetComponent<PanelFraming>()) cam.gameObject.AddComponent<PanelFraming>();
+            if (Panel) Panel.ResetForScene("");
 
             // Medium tier for tablets: half the particles, no point-light shadows.
             if (Application.isMobilePlatform)
@@ -149,14 +157,29 @@ namespace OhmsLaw
             return index >= 0 && index + 1 < scenes.Length ? scenes[index + 1] : null;
         }
 
+        // The finale (Scene 13's "end" cue): the composition holds, the panel offers replay and exit, and the optional
+        // Scene 14 video plays over it. Safe to call twice.
+        public void EndOfModule()
+        {
+            if (Ended) return;
+            Ended = true;
+            UnitySectionComplete?.Invoke();
+            if (Panel) Panel.End(true);
+            if (string.IsNullOrEmpty(scene14Video) || !Camera.main) return;
+            var video = Camera.main.gameObject.AddComponent<VideoPlayer>();
+            video.renderMode = VideoRenderMode.CameraNearPlane;
+            video.url = scene14Video.Contains("://") ? scene14Video : "file://" + scene14Video;
+            video.Play();
+        }
+
         IEnumerator Load(string next, bool fadeOut)
         {
             Leaving?.Invoke(next);
             if (fadeOut) yield return FadeTo(1);
             if (next != null && Application.CanStreamedLevelBeLoaded(next)) { yield return SceneManager.LoadSceneAsync(next); yield break; }
             if (!fadeOut) yield return FadeTo(1);
-            // Holding on the card: the scene underneath stops (a SKIP in Scene 13 arrives here mid-Timeline or mid-gate), and
-            // no voice keeps talking under it.
+            // Holding on the card: the scene underneath stops (a SKIP past the last scene arrives here mid-Timeline or
+            // mid-gate), and no voice keeps talking under it.
             var director = Director ? Director.GetComponent<SceneDirector>() : null;
             if (director) director.Shutdown();
             if (Director) Director.Stop();
@@ -167,18 +190,13 @@ namespace OhmsLaw
             }
             if (next != null) { devNote.text = next + " is not built yet. Holding on white."; yield break; }
 
-            // End of the Unity section.
-            UnitySectionComplete?.Invoke();
-            devNote.text = "→ Scene 14 (video)";
-            devNote.fontSize = 64;
+            // Past the last scene (a skip out of the finale): the end of the module, on a quiet card.
+            devNote.text = "End of module";
+            devNote.fontSize = 48;
             devNote.color = new Color(0, 0, 0, 0.7f);
             devNote.alignment = TextAlignmentOptions.Center;
-            if (string.IsNullOrEmpty(scene14Video) || !Camera.main) yield break;
-            var video = Camera.main.gameObject.AddComponent<VideoPlayer>();
-            video.renderMode = VideoRenderMode.CameraNearPlane;
-            video.url = scene14Video.Contains("://") ? scene14Video : "file://" + scene14Video;
-            video.Play();
-            yield return FadeTo(0);
+            EndOfModule();
+            if (!string.IsNullOrEmpty(scene14Video)) yield return FadeTo(0);
         }
 
         // White fade for scene beats (Timeline cue "fade 1" / "fade 0").
@@ -191,7 +209,7 @@ namespace OhmsLaw
         }
 
         // Reduced motion: the flash goes to a warm off-white instead of hard white, read every frame so the HUD toggle takes
-        // mid-fade. The length stays: Scenes 5, 6 and 12 swap their sets 0.6-0.8 s after "fade 1" and need the cover by then.
+        // mid-fade. The length stays: Scenes 5 and 6 swap their sets 0.6-0.8 s after "fade 1" and need the cover by then.
         static readonly Color SoftWhite = new Color(0.86f, 0.84f, 0.80f);
         static Color FadeColor => ReducedMotion.On ? SoftWhite : Color.white;
 

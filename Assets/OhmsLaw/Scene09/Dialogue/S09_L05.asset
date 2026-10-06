@@ -18,5 +18,5 @@ MonoBehaviour:
     an ammeter.
   ttsText: If we want to know how much current flows through the nichrome wire, we
     use an ammeter.
-  vo: {fileID: 8300000, guid: 4cdd2da4f920c284bba1b8562d39408e, type: 3}
+  vo: {fileID: 8300000, guid: b4a7777b0ea11454f8eb6494544ff475, type: 3}
   fallbackDuration: 5

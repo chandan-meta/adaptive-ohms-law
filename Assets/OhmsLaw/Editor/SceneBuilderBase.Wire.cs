@@ -23,15 +23,15 @@ namespace OhmsLaw.Editor
         protected const float TunnelRadius = 0.6f, TunnelLength = 9.8f;                               // the conduit (names kept for callers)
         protected const float CrossSectionX = -1.2f;                                                   // the counting ring, left of centre so the counter clears both concept cards
         protected const float SpaceFloorY = -1.7f;                                                     // the floor, below the conduit axis
-        protected const float WireFov = 60f;                                                           // "Wire Inside" vertical FOV
+        protected const float WireFov = 68f;                                                           // "Wire Inside" vertical FOV (the panel crops the sides)
         const int ReflectedLayer = 4;                                                                  // built-in "Water" layer, unused elsewhere: what the floor's probe mirrors
         protected static readonly Vector3 WireOrigin = new Vector3(100, 0, 0);                        // far from the lab in Scene 12; the conduit axis passes through it
-        protected static readonly Vector3 WireCamPos = WireOrigin + new Vector3(-3.1f, -0.7f, -6.7f);  // front-left, 1 m above the floor: − near-left, + far-right
-        protected static readonly Vector3 WireCamLook = WireOrigin + new Vector3(-1.55f, -0.7f, -0.9f); // yaw 15°, level
-        protected static readonly Vector3 PlatformPoint = WireOrigin + new Vector3(-3.64f, -1.25f, -3.55f); // Wattson: 2.9 m from the lens, lower-left third, hovering just over the floor
+        protected static readonly Vector3 WireCamPos = WireOrigin + new Vector3(-2.6f, -0.7f, -8.7f);  // front-left, 1 m above the floor: − near-left, + far-right
+        protected static readonly Vector3 WireCamLook = WireOrigin + new Vector3(-0.9f, -0.7f, -0.9f); // yaw 13°, level
+        protected static readonly Vector3 PlatformPoint = WireOrigin + new Vector3(-3.2f, -1.25f, -5.7f);  // Wattson: 3.0 m from the lens, lower-left third of the free frame, hovering just over the floor
         protected static readonly Vector3 PlatformPos = PlatformPoint + new Vector3(0, -0.45f, 0);          // the floor under him (kept for callers)
         protected static readonly Vector3 WallPoint = WireOrigin + new Vector3(-1.6f, 0.2f, -TunnelRadius - 0.02f); // the wire's wall the Ohm-niscope hits (Scene 6): the conduit's near surface
-        protected static readonly Vector3 WireWattsonCam = WireOrigin + new Vector3(-3.99f, -1.1f, -5.8f), WireWattsonLook = WireOrigin + new Vector3(-2.34f, -0.55f, -2.25f);
+        protected static readonly Vector3 WireWattsonCam = PlatformPoint + new Vector3(-0.35f, 0.15f, -2.25f), WireWattsonLook = PlatformPoint + new Vector3(1.3f, 0.7f, 1.3f);
         protected static readonly Vector3 MinusBlock = WireOrigin + new Vector3(-5.4f, 0f, 0f), PlusBlock = WireOrigin + new Vector3(5.4f, -0.35f, 0f);
         protected static readonly Color CopperTint = new Color(0.72f, 0.38f, 0.2f), NichromeTint = new Color(0.55f, 0.56f, 0.5f);
         protected static readonly Color SpaceBlue = new Color(0.043f, 0.086f, 0.188f);                 // #0B1630 fog, ambient, background
@@ -116,10 +116,12 @@ namespace OhmsLaw.Editor
 
             // Terminals: − near-left with its disc on the front face at the conduit's height, + far-right with its disc on the
             // face the conduit enters, below it. The − disc is no bigger than it must be: at 0.72 m it read as a giant electron.
+            // One style for both polarity markings: the same badge size, each on the face toward the lens at the
+            // conduit's height, cyan − and red + (the glyph says which, so colour is never the only cue).
             var minus = WireTerminal(set.transform, "−", MinusBlock - WireOrigin, new Vector3(1.8f, 3.4f, 1.8f),
-                new Vector3(0, 0, -0.9f), Vector3.back, 0.52f, MinusTint, 2.5f, steel, trim);
-            var plus = WireTerminal(set.transform, "+", PlusBlock - WireOrigin, new Vector3(1.6f, 2.7f, 1.6f),
-                new Vector3(-0.8f, -0.9f, 0), Vector3.left, 0.45f, PlusTint, 3.5f, steel, trim);
+                new Vector3(0, 0, -0.9f), Vector3.back, 0.42f, MinusTint, 2.2f, steel, trim);
+            var plus = WireTerminal(set.transform, "+", PlusBlock - WireOrigin, new Vector3(1.6f, 3.4f, 1.6f),
+                new Vector3(0, 0.35f, -0.8f), Vector3.back, 0.42f, PlusTint, 2.2f, steel, trim);
             minus.SetActive(terminalsOn);
             plus.SetActive(terminalsOn);
             var cableDark = Lit("Wire_CableDark", new Color(0.05f, 0.06f, 0.09f), 0.1f, 0.7f);
@@ -135,7 +137,7 @@ namespace OhmsLaw.Editor
             // Labels sit well in front of the blocks: Face() tilts them toward the lens, and at the old depth the tilted plane's
             // left end dipped behind the block face, which swallowed the glyph after the sign ("egative", "ositive").
             WireTerminalLabel(section.transform, "−", "− negative", MinusTint, MinusBlock + new Vector3(0, -0.85f, -1.3f), terminalsOn);
-            WireTerminalLabel(section.transform, "+", "+ positive", PlusTint, PlusBlock + new Vector3(-0.3f, 0.35f, -1.2f), terminalsOn);
+            WireTerminalLabel(section.transform, "+", "+ positive", PlusTint, PlusBlock + new Vector3(0, -0.5f, -1.2f), terminalsOn);
 
             // Electrons: the carriers, two of them traced; the lattice ions apart, drawn first so the electrons stay on top.
             wire.carriers = Particles("Carriers", section.transform, BlockoutAssets.ChargeMaterial(ElectronTint), 64);

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: This constant tells us how strongly the conductor opposes current.
   ttsText: This constant tells us how strongly the conductor opposes current.
-  vo: {fileID: 8300000, guid: 0f8634ce9e3fd7642bedd829ebecf973, type: 3}
+  vo: {fileID: 8300000, guid: b712ae49b004be2438a9aa279259bfd5, type: 3}
   fallbackDuration: 3.8

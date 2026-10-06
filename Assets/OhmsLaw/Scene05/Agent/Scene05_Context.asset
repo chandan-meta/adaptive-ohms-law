@@ -19,22 +19,19 @@ MonoBehaviour:
   - 'Everything from Scene 4: the Christmas-lights mystery, Georg Ohm, the words
     voltage and current, the Ohm-niscope.'
   - Inside a metal the charge carriers are free electrons.
-  - Before a battery is connected the electrons move randomly in every direction
-    with no net drift.
-  - A battery creates a potential difference (voltage) between two points; voltage
-    is the electrical push. Symbol V, unit volt (V).
-  - "When the battery is connected the electric field is set up along the whole circuit
-    almost at once and all the electrons drift together, from the \u2212 terminal
-    end toward the + terminal end."
-  - Charge crossing a section of the wire each second is electric current. Symbol
-    I, unit ampere (A).
-  - "Conventional current is taken from + to \u2212; electrons drift from \u2212
-    to +."
-  - 'The scene shows only a small, evenly spread sample of the free electrons so
-    one can be followed; a real wire has billions of billions. The drift shown is
-    a picture: real drift is very slow (fractions of a millimetre per second) and
-    much slower than the random motion, while the field is set up along the wire
-    almost at once.'
+  - Before a voltage is applied the electrons move randomly in every direction with
+    no net drift.
+  - A voltage is a potential difference between two points; applying it across the
+    wire sets up an electric field that pushes the electrons. Symbol V, unit volt
+    (V).
+  - "With the voltage applied the electrons keep their random motion and all drift
+    together, from the \u2212 terminal end toward the + terminal end. Conventional
+    current is drawn the other way, + to \u2212."
+  - "Current is the charge crossing a section of the wire each second (I = \u0394Q/\u0394t).
+    Symbol I, unit ampere (A). The counter in the panel counts a few representative
+    charges per second; a real wire carries billions."
+  - The scene shows only a small, evenly spread sample of the free electrons so one
+    can be followed; the drift shown is a picture, real drift is very slow.
   doNotSpoil:
   - How V and I are related
   - V is proportional to I

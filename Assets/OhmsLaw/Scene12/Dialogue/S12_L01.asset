@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: We've seen what pushes charge...
   ttsText: We've seen what pushes charge...
-  vo: {fileID: 8300000, guid: 9fbae05f91c4e374eac0b5aaa01462d9, type: 3}
+  vo: {fileID: 8300000, guid: 3387b1aea14a2014f8b5520ce198c346, type: 3}
   fallbackDuration: 2.4

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'Push, flow, opposition: know any two, and V = IR gives you the third.'
   ttsText: 'Push, flow, opposition: know any two, and V = IR gives you the third.'
-  vo: {fileID: 8300000, guid: fd80979bc0fb6204a9ad83aae904be7b, type: 3}
+  vo: {fileID: 8300000, guid: 3c0dda17e3df1ef41a5681eaa070c800, type: 3}
   fallbackDuration: 4.4

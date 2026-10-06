@@ -20,5 +20,5 @@ MonoBehaviour:
   ttsText: A voltmeter compares two points. We connect one lead to X and the other
     to Y, the two ends of the nichrome wire, so it reads the potential difference
     across the wire itself, while the current carries on through the wire as before.
-  vo: {fileID: 8300000, guid: 98e75e3b721cbcc4c8f1c75237df80b5, type: 3}
+  vo: {fileID: 8300000, guid: a1b27cd3385df394b89143aae4a48e6a, type: 3}
   fallbackDuration: 14

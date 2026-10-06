@@ -20,5 +20,5 @@ MonoBehaviour:
   ttsText: 'Ohm did exactly what we are about to do: he changed the electrical conditions
     in his circuit, step by step, and measured what happened each time. He repeated
     it over and over and wrote every reading down. Let''s go and see.'
-  vo: {fileID: 8300000, guid: bc770b20c732cec4098c37a9565163e1, type: 3}
+  vo: {fileID: 8300000, guid: 735eddd7b3a27154a8673e1a864eca3b, type: 3}
   fallbackDuration: 13.764

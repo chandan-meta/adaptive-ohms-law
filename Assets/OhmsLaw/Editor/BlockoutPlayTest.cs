@@ -53,7 +53,8 @@ namespace OhmsLaw.Editor
         static string currentScene = "", lastGate;
         static double lastTime = -1;
         static float lastProgress, started;
-        static int errors;
+        static int errors, probe;
+        static float endedAt, probeAt;
         static bool hooked;
 
         [MenuItem("Ohm's Law/Play Test/Whole module (autoAnswer)")] static void Module() => Run("all");
@@ -86,7 +87,7 @@ namespace OhmsLaw.Editor
         {
             if (!SessionState.GetBool(Key, false) || hooked) return;
             hooked = true;
-            errors = 0;
+            errors = 0; probe = 0; endedAt = 0; probeAt = 0;
             spoken.Clear();
             currentScene = "";
             lastTime = -1;
@@ -206,15 +207,28 @@ namespace OhmsLaw.Editor
                 foreach (var capture in captures.Where(c => flow.Director.time >= c.due).ToList()) { Shot(capture.what); captures.Remove(capture); }
             }
 
+            // "ask" in the request: in Scene 7 the test opens Ask Wattson, asks a question and closes it again (frames
+            // ask_open / ask_answer / ask_closed), so the conversation, the pause and the resume get a visual check.
+            if (SessionState.GetString(SceneKey + ".req", "").Contains("ask") && scene.StartsWith("Scene07") && flow && flow.Director && LessonPanel.Instance && probe < 3)
+            {
+                if (probe == 0 && flow.Director.time >= 5) { LessonPanel.Instance.AskButton.onClick.Invoke(); probe = 1; probeAt = Time.realtimeSinceStartup; Later("ask_open", 0.8f); }
+                else if (probe == 1 && Time.realtimeSinceStartup - probeAt > 1.6f) { AskWattsonUI.Probe("What is electric current?"); probe = 2; probeAt = Time.realtimeSinceStartup; Later("ask_answer", 3f); }
+                else if (probe == 2 && Time.realtimeSinceStartup - probeAt > 4.5f) { LessonPanel.Instance.AskButton.onClick.Invoke(); probe = 3; Later("ask_closed", 0.8f); Note($"ASK   probe in {scene}: opened, asked, closed (open: {AskWattsonUI.IsOpen})"); }
+                lastProgress = Time.realtimeSinceStartup;
+            }
+
             bool stalled = Time.realtimeSinceStartup - lastProgress > StallSeconds;
             var note = GameObject.Find("WhiteFade") ? GameObject.Find("WhiteFade").GetComponentInChildren<TMPro.TMP_Text>() : null;
-            bool ended = note && (note.text.Contains("Scene 14") || note.text.Contains("not built yet") || note.text.Contains("End of module"));
+            bool ended = note && (note.text.Contains("Scene 14") || note.text.Contains("not built yet") || note.text.Contains("End of module"))
+                      || (ModuleFlow.Instance && ModuleFlow.Instance.Ended);
             bool timedOut = Time.realtimeSinceStartup - started > MaxMinutes * 60;
+            if (ended && endedAt == 0) { endedAt = Time.realtimeSinceStartup; Later("end_card", 0.5f); }
+            if (ended && !stalled && Time.realtimeSinceStartup - endedAt < 1.5f) return; // the end card's frame (replay / exit) lands before play mode ends
             if (!stalled && !ended && !timedOut) return;
 
             if (ended) Verify(currentScene);
-            Check("module reached the end card / hand-off without stalling", ended && !stalled);
-            if (ended) Note("END  " + note.text);
+            Check("module reached the finale / end card without stalling", ended && !stalled);
+            if (ended) Note("END  " + (note && note.text.Length > 0 ? note.text : "finale (replay / exit offered)"));
             if (stalled) Note($"STALL  no progress for {StallSeconds} s in {scene} at {lastTime:0.0} s (gate: {lastGate ?? "none"})");
             Note(errors == 0 ? "RESULT PASS" : "RESULT FAIL (" + errors + ")");
             Finish();

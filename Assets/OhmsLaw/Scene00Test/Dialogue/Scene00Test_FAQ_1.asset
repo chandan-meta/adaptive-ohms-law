@@ -18,5 +18,5 @@ MonoBehaviour:
     work.
   ttsText: Yes, detective. This scene only checks that my subtitles, voice and questions
     work.
-  vo: {fileID: 8300000, guid: 5a601d07b5404c44e9fa6302c3f8b57f, type: 3}
+  vo: {fileID: 8300000, guid: e8333d20833dc934886571aef1c332c3, type: 3}
   fallbackDuration: 5.146

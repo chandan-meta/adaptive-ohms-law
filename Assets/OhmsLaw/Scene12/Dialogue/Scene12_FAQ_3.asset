@@ -15,12 +15,10 @@ MonoBehaviour:
   id: Scene12_FAQ_3
   speaker: WATTSON
   text: 'Careful, detective: it is the other way round. A thicker wire gives the
-    charges more room to flow, so it has less resistance. The narrowing tunnel you
-    saw was only a picture of the material opposing the flow, not a real change in
-    the wire''s thickness.'
+    charges more room to flow, so it has less resistance. The comparison kept the
+    length and thickness the same on purpose, so only the material differed.'
   ttsText: 'Careful, detective: it is the other way round. A thicker wire gives the
-    charges more room to flow, so it has less resistance. The narrowing tunnel you
-    saw was only a picture of the material opposing the flow, not a real change in
-    the wire''s thickness.'
-  vo: {fileID: 8300000, guid: 6194e864d68201e47ba7efdc5b0682b8, type: 3}
-  fallbackDuration: 14
+    charges more room to flow, so it has less resistance. The comparison kept the
+    length and thickness the same on purpose, so only the material differed.'
+  vo: {fileID: 8300000, guid: 3392fb13a6aca6e41b736ecf8920bb58, type: 3}
+  fallbackDuration: 13.764

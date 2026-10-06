@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: And today... we call it OHM'S LAW.
   ttsText: And today... we call it OHM'S LAW.
-  vo: {fileID: 8300000, guid: 6ad397c23a9b4e0439de2c2e06634196, type: 3}
+  vo: {fileID: 8300000, guid: f51c051e745e94b40b888cf2c86feee3, type: 3}
   fallbackDuration: 3

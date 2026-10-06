@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Back in the wire you predicted the current would rise. Your data agrees.
   ttsText: Back in the wire you predicted the current would rise. Your data agrees.
-  vo: {fileID: 8300000, guid: 68a9878425a9794488b70a439d67219c, type: 3}
+  vo: {fileID: 8300000, guid: 578ca3844985f4d4baa0ca02fdc74652, type: 3}
   fallbackDuration: 4

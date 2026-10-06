@@ -156,7 +156,7 @@ namespace OhmsLaw.Editor
             public PlayableDirector director;
             public SignalReceiver receiver;
             public Camera camera;
-            public AudioSource sfx, music;
+            public AudioSource sfx, music, ambience;
             public SplineContainer path;
             public ReflectionProbe probe;
             public Dictionary<string, CinemachineCamera> cams = new Dictionary<string, CinemachineCamera>();
@@ -255,7 +255,7 @@ namespace OhmsLaw.Editor
 
             var context = Data<SceneAgentContext>(S4 + "/Agent/Scene04_Context.asset");
             context.sceneId = "Scene04";
-            context.sceneTitle = "Meet Wattson & Georg Ohm";
+            context.sceneTitle = "Meet Wattson and Georg Ohm";
             context.askWattsonEnabled = true;
             context.covered = new[]
             {
@@ -432,27 +432,34 @@ namespace OhmsLaw.Editor
         {
             var s = new Stage();
 
-            // Laboratory: a variant of the project's Victorian study, dressed for candlelight.
-            s.lab = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(LabModel), scene);
-            s.lab.name = "Lab";
-            foreach (var light in s.lab.GetComponentsInChildren<Light>(true)) light.gameObject.SetActive(false);
-            // Props that float in mid-air in the source model, and the desk dressing that stands where Ohm's 1826 apparatus
-            // goes (book piles, the open book, the magnifier, the top hat; the glasses stay). Scenes 5, 7 and 8 use this variant.
-            foreach (string clutter in new[] { "chock_and_duster", "glass_and_ice_cube_", "Book_Pile_1", "Book_Pile_4", "Open_Book", "magnify_glass" })
-                foreach (var t in s.lab.GetComponentsInChildren<Transform>(true).Where(t => t.name == clutter)) t.gameObject.SetActive(false);
-            Find(Find(s.lab, "hat_and_glass").gameObject, "Object_4").gameObject.SetActive(false);
-            int flames = 0;
-            foreach (var r in s.lab.GetComponentsInChildren<Renderer>(true))
+            // Laboratory: a variant of the project's Victorian study, dressed for candlelight. Once the variant exists it is
+            // used as it is (hand edits in it survive a rebuild); it is only made from the model the first time.
+            var labVariant = AssetDatabase.LoadAssetAtPath<GameObject>(S4 + "/Prefabs/Lab_Scene04.prefab");
+            if (labVariant)
             {
-                bool flame = r.name.StartsWith("Flame");
-                bool window = r.name.StartsWith("Window") || r.name.StartsWith("Wall_Window");
-                // The window wall lets the "window light" in; everything else shadows from both sides.
-                r.shadowCastingMode = flame || window ? ShadowCastingMode.Off : ShadowCastingMode.TwoSided;
-                if (flame && r.sharedMaterial) r.sharedMaterial = EmissiveCopy(r.sharedMaterial, "Flame_" + (r.name.Contains("low") ? "Candle" : "Fire"), new Color(4f, 1.9f, 0.55f));
-                if (flame) flames++;
-                GameObjectUtility.SetStaticEditorFlags(r.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.ReflectionProbeStatic);
+                s.lab = (GameObject)PrefabUtility.InstantiatePrefab(labVariant, scene);
+                s.lab.name = "Lab";
             }
-            Variant(s.lab, "Lab_Scene04");
+            else
+            {
+                s.lab = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(LabModel), scene);
+                s.lab.name = "Lab";
+                foreach (var light in s.lab.GetComponentsInChildren<Light>(true)) light.gameObject.SetActive(false);
+                // Props that float in mid-air in the source model, and the desk dressing that stands where Ohm's 1826 apparatus
+                // goes (book piles, the open book, the magnifier, the top hat where the export still has one; the glasses stay).
+                foreach (string clutter in new[] { "chock_and_duster", "glass_and_ice_cube_", "Book_Pile_1", "Book_Pile_4", "Open_Book", "magnify_glass", "Object_4" })
+                    foreach (var t in s.lab.GetComponentsInChildren<Transform>(true).Where(t => t.name == clutter)) t.gameObject.SetActive(false);
+                foreach (var r in s.lab.GetComponentsInChildren<Renderer>(true))
+                {
+                    bool flame = r.name.StartsWith("Flame");
+                    bool window = r.name.StartsWith("Window") || r.name.StartsWith("Wall_Window");
+                    // The window wall lets the "window light" in; everything else shadows from both sides.
+                    r.shadowCastingMode = flame || window ? ShadowCastingMode.Off : ShadowCastingMode.TwoSided;
+                    if (flame && r.sharedMaterial) r.sharedMaterial = EmissiveCopy(r.sharedMaterial, "Flame_" + (r.name.Contains("low") ? "Candle" : "Fire"), new Color(4f, 1.9f, 0.55f));
+                    GameObjectUtility.SetStaticEditorFlags(r.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.ReflectionProbeStatic);
+                }
+                Variant(s.lab, "Lab_Scene04");
+            }
 
             s.groupPoint = Node("Group Point", null, Group).transform;
             s.ohmPoint = Node("Ohm Point", null, OhmHead).transform;
@@ -460,13 +467,16 @@ namespace OhmsLaw.Editor
 
             var apparatus = BuildApparatus(s);
 
-            // Georg Ohm, working behind his desk and facing the room.
-            var ohm = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(OhmModel), scene);
+            // Georg Ohm, working behind his desk and facing the room (the existing variant when there is one).
+            var ohmVariant = AssetDatabase.LoadAssetAtPath<GameObject>(S4 + "/Prefabs/Ohm_Scene04.prefab");
+            var ohm = (GameObject)PrefabUtility.InstantiatePrefab(ohmVariant ? ohmVariant : AssetDatabase.LoadAssetAtPath<GameObject>(OhmModel), scene);
             ohm.name = "Georg Ohm";
             ohm.transform.position = OhmFeet;
             ohm.transform.localScale = Vector3.one * 1.55f;
-            s.ohm = ohm.AddComponent<OhmWorker>();
-            Variant(ohm, "Ohm_Scene04");
+            s.ohm = ohm.GetComponent<OhmWorker>();
+            if (!s.ohm) s.ohm = ohm.AddComponent<OhmWorker>();
+            s.ohm.deskTop = DeskY;
+            if (!ohmVariant) Variant(ohm, "Ohm_Scene04");
             s.ohm.notebook = apparatus["Ohm Notebook Target"];
             s.ohm.galvanometer = apparatus["Ohm Galvanometer Target"];
             s.ohm.wirePost = apparatus["Ohm Wire Target"];
@@ -477,12 +487,28 @@ namespace OhmsLaw.Editor
 
             s.sfx = Audio("SFX", null, AudioBus.Kind.Sfx);
             s.music = Audio("Music", null, AudioBus.Kind.Music, 0.35f);
+            s.ambience = Audio("Ambience", null, AudioBus.Kind.Sfx, 0.5f);
             return s;
         }
 
         static void BuildWattson(Stage s, SceneAgentContext context, Dictionary<string, AudioClip> sfx)
         {
             var accent = palette.wattsonAccent;
+            var variant = AssetDatabase.LoadAssetAtPath<GameObject>(S4 + "/Prefabs/Wattson_Scene04.prefab");
+            if (variant)
+            {
+                // The finished variant, as edited: its controller, gadget, voices and sparks come with it.
+                var made = (GameObject)PrefabUtility.InstantiatePrefab(variant, scene);
+                made.name = "Wattson";
+                made.transform.position = Hover;
+                made.transform.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(Group - Hover, Vector3.up));
+                var controller = made.GetComponent<WattsonController>();
+                s.niscope = made.GetComponentInChildren<Niscope>(true);
+                var beamNode = made.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "Beam");
+                if (beamNode) s.fx["Beam"] = beamNode.gameObject;
+                WireWattson(s, controller, context);
+                return;
+            }
             var go = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(WattsonPrefab), scene);
             go.name = "Wattson";
             // The earlier lesson controller is replaced by the shared cinematic one on this variant only.
@@ -525,12 +551,7 @@ namespace OhmsLaw.Editor
                 shape.shapeType = ParticleSystemShapeType.Sphere;
                 shape.radius = 0.12f;
             });
-            var glow = Node("Follow Light", go.transform).AddComponent<Light>();
-            glow.type = LightType.Point;
-            glow.color = new Color(1f, 0.95f, 0.8f);
-            glow.intensity = 0.7f;
-            glow.range = 2.2f;
-            glow.shadows = LightShadows.None;
+            // (No follow light: he glows through his own emissive body; a point light on him washed the desk.)
 
             // Ohm-niscope: a brass and glass scanner, built along the arm so the lens rings lead the hand.
             var wrist = Find(go, "right_wrist_jnt");
@@ -577,8 +598,12 @@ namespace OhmsLaw.Editor
             w.gadget = gadget.transform;
 
             Variant(go, "Wattson_Scene04");
+            WireWattson(s, w, context);
+        }
 
-            // Scene-only wiring: flight path and what he looks at.
+        // Scene-only wiring: flight path and what he looks at.
+        static void WireWattson(Stage s, WattsonController w, SceneAgentContext context)
+        {
             s.path = Node("Wattson Flight Path").AddComponent<SplineContainer>();
             var spline = s.path.Spline;
             spline.Clear();
@@ -639,7 +664,7 @@ namespace OhmsLaw.Editor
             // Two realtime shadow casters in total: the window and the desk lamp. The lamp and candle are accents (same numbers
             // as SceneBuilderBase.StudyLighting, which Scenes 7-8 light this room with): brighter, they clipped Ohm's face.
             Flame("Oil Lamp", new Vector3(-1.7f, 0.16f, -1.72f), 1.6f, 3f, true);
-            Flame("Desk Candle", new Vector3(-2.36f, 0.1f, -1.9f), 0.7f, 1.8f, false);
+            // No desk-candle light (a hand edit the saved scene carried): the lamp keys the desk on its own.
             Flame("Fireplace", new Vector3(-1.35f, -0.5f, -3.15f), 4.5f, 4.5f, false).GetComponent<FlickerLight>().speed = 4f;
             Flame("Bookcase Candle", new Vector3(-2.85f, 0.22f, 0.87f), 1.4f, 3f, false);
 
@@ -957,7 +982,7 @@ namespace OhmsLaw.Editor
             s.fx["Wire Highlight"] = highlight;
 
             // SH11: energy streaks rushing out of the wire at the camera.
-            s.fx["Dive Streaks"] = Particles("Dive Streaks", root, Wire, Glow("Glow_Streaks", Hdr(Color.Lerp(accent, current, 0.3f), 5f)), ps =>
+            s.fx["Dive Streaks"] = Particles("Dive Streaks", root, Wire, Glow("Glow_Streaks", Hdr(Color.Lerp(accent, current, 0.3f), 2.5f)), ps =>
             {
                 ps.transform.rotation = Quaternion.LookRotation(-view);
                 var main = ps.main;

@@ -74,7 +74,8 @@ namespace OhmsLaw.Editor
             // desk shots and against the bench, and Ohm works standing.
             foreach (var name in new[] { "Book_Pile_4", "Open_Book", "magnify_glass", "Chair" })
                 FindChild(room, name).gameObject.SetActive(false);
-            FindChild(FindChild(room, "hat_and_glass").gameObject, "Object_4").gameObject.SetActive(false); // the top hat; the glasses stay
+            var hat = room.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "Object_4"); // the top hat (gone from newer exports of the model); the glasses stay
+            if (hat) hat.gameObject.SetActive(false);
             // The paper on the floor by the fireplace belongs to the room, not the desk.
             FindChild(room, "Paper_001").SetParent(FindChild(room, "Interior"), true);
 

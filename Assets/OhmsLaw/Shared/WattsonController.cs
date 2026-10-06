@@ -60,10 +60,9 @@ namespace OhmsLaw
         static readonly int Emission = Shader.PropertyToID("_EmissionColor");
         const float PointTurnShare = 0.35f, AcrossLimit = 15f, MaxTurn = 75f;
         const float HeadYaw = 20f, HeadPitch = 12f, EyeYaw = 10f, EyePitch = 8f, ChestMax = 10f;
-        // Where he holds while the Ask panel is open: viewport x 0.42 (right of the 544 px panel plus his half-width, the
-        // empty band between the table and the graph in the Boards shots), in the middle band (under the readings strip,
-        // above the subtitles).
-        const float AskViewportX = 0.42f, AskViewportYMin = 0.35f, AskViewportYMax = 0.62f;
+        // Where he holds while the Ask panel is open: viewport x 0.30, the middle of the part of the frame the lesson panel
+        // leaves free (PanelFraming already shifts the view), in the middle band.
+        const float AskViewportX = 0.30f, AskViewportYMin = 0.35f, AskViewportYMax = 0.62f;
 
         readonly float[] samples = new float[256];
         MaterialPropertyBlock block;

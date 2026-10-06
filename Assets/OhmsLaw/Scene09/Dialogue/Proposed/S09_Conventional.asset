@@ -18,5 +18,5 @@ MonoBehaviour:
     minus to plus!'
   ttsText: 'Plot twist: we draw conventional current plus to minus. Electrons drift
     minus to plus!'
-  vo: {fileID: 8300000, guid: c8f27986f8f23374f8d2a3383e3b95a6, type: 3}
+  vo: {fileID: 8300000, guid: d66e61372a861a349a8303343fd35f11, type: 3}
   fallbackDuration: 4.4

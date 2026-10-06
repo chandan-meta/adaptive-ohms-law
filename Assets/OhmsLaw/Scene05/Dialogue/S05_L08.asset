@@ -20,5 +20,5 @@ MonoBehaviour:
   ttsText: "And that's exactly the clue we need for your Christmas lights. The new
     battery changed the electrical conditions\u2014but before we solve your mystery,
     we need to find out exactly how voltage and current are connected."
-  vo: {fileID: 8300000, guid: c74e0880ec0713a49969da2e553868ed, type: 3}
+  vo: {fileID: 8300000, guid: 9b356a9334b089646915e886c72c1a84, type: 3}
   fallbackDuration: 12

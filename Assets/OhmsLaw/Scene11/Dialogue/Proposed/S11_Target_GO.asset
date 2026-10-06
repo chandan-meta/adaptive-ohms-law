@@ -17,5 +17,5 @@ MonoBehaviour:
   text: 'Your turn: make the ammeter read 0.60 amperes. Use the slider, or ask me!'
   ttsText: 'Your turn: make the ammeter read 0.60 amperes. Use the slider, or ask
     me!'
-  vo: {fileID: 8300000, guid: 2265231e419b4ff4083f23126a0b4c1d, type: 3}
+  vo: {fileID: 8300000, guid: af151661d142eed4da2f8dad19db7396, type: 3}
   fallbackDuration: 4.4

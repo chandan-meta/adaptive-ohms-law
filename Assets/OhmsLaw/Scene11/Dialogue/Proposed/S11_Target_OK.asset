@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 3 volts, 0.60 amperes. Your point sits right on the line!
   ttsText: 3 volts, 0.60 amperes. Your point sits right on the line!
-  vo: {fileID: 8300000, guid: b24111962716274458809f7fcbb9d1cf, type: 3}
+  vo: {fileID: 8300000, guid: 1318599ccb55c0049b349910fecc9ea5, type: 3}
   fallbackDuration: 3.4

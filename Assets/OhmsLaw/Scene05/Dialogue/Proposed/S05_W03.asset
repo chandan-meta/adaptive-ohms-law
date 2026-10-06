@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: That end, to the positive terminal.
   ttsText: That end, to the positive terminal.
-  vo: {fileID: 8300000, guid: d4bcafb898c02fe4f986bd65f1f19e2a, type: 3}
+  vo: {fileID: 8300000, guid: 367bf366250828647b6cc79cabea2301, type: 3}
   fallbackDuration: 2.2

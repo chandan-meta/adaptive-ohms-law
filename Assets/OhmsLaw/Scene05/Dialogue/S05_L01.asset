@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: These are electric charges.
   ttsText: These are electric charges.
-  vo: {fileID: 8300000, guid: 1f7d44480a4d41447be26e1423c5c032, type: 3}
+  vo: {fileID: 8300000, guid: 2f1fa039ca124eb4b862e35bd920e658, type: 3}
   fallbackDuration: 2.2

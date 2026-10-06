@@ -18,5 +18,5 @@ MonoBehaviour:
     of this.
   ttsText: We've got our law. Now let's test it against the mystery that started
     all of this.
-  vo: {fileID: 8300000, guid: 5cf283de762c20b4eac9715bed61191c, type: 3}
+  vo: {fileID: 8300000, guid: be4deb0a625285447b5af0715ea425fb, type: 3}
   fallbackDuration: 4.5

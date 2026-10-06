@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: "So, what is the slope? \u0394V divided by \u0394I."
   ttsText: "So, what is the slope? \u0394V divided by \u0394I."
-  vo: {fileID: 8300000, guid: 8fb2472777929a844905b22667e7a5ac, type: 3}
+  vo: {fileID: 8300000, guid: 8c0af5d2852d92041a22566722bf6c5c, type: 3}
   fallbackDuration: 2.8

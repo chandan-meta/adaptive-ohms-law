@@ -20,6 +20,8 @@ namespace OhmsLaw.Editor
         // Classroom frame (ART_DIRECTION §2, §5): bench top centre at the origin, 2.0 x 0.9 m, cameras on the -Z side,
         // so +X is frame-right and every dial faces -Z. "Bench Close" stands at RigBenchCam; text is faced to it at build.
         public static readonly Vector3 RigBench = new Vector3(0, 0.80f, 0);
+        public static readonly Vector3 TrayPointC = RigBench + new Vector3(1.0f, 0.55f, 1.0f);   // above the meter tray, never between the lens and a meter face
+        public static readonly Vector3 KeyPointC = RigBench + new Vector3(0.95f, 0.5f, 1.0f);    // above the key, inside the frame the panel leaves free
         public static readonly Vector3 RigBenchCam = new Vector3(0, 1.15f, -1.9f), RigBenchLook = new Vector3(0, 0.82f, 0);
         public const float RigBenchFov = 36f;
 
@@ -198,10 +200,10 @@ namespace OhmsLaw.Editor
             // at bench + 0.22 the boots drop just behind the back edge and the head top (y 1.46) sits at 88 % of the
             // Bench Close half-frame at z 1.0, so his bob never clips; the wide shots have room above.
             Marker("Wire Point", RigBench + new Vector3(-0.52f, 0.22f, 1.0f));
-            Marker("Tray Point", RigBench + new Vector3(0.95f, 0.22f, 1.0f));
+            Marker("Tray Point", TrayPointC);
             Marker("Voltmeter Point", RigBench + new Vector3(0.50f, 0.22f, 1.0f));
             Marker("Source Point", RigBench + new Vector3(-1.02f, 0.22f, 1.0f));
-            Marker("Key Point", RigBench + new Vector3(1.15f, 0.22f, 1.0f));
+            Marker("Key Point", KeyPointC);
             root.SetActive(active);
             Ref(root);
             return rig;
@@ -282,8 +284,16 @@ namespace OhmsLaw.Editor
             quad.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
         }
 
-        // A pose on the bench for a meter; dials face -Z, toward the cameras, everywhere.
-        Transform Slot(string name, Transform bench, Vector3 at) => Node(name, bench, at).transform;
+        // A pose on the bench for a meter; dials face -Z, toward the cameras, everywhere. The slot carries a flat collider
+        // the size of the meter's footprint, so a tap on "the highlighted position" places the selected meter.
+        Transform Slot(string name, Transform bench, Vector3 at)
+        {
+            var slot = Node(name, bench, at);
+            var box = slot.AddComponent<BoxCollider>();
+            box.center = new Vector3(0, 0.03f, 0);
+            box.size = new Vector3(MeterFootprint.x + 0.08f, 0.06f, MeterFootprint.y + 0.08f);
+            return slot.transform;
+        }
 
         // The drop target on the bench under a slot: a tinted fill and an 8 mm outline of the meter's footprint, alpha-
         // blended (an additive glow adds nothing visible on the light top). CircuitRig shows and pulses it while that part

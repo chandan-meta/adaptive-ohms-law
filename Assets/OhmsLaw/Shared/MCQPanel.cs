@@ -5,77 +5,64 @@ using UnityEngine.UI;
 
 namespace OhmsLaw
 {
-    // Multiple-choice question on the module canvas: question text and 2-4 option buttons, each at least 88 px tall.
-    // The caller decides what an answer means and writes it to LearnerSession.
+    // A multiple-choice question in the lesson panel's MCQ block: the question and 2-4 option rows, each a full-width
+    // button at the panel's button height. The caller decides what an answer means and writes it to LearnerSession.
     public class MCQPanel
     {
-        const float DefaultWidth = 1180f, Row = UI.MCQRow, Pad = 40f, Top = 36f, Gap = 24f;
-        readonly float Width;
-        const float OptionHeight = 92f, Badge = 60f, HintBand = 60f;
+        const float Badge = 48f, OptionFont = 26f, QuestionFont = 28f, HintFont = 22f;
 
         // Answer marks on the option tiles (white text stays readable on each).
         public static readonly Color RightMark = new Color(0.2f, 0.5f, 0.25f), WrongMark = new Color(0.5f, 0.2f, 0.2f), PartMark = new Color(0.55f, 0.42f, 0.12f);
 
+        readonly RectTransform block;
         readonly RectTransform panel;
         readonly Image[] options;
         readonly bool[] disabled;
-        readonly TextMeshProUGUI question;
-        readonly TextMeshProUGUI hint;
+        readonly TextMeshProUGUI question, hint;
         public int Picked { get; private set; } = -1;
 
-        // dockRight puts the panel against the right edge (x >= ~50 %) so the table, graph or Wattson it asks about stays visible.
-        public MCQPanel(string questionText, string[] optionTexts, bool dockRight = false, float width = DefaultWidth)
+        public MCQPanel(string questionText, string[] optionTexts)
         {
-            Width = dockRight ? Mathf.Min(width, 900f) : width;
-            var root = ModuleFlow.Instance.transform.Find("SafeArea");
-            panel = dockRight
-                ? UI.Rect("MCQ Panel", root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-48, -130), new Vector2(Width, 100))
-                : UI.Rect("MCQ Panel", root, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(Width, 100));
-            UI.Panel(panel, UI.HudColor, true, 28f);
-            panel.gameObject.AddComponent<UIFade>();
+            var lesson = LessonPanel.Instance;
+            lesson.Clear("MCQ");
+            block = lesson.Block("MCQ");
+            panel = UI.Rect("MCQ Panel", block, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
+            var layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.spacing = 10f;
+            layout.padding = new RectOffset(16, 16, 14, 14);
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            UI.Panel(panel, UI.Alpha(Color.Lerp(UI.PanelColor, Color.white, 0.04f), 1f), true, 18f).raycastTarget = false;
 
-            // The question block takes the height its text needs (1-3 lines), the options follow below it.
-            question = UI.Label(panel, questionText, UI.MCQQuestionFont, Color.white, TextAlignmentOptions.Top);
-            float questionHeight = Mathf.Ceil(Mathf.Max(question.GetPreferredValues(questionText, Width - 2 * Pad, 0).y, UI.MCQQuestionFont * 1.4f));
-            question.rectTransform.anchorMin = question.rectTransform.anchorMax = question.rectTransform.pivot = new Vector2(0.5f, 1);
-            question.rectTransform.anchoredPosition = new Vector2(0, -Top);
-            question.rectTransform.sizeDelta = new Vector2(Width - 2 * Pad, questionHeight);
+            question = UI.Label(panel, questionText, QuestionFont, Color.white, TextAlignmentOptions.TopLeft);
+            question.fontStyle = FontStyles.Bold;
 
-            // Rows stack with a fixed gap; an option that wraps grows its own tile instead of spilling into the gap.
-            float y = Top + questionHeight + Gap, rowGap = Row - OptionHeight, labelWidth = Width - 2 * Pad - (16 + Badge + 20) - 14;
             options = new Image[optionTexts.Length];
             disabled = new bool[optionTexts.Length];
             for (int i = 0; i < optionTexts.Length; i++)
             {
                 int index = i;
                 Split(optionTexts[i], LearnerSession.Letter(i), out var letter, out var text);
-                var button = UI.Button("Option " + LearnerSession.Letter(i), panel, new Vector2(0.5f, 1), new Vector2(0.5f, 1),
-                    new Vector2(0, -y), new Vector2(Width - 2 * Pad, OptionHeight), text, () => Picked = index, UI.MCQOptionFont);
+                var button = LessonPanel.Button("Option " + LearnerSession.Letter(i), panel, text, () => Picked = index, LessonPanel.ButtonHeight, OptionFont);
                 var label = button.GetComponentInChildren<TextMeshProUGUI>();
                 label.alignment = TextAlignmentOptions.MidlineLeft;
-                label.rectTransform.offsetMin = new Vector2(16 + Badge + 20, 6);
-                float tile = Mathf.Max(OptionHeight, Mathf.Ceil(label.GetPreferredValues(text, labelWidth, 0).y) + 24);
-                ((RectTransform)button.transform).sizeDelta = new Vector2(Width - 2 * Pad, tile);
-                y += tile + rowGap;
+                label.rectTransform.offsetMin = new Vector2(16 + Badge + 14, 6);
                 options[i] = button.GetComponent<Image>();
                 options[i].color = UI.RaisedColor;
-
-                // The option letter in an accent disc in the row's left gutter (16-76 px), clear of the text at 96.
+                // The option letter in an accent disc in the row's left gutter.
                 var badge = UI.Rect("Letter", button.transform, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(16 + Badge / 2, 0), new Vector2(Badge, Badge));
                 var disc = badge.gameObject.AddComponent<Image>();
                 disc.sprite = UI.Circle();
                 disc.color = UI.AccentColor;
                 disc.raycastTarget = false;
-                UI.Label(badge, letter, UI.MCQOptionFont - 2, Color.white);
+                UI.Label(badge, letter, OptionFont - 2, Color.white);
             }
 
-            float height = y - rowGap + HintBand + 8;
-            panel.sizeDelta = new Vector2(Width, height);
-            hint = UI.Label(panel, "", UI.MCQHintFont, UI.Theme ? UI.Theme.current : Color.yellow, TextAlignmentOptions.Bottom);
-            hint.rectTransform.anchorMin = new Vector2(0, 0);
-            hint.rectTransform.anchorMax = new Vector2(1, 0);
-            hint.rectTransform.offsetMin = new Vector2(Pad, 12);
-            hint.rectTransform.offsetMax = new Vector2(-Pad, HintBand);
+            hint = UI.Label(panel, "", HintFont, UI.Theme ? UI.Theme.current : Color.yellow, TextAlignmentOptions.TopLeft);
+            hint.gameObject.SetActive(false);
+            lesson.Show("MCQ", true);
+            LessonPanel.Pop(panel);
         }
 
         // "A. Increase" -> badge "A", row "Increase"; options without a letter prefix ("0.2") keep their text and
@@ -112,39 +99,46 @@ namespace OhmsLaw
 
         void Interactable(bool on)
         {
-            for (int i = 0; i < options.Length; i++) options[i].GetComponent<Button>().interactable = on && !disabled[i];
+            for (int i = 0; i < options.Length; i++) if (options[i]) options[i].GetComponent<Button>().interactable = on && !disabled[i];
         }
 
-        public void Mark(int index, Color color) { if (index >= 0 && index < options.Length) options[index].color = color; }
+        public void Mark(int index, Color color) { if (index >= 0 && index < options.Length && options[index]) options[index].color = color; }
 
         // A tried option keeps its mark and can no longer be picked (retries offer the others).
         public void Disable(int index, Color mark)
         {
-            if (index < 0 || index >= options.Length) return;
+            if (index < 0 || index >= options.Length || !options[index]) return;
             disabled[index] = true;
             options[index].color = mark;
             options[index].GetComponent<Button>().interactable = false;
         }
 
-        public void ClearMarks()
+        public void Hint(string text)
         {
-            foreach (var option in options) option.color = UI.RaisedColor;
+            if (!hint) return;
+            hint.text = text ?? "";
+            hint.gameObject.SetActive(!string.IsNullOrEmpty(text));
         }
-
-        public void Hint(string text) => hint.text = text;
 
         public IEnumerator Shake()
         {
+            if (!panel) yield break;
             var home = panel.anchoredPosition;
             for (float t = 0; t < 0.45f; t += Time.deltaTime)
             {
-                panel.anchoredPosition = home + Vector2.right * (Mathf.Sin(t * 60f) * 22f * (1 - t / 0.45f));
+                if (!panel) yield break;
+                panel.anchoredPosition = home + Vector2.right * (Mathf.Sin(t * 60f) * 14f * (1 - t / 0.45f));
                 yield return null;
             }
             panel.anchoredPosition = home;
         }
 
-        // Fades out, then the panel destroys itself.
-        public void Close() { if (panel) panel.GetComponent<UIFade>().Dismiss(); }
+        public void Close()
+        {
+            if (!panel) return;
+            var lesson = LessonPanel.Instance;
+            if (lesson) lesson.Clear("MCQ");
+            else Object.Destroy(panel.gameObject);
+        }
     }
 }

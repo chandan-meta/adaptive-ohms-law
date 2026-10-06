@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Compare just these two.
   ttsText: Compare just these two.
-  vo: {fileID: 8300000, guid: 0acbaf27aad829a45b447dde70703e1e, type: 3}
+  vo: {fileID: 8300000, guid: 58e1e94429333a94b9d53af2791041cf, type: 3}
   fallbackDuration: 1.8

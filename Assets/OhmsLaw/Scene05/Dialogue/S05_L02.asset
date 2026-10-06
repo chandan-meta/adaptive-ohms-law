@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: But seeing charges isn't enough.
   ttsText: But seeing charges isn't enough.
-  vo: {fileID: 8300000, guid: 1aeac705d164dbc45bfba01dd6502205, type: 3}
+  vo: {fileID: 8300000, guid: 03432f10f4d990543bd86332ea632afa, type: 3}
   fallbackDuration: 2.4

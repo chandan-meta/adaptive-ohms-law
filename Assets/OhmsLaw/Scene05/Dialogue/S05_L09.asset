@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Want to predict what we'll find?
   ttsText: Want to predict what we'll find?
-  vo: {fileID: 8300000, guid: 86d56b126142cbe4aa20d091adf0c852, type: 3}
+  vo: {fileID: 8300000, guid: aa386f4430f9e874292eff7df2e562a7, type: 3}
   fallbackDuration: 2.2

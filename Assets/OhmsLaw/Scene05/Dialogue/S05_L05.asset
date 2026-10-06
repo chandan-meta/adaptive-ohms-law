@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: That provides the electrical push that drives charge through the circuit.
   ttsText: That provides the electrical push that drives charge through the circuit.
-  vo: {fileID: 8300000, guid: bbbc37b8866ad9e44b3a83b5a2655c2d, type: 3}
+  vo: {fileID: 8300000, guid: fe7aefd95b61689459ecb0bdffbd4ac4, type: 3}
   fallbackDuration: 4.5

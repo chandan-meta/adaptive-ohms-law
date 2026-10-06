@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: The value of V/I is the same every time.
   ttsText: The value of V/I is the same every time.
-  vo: {fileID: 8300000, guid: 0ed6130b9519bc647a120be5f7d13075, type: 3}
+  vo: {fileID: 8300000, guid: 59a9626c81cf0b74ea16f00c32d8dce3, type: 3}
   fallbackDuration: 3

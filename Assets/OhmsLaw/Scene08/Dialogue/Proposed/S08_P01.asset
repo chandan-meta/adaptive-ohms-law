@@ -18,5 +18,5 @@ MonoBehaviour:
     the same.
   ttsText: The instruments changed, detectives. The relationship we're testing is
     still the same.
-  vo: {fileID: 8300000, guid: 4586354745178aa4ebe0784b21a04d2c, type: 3}
+  vo: {fileID: 8300000, guid: 51f7c21eb61ac444ba8d1de20bdd1f60, type: 3}
   fallbackDuration: 4.4

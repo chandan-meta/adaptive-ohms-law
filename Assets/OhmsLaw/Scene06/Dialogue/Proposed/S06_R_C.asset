@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: A careful guess. Let's put it to the test.
   ttsText: A careful guess. Let's put it to the test.
-  vo: {fileID: 8300000, guid: 9aecf5bfc76b7de43a1049111b88e75a, type: 3}
+  vo: {fileID: 8300000, guid: 3b49d173fa52f5a4990f14e700687786, type: 3}
   fallbackDuration: 2.8

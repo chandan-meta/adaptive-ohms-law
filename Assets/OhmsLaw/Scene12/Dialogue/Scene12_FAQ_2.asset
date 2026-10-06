@@ -20,5 +20,5 @@ MonoBehaviour:
   ttsText: One ohm is the resistance of a conductor when a potential difference of
     one volt across it produces a current of one ampere through it. Our nichrome
     wire needs five volts for one ampere, so its resistance is five ohms.
-  vo: {fileID: 8300000, guid: 30b363e29cc14bb4d81e2fed19791926, type: 3}
+  vo: {fileID: 8300000, guid: 06a7129518f2825499745542efbf9ac1, type: 3}
   fallbackDuration: 13.516

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: And the best part?
   ttsText: And the best part?
-  vo: {fileID: 8300000, guid: 289c72b13abf6774990b7c43249c973d, type: 3}
+  vo: {fileID: 8300000, guid: 2a1e24f4ff35f844d8446688bac315de, type: 3}
   fallbackDuration: 1.5

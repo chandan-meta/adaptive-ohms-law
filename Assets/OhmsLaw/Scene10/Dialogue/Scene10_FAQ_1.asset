@@ -22,5 +22,5 @@ MonoBehaviour:
     current, we can check that everything is connected properly, and then we raise
     the voltage one step at a time so we can see clearly what each step does to the
     current.
-  vo: {fileID: 8300000, guid: 9fa40938212124d438d5edfd8f888dd3, type: 3}
+  vo: {fileID: 8300000, guid: 6a1e310d0ec75dd49b48ebb5af6dfb83, type: 3}
   fallbackDuration: 14

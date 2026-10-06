@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: That's why a voltmeter is connected in parallel across the nichrome wire.
   ttsText: That's why a voltmeter is connected in parallel across the nichrome wire.
-  vo: {fileID: 8300000, guid: a5ad40f9122ef344da8f2984dd5a5b9a, type: 3}
+  vo: {fileID: 8300000, guid: 137c0c5dedf80a241b775c1e2432c3ef, type: 3}
   fallbackDuration: 4

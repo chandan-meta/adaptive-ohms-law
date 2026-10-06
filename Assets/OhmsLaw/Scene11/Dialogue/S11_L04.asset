@@ -20,5 +20,5 @@ MonoBehaviour:
   ttsText: For this conductor that is the nichrome wire, while its temperature remains
     constant...the potential difference across it is directly proportional to the
     current flowing through it.
-  vo: {fileID: 8300000, guid: 496c965fedf99324a80f6bf3458b4910, type: 3}
+  vo: {fileID: 8300000, guid: 1473b517c558d5e4e9c245bf1ec7eb9b, type: 3}
   fallbackDuration: 9

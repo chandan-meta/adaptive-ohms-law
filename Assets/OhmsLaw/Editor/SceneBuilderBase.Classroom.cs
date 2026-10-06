@@ -23,7 +23,7 @@ namespace OhmsLaw.Editor
         public const float ClassroomFloorY = 0f, ClassroomDeskY = 0.80f, ClassroomWallZ = 2.6f, ClassroomHalfWidth = 3.2f, ClassroomCeilingY = 3f;
         public static readonly Vector3 DeskTopC = new Vector3(0f, ClassroomDeskY, 0f);           // desk / bench top centre, 2.0 x 0.9 m
         public static readonly Vector3 OhmFeetC = new Vector3(0f, 0f, 0.75f);                    // Ohm behind the desk, facing -Z
-        public static readonly Vector3 WattsonHomeC = new Vector3(-1.4f, 1.4f, 0.3f);            // flying left of the desk (Bench Wide: 56-79 % up, 14-25 % across)
+        public static readonly Vector3 WattsonHomeC = new Vector3(-1.05f, 1.4f, 0.3f);           // flying left of the desk, inside the frame the lesson panel leaves free (Bench Wide: 56-79 % up)
         // Cameras, all on -Z. Bench Wide = board + Ohm + desk (Scene07_two_clues); Bench Close = the apparatus row
         // (Scene09_series_ammeter); Bench Present = the row with Ohm's head in frame (Scene08_modern_apparatus_presented);
         // Table Close = galvanometer hero (Scene07_galvanometer_closeup); Boards = the teaching board filling the frame.
@@ -82,6 +82,7 @@ namespace OhmsLaw.Editor
             Marker("Wattson Home", WattsonHomeC);
             var benchPoint = Marker("Bench Point", DeskTopC + Vector3.up * 0.1f).transform;
             Marker("Boards Point", BoardsWattsonC);
+            Marker("Panel Point", new Vector3(2.8f, 1.45f, 0.4f)); // toward the lesson panel (screen right) from behind the bench
             var boardAnchor = Marker("Board Anchor", BoardCentreC).transform;
             boardAnchor.rotation = ClassroomTurn; // faces -Z, toward the cameras
             var apparatusPoint = Marker("Apparatus Point", ApparatusC + Vector3.up * 0.08f).transform;

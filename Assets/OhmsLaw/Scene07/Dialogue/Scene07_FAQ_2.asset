@@ -22,5 +22,5 @@ MonoBehaviour:
     a magnetic needle hanging on a thread; current in a nearby wire twisted the needle,
     and how far he had to twist the thread back told him how strong the current was.
     Our ammeter does that job today.
-  vo: {fileID: 8300000, guid: 8d77d946525b2314bb59baff7e2f0dcf, type: 3}
+  vo: {fileID: 8300000, guid: 83f1edf224c887a44b2a96532f2c85ac, type: 3}
   fallbackDuration: 14

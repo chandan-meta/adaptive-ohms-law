@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Now we've got our biggest clue. They're all in a line!
   ttsText: Now we've got our biggest clue. They're all in a line!
-  vo: {fileID: 8300000, guid: 49db3855c4b993b4cb4f2a48d1f7ea5c, type: 3}
+  vo: {fileID: 8300000, guid: 280c803c60faf6a4f863189f5a9cf545, type: 3}
   fallbackDuration: 3.5

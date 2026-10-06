@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: The flow.
   ttsText: The flow.
-  vo: {fileID: 8300000, guid: ec0aba0e892f77e4ebdf56fe06242c37, type: 3}
+  vo: {fileID: 8300000, guid: e2b2d84b38d51a644a6d3699dfa55f7f, type: 3}
   fallbackDuration: 1.2

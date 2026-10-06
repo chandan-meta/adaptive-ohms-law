@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: So let's run the investigation ourselves.
   ttsText: So let's run the investigation ourselves.
-  vo: {fileID: 8300000, guid: d7997b34d6fbe4d45bcc5f7424e592a6, type: 3}
+  vo: {fileID: 8300000, guid: 53067e6332e087945b0334e32e151061, type: 3}
   fallbackDuration: 2.8

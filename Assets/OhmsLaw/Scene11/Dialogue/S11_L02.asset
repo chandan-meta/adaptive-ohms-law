@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Double the potential difference...and the current doubles.
   ttsText: Double the potential difference...and the current doubles.
-  vo: {fileID: 8300000, guid: a2cb8da7b1d8dfd4fafbed671df9a896, type: 3}
+  vo: {fileID: 8300000, guid: ad0d8f9e95f13c648bad8750e4c9e0cd, type: 3}
   fallbackDuration: 3.5

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'That''s 0.60 divided by 3.0. Flip it: volts divided by amps.'
   ttsText: 'That''s 0.60 divided by 3.0. Flip it: volts divided by amps.'
-  vo: {fileID: 8300000, guid: f901cafcf128cbc4c9dc2650314b5eb7, type: 3}
+  vo: {fileID: 8300000, guid: d4a5a8a9e4cbd214bb148954bc7279f4, type: 3}
   fallbackDuration: 3.8

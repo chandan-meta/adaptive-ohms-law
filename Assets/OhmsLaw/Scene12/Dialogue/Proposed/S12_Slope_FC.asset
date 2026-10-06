@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'Careful: use the two differences, 2.0 volts and 0.40 amps.'
   ttsText: 'Careful: use the two differences, 2.0 volts and 0.40 amps.'
-  vo: {fileID: 8300000, guid: a2fa22210893b324288ed55e5220f687, type: 3}
+  vo: {fileID: 8300000, guid: 42b29bafa0bfa374db9892950e3696c5, type: 3}
   fallbackDuration: 3.6

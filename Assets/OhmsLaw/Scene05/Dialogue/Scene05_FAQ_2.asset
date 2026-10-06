@@ -16,11 +16,11 @@ MonoBehaviour:
   speaker: WATTSON
   text: Electrons carry negative charge, so they drift from the negative terminal
     end toward the positive terminal end. Scientists also talk about conventional
-    current, which is taken to flow from positive to negative. Same circuit, two
-    ways of describing it.
+    current, which is drawn from positive to negative. Same circuit, two ways of
+    describing it.
   ttsText: Electrons carry negative charge, so they drift from the negative terminal
     end toward the positive terminal end. Scientists also talk about conventional
-    current, which is taken to flow from positive to negative. Same circuit, two
-    ways of describing it.
-  vo: {fileID: 8300000, guid: ee226850fae03274aacd7c60f72d770e, type: 3}
+    current, which is drawn from positive to negative. Same circuit, two ways of
+    describing it.
+  vo: {fileID: 8300000, guid: a06ef6f744a2e5f4c9d2db5a1e1c4469, type: 3}
   fallbackDuration: 14

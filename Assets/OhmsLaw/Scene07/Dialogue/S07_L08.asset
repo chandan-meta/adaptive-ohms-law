@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Today, we can investigate the same relationship much more clearly.
   ttsText: Today, we can investigate the same relationship much more clearly.
-  vo: {fileID: 8300000, guid: 1da469954c2cae14682ab30c1d2e193e, type: 3}
+  vo: {fileID: 8300000, guid: 558a87d11385fa14785b08250b08f3a3, type: 3}
   fallbackDuration: 4.2

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: You've already measured it.
   ttsText: You've already measured it.
-  vo: {fileID: 8300000, guid: 1fd1d9433035a6444b4183b56484eb4f, type: 3}
+  vo: {fileID: 8300000, guid: f39a086d4f65bc148a01bbfecdea814f, type: 3}
   fallbackDuration: 2

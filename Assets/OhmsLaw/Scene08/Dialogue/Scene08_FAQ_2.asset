@@ -20,5 +20,5 @@ MonoBehaviour:
   ttsText: A voltmeter measures the potential difference, the voltage, between two
     points. In our circuit it will tell us the push across the two ends of the nichrome
     wire, X and Y, in volts.
-  vo: {fileID: 8300000, guid: e192cacde45d6ed48850ddc15730802a, type: 3}
+  vo: {fileID: 8300000, guid: 42a4efcc8e7d74445803b77c8d9f040f, type: 3}
   fallbackDuration: 11.16

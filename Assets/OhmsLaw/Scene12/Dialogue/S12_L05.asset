@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: That opposition to the flow of electric current is called electrical resistance.
   ttsText: That opposition to the flow of electric current is called electrical resistance.
-  vo: {fileID: 8300000, guid: af1a2378e4ef3ae43b7ad79d02d1f294, type: 3}
+  vo: {fileID: 8300000, guid: c7fb21d3e7af832409018b775e912004, type: 3}
   fallbackDuration: 4.5

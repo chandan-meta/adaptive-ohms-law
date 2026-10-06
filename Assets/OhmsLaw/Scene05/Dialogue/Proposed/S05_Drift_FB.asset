@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Not quite. Follow one bright electron for a few seconds.
   ttsText: Not quite. Follow one bright electron for a few seconds.
-  vo: {fileID: 8300000, guid: 680ff93ff440b7048a932e77eebcab99, type: 3}
+  vo: {fileID: 8300000, guid: ff2c4904c4f1d8f4ab78ea071590d57b, type: 3}
   fallbackDuration: 3.2

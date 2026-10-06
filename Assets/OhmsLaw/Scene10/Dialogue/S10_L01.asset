@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Let's start low. Set the battery to 1 volt.
   ttsText: Let's start low. Set the battery to 1 volt.
-  vo: {fileID: 8300000, guid: a129072722967aa449c52ac206ac993a, type: 3}
+  vo: {fileID: 8300000, guid: 162fdff7757f6e6479cdec92422ec4ea, type: 3}
   fallbackDuration: 3

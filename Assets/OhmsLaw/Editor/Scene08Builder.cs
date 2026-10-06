@@ -174,13 +174,9 @@ namespace OhmsLaw.Editor
             var ohm = refs["Georg Ohm"].transform.position;
             Burst("Ohm Farewell Dust", null, ohm + new Vector3(0f, 0.9f, 0f), new Color(1f, 0.8f, 0.48f), new Vector3(0.6f, 1.8f, 0.5f), 180, 0.25f, swirl: 1.2f, lifetime: 1.6f);
 
-            // Phase panels: a slow glow over the desk while the instruments change; the wave runs from the bench. The apparatus
-            // panel sits top-centre (at top-left it covered the slate's "Voltage → V" until the source callout pushed it over).
+            // A slow glow over the desk while the instruments change; the wave runs from the bench.
             var apparatusFx = Ref(Node(ApparatusFx, null, OhmDeskC + new Vector3(0f, 0.2f, 0.05f)));
             apparatusFx.AddComponent<ReducedMotionFx>().calm = 0.35f;
-            var apparatusPanel = apparatusFx.AddComponent<CalloutDef>();
-            apparatusPanel.kind = CalloutDef.Kind.Vfx;
-            apparatusPanel.anchor = CalloutDef.Anchor.TopCentre;
             Emitter("Glow Dust", apparatusFx.transform, Vector3.zero, Glow("Glow_TransformDust", Hdr(cyan, 2.2f)), ps =>
             {
                 var main = ps.main;
@@ -270,6 +266,7 @@ namespace OhmsLaw.Editor
         void Becomes(string dust, string[] old, string modern, string callout)
         {
             Cue("fx " + dust);
+            Sfx("Transform");
             foreach (var prop in old) Cue("vanish 0.7 " + prop);
             Cue("appear 0.7 " + modern, "", 0.25);
             Cue("callout show " + callout, "", 0.8);
@@ -283,11 +280,15 @@ namespace OhmsLaw.Editor
             // Scene 7's last frame: Ohm at work in his study, the two clues on the slate, Wattson beside the group.
             // (The scene is built in the study look; the only look cue is the room's, so a replay never relights the study.)
             Shot("Study Wide");
+            Ambience("StudyTone");
+            Music("PadLab");
             Gesture(WattsonController.Gesture.RaiseGadget, point: "Georg Ohm", gadget: true);
+            Cue("ohm.look Wattson", "Ohm notices Wattson's gadget");
             Cue("ohm.pose Examine", "Ohm straightens with a copper wire, face to the room, so he freezes upright");
             Wait(0.5);
             Cue("ohm.freeze 1", "Wattson freezes the historical experiment; Ohm holds the pose he is in");
             Show("[VFX] freeze (Ohm holds still)");
+            Sfx("Highlight");
             Visual("Wattson freezes Ohm's experiment", 1.0);
             Hide("[VFX] freeze (Ohm holds still)");
 
@@ -316,6 +317,7 @@ namespace OhmsLaw.Editor
             Gesture(WattsonController.Gesture.Transform, point: "Bench Point", gadget: true);
             Wait(Act);
             Cue("fx Dust Desk");
+            Sfx("Transform");
             for (int i = 0; i < Dressing.Length; i++) Cue("vanish 0.5 " + Dressing[i], "", i * 0.04);
             Hide("Study Desk", 0.35);
             Show("Bench", 0.35);
@@ -327,26 +329,31 @@ namespace OhmsLaw.Editor
             Cue("appear 0.5 Parts Tray", "", 0.65);
             Cue("fx Dust Voltmeter", "", 1.0);
             Cue("appear 0.6 VOLTMETER", "the voltmeter joins, in the tray", 1.1);
+            Sfx("Place", 1.1);
             Cue("callout show voltmeter", "", 1.6);
             Show("Lead Key → Source", 1.45);
             Visual("Ohm's desk becomes today's bench in its place; the instruments settle into the circuit; the voltmeter joins", 1.8);
             Hide(ApparatusFx);
 
-            // Hold the final composition and tie it to the lesson.
+            // Hold the final composition and tie it to the lesson: Ohm comes out of the freeze, sees the class, presents.
             Gesture(WattsonController.Gesture.Point, point: "Bench Point");
+            Cue("ohm.look Main Camera", "Ohm looks at the class as he presents");
             Line("S08_P01");
-            Cue("callout hideall", "labels fade before the pull-back", -0.3);
+            Cue("callout hideall", "notes fade before the pull-back", -0.3);
 
             // Ohm goes back to his time: in the wide, Wattson waves him off as he dissolves into gold dust.
             Shot("Bench Wide");
             Gesture(WattsonController.Gesture.Greet, look: "Georg Ohm"); // stays below the slate's chalk; Wattson Home (Scene 9's start) sits over it until the easel goes
             Wait(1.0);
             Cue("fx Ohm Farewell Dust", "", 0.8);
+            Sfx("Reveal", 0.8);
             Cue("vanish 1.0 Georg Ohm", "Ohm dissolves back to 1826", 1.0);
             Line("S08_P02", 0.2);
 
             // The room, with the camera on it the whole time: the study becomes the classroom lab, sweeping out from the bench.
             Show(RoomFx);
+            Sfx("LabSweep");
+            Ambience("RoomTone", 1.0);
             Cue("look 2.8 classroom", "light, ambient, fog, background, post and reflections crossfade to the classroom");
             Cue("fx Room Wave");
             Cue("vanish 0.6 Study Easel");

@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: Scene06_Context
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.SceneAgentContext
   sceneId: Scene06
-  sceneTitle: Adaptive Question
+  sceneTitle: Your Prediction
   askWattsonEnabled: 1
   covered:
-  - 'Everything from Scenes 4 and 5: free electrons, random motion before the battery,
-    potential difference (voltage, V, volt) as the push, the field along the whole
-    circuit, current (I, ampere) as charge per second.'
+  - "Everything from Scenes 4 and 5: free electrons, random motion before the voltage,
+    potential difference (voltage, V, volt) as the push, the drift \u2212 to +, current
+    (I, ampere) as charge per second."
   - Wattson has asked the learner to predict what happens to the current when the
     potential difference increases, with everything else the same.
   - 'If asked for the right answer: a good detective tests it, and the experiment

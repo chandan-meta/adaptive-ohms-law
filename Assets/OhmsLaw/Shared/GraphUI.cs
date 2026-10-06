@@ -1,22 +1,27 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace OhmsLaw
 {
-    // V-I graph on a world-space canvas: V on the vertical axis, I on the horizontal axis, points from ExperimentData,
-    // the straight line through the origin, two highlighted points, the ΔV/ΔI triangle and the live point that follows the rig.
-    // Layout in canvas px (WorldCanvasScale 0.0015 on the Boards shot): 40 px ticks read ~20 px on screen, titles ~24.
-    // Point labels sit up-left of their point (the line runs up-right), tags down-right, so nothing crosses the line.
+    // V-I graph in the lesson panel (a Canvas-sized rect scaled into the Graph block): V on the vertical axis, I on the
+    // horizontal axis, points from ExperimentData, the straight line through the origin (drawn with a sweep), two
+    // highlighted points, the ΔV/ΔI rise-and-run marker (drawn leg by leg) and the live point that follows the rig.
+    // Layout in canvas px: at the panel's 0.5 scale the 40 px ticks read 20 px, the titles 24.
+    // Point labels sit up-left of their point (the line runs up-right), so nothing crosses the line.
     public class GraphUI : MonoBehaviour
     {
-        public const float Width = 740f, Height = 520f, MaxI = 1.2f, MaxV = 6f;   // plot area; canvas is 1060 x 750
-        public const float MarginLeft = 170f, MarginBottom = 170f;
+        public static readonly Vector2 Canvas = new Vector2(1000, 665);
+        public const float Width = 740f, Height = 500f, MaxI = 1.2f, MaxV = 6f;   // plot area inside the canvas
+        public const float MarginLeft = 150f, MarginBottom = 125f;
         public const float TickFont = 40f, PointFont = 40f, AxisTitleFont = 48f, TagFont = 48f;
         const float PointSize = 34f, PointHighlight = 50f;
         static readonly Vector2 TextRect = new Vector2(320, 60);
 
         RectTransform plot, line, triangle;
+        float lineLength;
+        Coroutine drawing;
         GameObject axes;
         RectTransform[] points;
         TextMeshProUGUI[] tags;
@@ -35,13 +40,8 @@ namespace OhmsLaw
 
         void Awake()
         {
-            // The same lighter patch of board as the observation table's frame, out to the inner edge of the classroom kit's
-            // chalk frame around this canvas, so the graph reads as chalk on the board rather than a dark tablet.
-            var tint = UI.Stretch("Board", transform);
-            var reach = new Vector2(ObservationTableUI.BoardMarginX, ObservationTableUI.BoardMarginY) - Vector2.one * (ObservationTableUI.ChalkLine / 2);
-            tint.offsetMin = -reach;
-            tint.offsetMax = reach;
-            UI.Panel(tint, ObservationTableUI.BoardTint, false).raycastTarget = false;
+            var back = UI.Stretch("Back", transform);
+            UI.Panel(back, UI.Alpha(Color.Lerp(UI.PanelColor, Color.black, 0.3f), 1f), true, 24f).raycastTarget = false;
             plot = UI.Rect("Plot", transform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(MarginLeft, MarginBottom), new Vector2(Width, Height));
             axes = plot.gameObject;
             var grid = new Color(1, 1, 1, 0.1f);
@@ -57,13 +57,14 @@ namespace OhmsLaw
                 Text(plot, (i * 0.2f).ToString("0.0"), At(i * 0.2f, 0) + new Vector2(0, -50), TickFont, Color.white);
                 Text(plot, i.ToString("0"), At(0, i) + new Vector2(-80, 0), TickFont, Color.white);
             }
-            var iLabel = Text(plot, "Current, I (A)", new Vector2(Width / 2, -130), AxisTitleFont, Current, new Vector2(640, 60));
+            var iLabel = Text(plot, "Current, I (A)", new Vector2(Width / 2, -100), AxisTitleFont, Current, new Vector2(640, 60));
             var vLabel = Text(plot, "Potential Difference, V (V)", new Vector2(-135, Height / 2), AxisTitleFont, Voltage, new Vector2(640, 60));
             vLabel.rectTransform.localRotation = Quaternion.Euler(0, 0, 90);
             iLabel.textWrappingMode = vLabel.textWrappingMode = TextWrappingModes.NoWrap; // one line each, whatever the font's advance
 
             // The line through the origin, drawn a little past the last reading (not to the frame edge).
             line = Segment(plot, Vector2.zero, At(1.1f, 1.1f * Data.resistance), Voltage, 8);
+            lineLength = line.sizeDelta.x;
             line.gameObject.SetActive(false);
 
             points = new RectTransform[Data.Count];
@@ -103,8 +104,49 @@ namespace OhmsLaw
         }
 
         public void Axes(bool on) => axes.SetActive(on);
-        public void Plot(int count) { for (int i = 0; i < points.Length; i++) points[i].gameObject.SetActive(i < count); }
-        public void Line(bool on) => line.gameObject.SetActive(on);
+
+        // Points up to `count`; a point that is new pops in.
+        public void Plot(int count)
+        {
+            for (int i = 0; i < points.Length; i++)
+            {
+                bool show = i < count;
+                if (show && !points[i].gameObject.activeSelf) { points[i].gameObject.SetActive(true); StartCoroutine(PopIn(points[i])); }
+                else points[i].gameObject.SetActive(show);
+            }
+        }
+
+        IEnumerator PopIn(RectTransform point)
+        {
+            if (ReducedMotion.On) yield break;
+            for (float t = 0; t < 1; t += Time.deltaTime / 0.35f)
+            {
+                if (!point) yield break;
+                point.localScale = Vector3.one * (1 + 0.6f * Mathf.Sin(t * Mathf.PI) * (1 - t));
+                yield return null;
+            }
+            if (point) point.localScale = Vector3.one;
+        }
+
+        // The line sweeps out from the origin (at once under reduced motion, or when a later scene restores it); off clears it.
+        public void Line(bool on, bool instant = false)
+        {
+            if (drawing != null) { StopCoroutine(drawing); drawing = null; }
+            line.gameObject.SetActive(on);
+            if (!on || instant || ReducedMotion.On) { line.sizeDelta = new Vector2(lineLength, line.sizeDelta.y); return; }
+            drawing = StartCoroutine(Sweep());
+        }
+
+        IEnumerator Sweep()
+        {
+            for (float t = 0; t < 1; t += Time.deltaTime / 1.1f)
+            {
+                line.sizeDelta = new Vector2(lineLength * Mathf.SmoothStep(0, 1, t), line.sizeDelta.y);
+                yield return null;
+            }
+            line.sizeDelta = new Vector2(lineLength, line.sizeDelta.y);
+            drawing = null;
+        }
 
         public void Highlight(int row, bool on, string tag = "")
         {
@@ -114,19 +156,37 @@ namespace OhmsLaw
             tags[row].text = on ? tag : "";
         }
 
-        // Right-angled triangle between two points: ΔI along the bottom, ΔV up the side, with their values.
-        // ΔI reads below its leg (point labels are above the points), ΔV to the right of the vertical leg.
+        // Rise-and-run marker between two points: the run (ΔI) along the bottom, then the rise (ΔV) up the side, each
+        // drawn in turn with its value. ΔI reads below its leg (point labels are above the points), ΔV right of the rise.
         public void Triangle(int a, int b)
         {
             if (triangle) Destroy(triangle.gameObject);
             if (a < 0) return;
             triangle = UI.Rect("Triangle", plot, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
             Vector2 pa = At(Data.currents[a], Data.voltages[a]), pb = At(Data.currents[b], Data.voltages[b]), corner = new Vector2(pb.x, pa.y);
-            Segment(triangle, pa, corner, Resistance, 6);
-            Segment(triangle, corner, pb, Resistance, 6);
+            var run = Segment(triangle, pa, corner, Resistance, 6);
+            var rise = Segment(triangle, corner, pb, Resistance, 6);
             float dI = Data.currents[b] - Data.currents[a], dV = Data.voltages[b] - Data.voltages[a];
-            Text(triangle, $"ΔI = {dI:0.00} A", (pa + corner) / 2 + new Vector2(0, -50), TagFont, Resistance);
-            Text(triangle, $"ΔV = {dV:0.0} V", (corner + pb) / 2 + new Vector2(150, 0), TagFont, Resistance);
+            var runLabel = Text(triangle, $"run: ΔI = {dI:0.00} A", (pa + corner) / 2 + new Vector2(0, -50), TagFont, Resistance, new Vector2(420, 60));
+            var riseLabel = Text(triangle, $"rise: ΔV = {dV:0.0} V", (corner + pb) / 2 + new Vector2(200, 0), TagFont, Resistance, new Vector2(420, 60));
+            StartCoroutine(DrawMarker(run, rise, runLabel, riseLabel));
+        }
+
+        IEnumerator DrawMarker(RectTransform run, RectTransform rise, TextMeshProUGUI runLabel, TextMeshProUGUI riseLabel)
+        {
+            float runLength = run.sizeDelta.x, riseLength = rise.sizeDelta.x;
+            if (!ReducedMotion.On)
+            {
+                rise.sizeDelta = new Vector2(0, rise.sizeDelta.y);
+                riseLabel.alpha = 0;
+                runLabel.alpha = 0;
+                for (float t = 0; t < 1; t += Time.deltaTime / 0.7f) { if (!run) yield break; run.sizeDelta = new Vector2(runLength * t, run.sizeDelta.y); runLabel.alpha = t; yield return null; }
+                for (float t = 0; t < 1; t += Time.deltaTime / 0.7f) { if (!rise) yield break; rise.sizeDelta = new Vector2(riseLength * t, rise.sizeDelta.y); riseLabel.alpha = t; yield return null; }
+            }
+            if (!run || !rise) yield break;
+            run.sizeDelta = new Vector2(runLength, run.sizeDelta.y);
+            rise.sizeDelta = new Vector2(riseLength, rise.sizeDelta.y);
+            runLabel.alpha = riseLabel.alpha = 1;
         }
 
         public void Pulse() { pulse = 0; pulseTarget = plot; }

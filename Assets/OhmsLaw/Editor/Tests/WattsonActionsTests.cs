@@ -282,9 +282,9 @@ namespace OhmsLaw
 
             // Offline guidance quotes the real readings.
             string guide = WattsonActions.Guidance(new FakeBench { volts = 2 });
-            failed += Check(log, "offline guidance quotes the live readings", guide.Contains("2 V") && guide.Contains("0.40 A") && guide.Contains("slider"), guide);
+            failed += Check(log, "offline guidance quotes the live readings", guide.Contains("2 V") && guide.Contains("0.40 A") && guide.Contains("voltage button"), guide);
             string guideKey = WattsonActions.Guidance(new FakeBench { volts = 2, keyClosed = false, controlsOpen = false });
-            failed += Check(log, "offline guidance with the key open claims no current", guideKey.Contains("key is open") && !guideKey.Contains("slider"), guideKey);
+            failed += Check(log, "offline guidance with the key open claims no current", guideKey.Contains("key is open") && !guideKey.Contains("voltage button"), guideKey);
 
             // Voice text: units in words.
             string spoken = WattsonActions.Spoken("Done: 1 V. The ammeter now reads 0.20 A. Then 0.5 V and 4 V. Use V = IR.");

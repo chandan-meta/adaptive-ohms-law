@@ -16,11 +16,11 @@ MonoBehaviour:
   speaker: WATTSON
   text: Good eye, detective. Free electrons in a metal are always jiggling about
     because of heat. They dart in every direction, so on average they go nowhere.
-    The battery doesn't start them moving, it gives all of them a steady drift in
+    The voltage doesn't start them moving, it gives all of them a steady drift in
     one direction.
   ttsText: Good eye, detective. Free electrons in a metal are always jiggling about
     because of heat. They dart in every direction, so on average they go nowhere.
-    The battery doesn't start them moving, it gives all of them a steady drift in
+    The voltage doesn't start them moving, it gives all of them a steady drift in
     one direction.
-  vo: {fileID: 8300000, guid: c0b44b933cadd6846bd7c1349a2ce6a7, type: 3}
+  vo: {fileID: 8300000, guid: 4f848e0a653622844b1aa6a5747b2466, type: 3}
   fallbackDuration: 14

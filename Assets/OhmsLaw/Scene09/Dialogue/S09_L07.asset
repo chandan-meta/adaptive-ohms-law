@@ -18,5 +18,5 @@ MonoBehaviour:
     we use the voltmeter.
   ttsText: And when we need the potential difference between the two ends of the
     wire... we use the voltmeter.
-  vo: {fileID: 8300000, guid: 8692f82aaba08ab4aafa9cbf88504a1c, type: 3}
+  vo: {fileID: 8300000, guid: 7566205ab5840e44ba31781329949d24, type: 3}
   fallbackDuration: 5

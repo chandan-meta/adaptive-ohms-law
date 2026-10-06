@@ -18,5 +18,5 @@ MonoBehaviour:
     and observing what happened to the current.
   ttsText: In 1826, Ohm kept changing one electrical condition, the potential difference
     and observing what happened to the current.
-  vo: {fileID: 8300000, guid: a402d72d3520f194680e3851e8de19d6, type: 3}
+  vo: {fileID: 8300000, guid: e7747a59726fe474f9bdf39bb9c669db, type: 3}
   fallbackDuration: 7.5

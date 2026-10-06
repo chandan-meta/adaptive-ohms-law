@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: He wanted to know...
   ttsText: He wanted to know...
-  vo: {fileID: 8300000, guid: 34aedc51799d7c7479b46de5596f92bf, type: 3}
+  vo: {fileID: 8300000, guid: 0e923eabf32c4bd4ea32e91901b5fab6, type: 3}
   fallbackDuration: 1.8

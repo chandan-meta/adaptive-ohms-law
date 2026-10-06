@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: A bold prediction, detective. Hold on to it.
   ttsText: A bold prediction, detective. Hold on to it.
-  vo: {fileID: 8300000, guid: d8eda75b7cf840e4193463a69157b9dc, type: 3}
+  vo: {fileID: 8300000, guid: d5a52612c9dc6484d9cb10f5a663762b, type: 3}
   fallbackDuration: 2.8

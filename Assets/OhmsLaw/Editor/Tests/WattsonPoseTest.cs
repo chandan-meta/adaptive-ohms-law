@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
@@ -9,7 +8,9 @@ namespace OhmsLaw.Editor
     // Poses Wattson's real prefab (Wattson_Scene04) in edit mode through WattsonController.Simulate and checks the
     // performance: joint ranges his skin survives, the pointing arm and body turn (no arm folded across his chest), the
     // Transform's anticipation / action / settle timing, reactions, eased flight, blinks, no NaN. Renders a few pose
-    // previews to Logs/Blockout/wattson_poses/. A second menu checks Georg Ohm's poses (never a T-pose, fingers curled).
+    // previews to Logs/Blockout/wattson_poses/. A second menu checks Georg Ohm's poses through OhmWorker.Simulate on a
+    // stand-in of Scene 4's desk: never a T-pose, fingers curled, no hand or finger point below the desk in any mode, palms
+    // down on the page, the lift-over arc when a hand changes props, a frozen pose that holds, and Attend().
     // One PASS / FAIL line per check in the Console (and Logs/ohm-build.txt through Tools/unity_request.sh).
     public static class WattsonPoseTest
     {
@@ -308,7 +309,7 @@ namespace OhmsLaw.Editor
             Check("Talking: loudness drives the mouth", r.w.Loudness > 0.01f && (!r.w.mouth || r.w.mouth.GetBlendShapeWeight(r.w.mouthShape) > 1f), $"loudness {r.w.Loudness:0.00}");
             Limits(r, "Talking");
             Vector3 vp = askCam.WorldToViewportPoint(r.root.position);
-            Check("Ask pose: he holds the spot beside the panel (viewport x 0.42, y 0.35-0.62)", Mathf.Abs(vp.x - 0.42f) < 0.04f && vp.y > 0.33f && vp.y < 0.64f, $"viewport {vp.x:0.00}, {vp.y:0.00}");
+            Check("Ask pose: he holds the spot in the free frame (viewport x 0.30 before the panel's projection shift, y 0.35-0.62)", Mathf.Abs(vp.x - 0.30f) < 0.04f && vp.y > 0.33f && vp.y < 0.64f, $"viewport {vp.x:0.00}, {vp.y:0.00}");
             r.w.SetAgentPose(null, null);
             Play(r, WattsonController.Gesture.Idle, false, null, 2f);
             float back = Vector3.Distance(r.root.position, r.home.position);
@@ -382,43 +383,131 @@ namespace OhmsLaw.Editor
             try
             {
                 var go = preview.InstantiatePrefabInScene(prefab);
+                go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
                 var worker = go.GetComponent<OhmWorker>();
                 Check("OhmWorker present", worker);
                 if (!worker) return;
-                var flags = BindingFlags.Instance | BindingFlags.NonPublic;
-                var awake = typeof(OhmWorker).GetMethod("Awake", flags);
-                var pose = typeof(OhmWorker).GetMethod("Pose", flags, null, new[] { typeof(float) }, null);
-                Check("OhmWorker Awake/Pose found", awake != null && pose != null);
-                if (awake == null || pose == null) return;
                 var all = go.GetComponentsInChildren<Transform>(true);
                 Transform B(string n) { foreach (var t in all) if (t.name.EndsWith(":" + n)) return t; return null; }
-                Transform rArm = B("RightArm"), rHand = B("RightHand"), lHand = B("LeftHand"), rIndex1 = B("RightHandIndex1"), rIndex3 = B("RightHandIndex3"), rFore = B("RightForeArm");
-                awake.Invoke(worker, null);
+                Transform rArm = B("RightArm"), rHand = B("RightHand"), lHand = B("LeftHand"), rIndex1 = B("RightHandIndex1"), rIndex3 = B("RightHandIndex3"), rFore = B("RightForeArm"), lFore = B("LeftForeArm"), headBone = B("Head");
+                Transform[][] rFingers = Fingers(B, "Right"), lFingers = Fingers(B, "Left");
+                Check("Ohm: finger chains found on both hands", rFingers.Length > 0 && lFingers.Length > 0, $"R {rFingers.Length} L {lFingers.Length}");
+                // The bind pose has the palms down: their normals in hand space, to read where the palms face once posed.
+                Vector3 rPalm = rHand.InverseTransformDirection(Vector3.down), lPalm = lHand.InverseTransformDirection(Vector3.down);
+                // Scene 4's desk around him (SceneBuilderBase.Lab): his feet 0.82 m below the top and 0.59 m behind its
+                // centre; the notebook target (2 cm above the desk) 0.19 m to his right and 0.33 m ahead, the torsion knob
+                // 0.19 m to his left, the wire post 0.10 m to his left and 0.43 m ahead. He looks at a point out in the room.
+                Transform root = go.transform;
+                Vector3 Desk(float right, float up, float ahead) => root.position + root.right * right + Vector3.up * up + root.forward * ahead;
+                worker.notebook = Marker(preview, "Test Notebook Target", Desk(0.19f, 0.84f, 0.33f));
+                worker.galvanometer = Marker(preview, "Test Galvanometer Target", Desk(-0.19f, 0.99f, 0.29f));
+                worker.wirePost = Marker(preview, "Test Wire Target", Desk(-0.10f, 0.93f, 0.43f));
+                worker.lookTarget = Marker(preview, "Test Look", Desk(0f, 1.5f, 1.5f));
+                worker.Simulate(0f); // Awake's init and the first frame
                 // Awake writes the pose: no T-pose on the first frame (hands well below the shoulders).
                 Check("Ohm: Awake leaves no T-pose (hands below the shoulders)", rHand.position.y < rArm.position.y - 0.08f, $"drop {rArm.position.y - rHand.position.y:0.00} m");
+                Check("Ohm: deskTop inferred 2 cm below the notebook target", Mathf.Abs(worker.deskTop - (worker.notebook.position.y - 0.02f)) < 1e-4f, $"{worker.deskTop:0.000} m");
+                float plane = worker.deskTop + worker.contactClearance - 0.002f;
                 foreach (OhmWorker.Mode mode in System.Enum.GetValues(typeof(OhmWorker.Mode)))
                 {
                     worker.SetMode(mode);
-                    for (float t = 0; t < 1.5f; t += Dt) pose.Invoke(worker, new object[] { Dt });
+                    for (float t = 0; t < 1.5f; t += Dt) worker.Simulate(Dt);
                     Check($"Ohm {mode}: no NaN", Finite(go.transform));
                     if (rIndex1 && rIndex3 && rFore)
                     {
                         float curl = Vector3.Angle(rHand.position - rFore.position, rIndex3.position - rIndex1.position);
                         Check($"Ohm {mode}: fingers keep a curl (not splayed straight)", curl > 8f, $"{curl:0} deg");
                     }
+                    // The desk contact: over the next seconds (a whole work loop in Work: writing, the knob, the wire,
+                    // writing again) no point of either hand goes below deskTop + contactClearance, 2 mm tolerance.
+                    float seconds = mode == OhmWorker.Mode.Work ? 10f : 3f, low = float.MaxValue;
+                    for (float t = 0; t < seconds; t += Dt)
+                    {
+                        worker.Simulate(Dt);
+                        low = Mathf.Min(low, Mathf.Min(Lowest(rHand, rFingers), Lowest(lHand, lFingers)));
+                    }
+                    Check($"Ohm {mode}: no hand or finger point below the desk clearance over {seconds:0} s", low >= plane,
+                        $"lowest point {(low - worker.deskTop) * 1000f:0.0} mm above the desk top, clearance {worker.contactClearance * 1000f:0} mm");
+                    if (mode == OhmWorker.Mode.Work && rFore && lFore)
+                    {
+                        float rDown = PalmDown(rHand, rFore, rPalm), lDown = PalmDown(lHand, lFore, lPalm);
+                        Check("Ohm Work: palms face the desk (as far as a twist about the forearm allows)", rDown > 0.8f && lDown > 0.8f, $"R {rDown:0.00} L {lDown:0.00} of the possible turn");
+                    }
                 }
                 worker.SetMode(OhmWorker.Mode.Work);
-                for (float t = 0; t < 2f; t += Dt) pose.Invoke(worker, new object[] { Dt });
+                for (float t = 0; t < 2f; t += Dt) worker.Simulate(Dt);
                 worker.Freeze();
                 Vector3 held = rHand.position;
-                for (int i = 0; i < 30; i++) pose.Invoke(worker, new object[] { 0f });
-                Check("Ohm frozen: holds the pose on screen", (rHand.position - held).magnitude < 1e-4f);
+                for (int i = 0; i < 30; i++) worker.Simulate(0f);
+                // The desk-contact passes re-solve the arm from the last frame's lowest point, so a frozen pose settles within a
+                // fraction of a millimetre (0.25 mm measured) instead of being bit-identical: invisible on screen.
+                Check("Ohm frozen: holds the pose on screen (under 0.5 mm of settling)", (rHand.position - held).magnitude < 5e-4f, $"moved {(rHand.position - held).magnitude * 1000f:0.000} mm");
                 Check("Ohm frozen: not a T-pose", rHand.position.y < rArm.position.y - 0.05f);
                 worker.Freeze(false);
+                // The lift-over: through a whole loop the pen leaves the page and comes back, and the writing hand (the
+                // notebook stands on his right) rises in an arc well above both of its resting heights on the way.
+                for (float t = 0; t < 1f; t += Dt) worker.Simulate(Dt);
+                float lowest = float.MaxValue, highest = float.MinValue;
+                for (float t = 0; t < worker.writeSeconds + worker.checkSeconds; t += Dt)
+                {
+                    worker.Simulate(Dt);
+                    lowest = Mathf.Min(lowest, rHand.position.y);
+                    highest = Mathf.Max(highest, rHand.position.y);
+                }
+                Check("Ohm Work: the writing hand lifts over in an arc when it changes props", highest - lowest > 0.025f, $"wrist rises {(highest - lowest) * 1000f:0} mm over a loop");
+                // Attention: Attend(someone) turns the head toward them, eased; Attend() gives it back to the work.
+                if (headBone)
+                {
+                    worker.SetMode(OhmWorker.Mode.Present);
+                    for (float t = 0; t < 1.5f; t += Dt) worker.Simulate(Dt);
+                    Quaternion before = headBone.rotation;
+                    worker.Attend(Marker(preview, "Test Attention", Desk(-1.2f, 1.4f, 0.3f))); // beside him, on his left
+                    for (float t = 0; t < 1.5f; t += Dt) worker.Simulate(Dt);
+                    float turned = Quaternion.Angle(before, headBone.rotation);
+                    Check("Ohm Attend: the head turns toward whoever has his attention", turned > 12f, $"{turned:0} deg");
+                    worker.Attend();
+                    for (float t = 0; t < 1.5f; t += Dt) worker.Simulate(Dt);
+                    float back = Quaternion.Angle(before, headBone.rotation);
+                    Check("Ohm Attend(): the head returns to the work", back < 5f, $"{back:0.0} deg off");
+                }
             }
             catch (System.Exception e) { Check("no exception", false, e.ToString()); }
             finally { preview.Cleanup(); }
             Summary("Ohm Pose");
+        }
+
+        // The three knuckle joints of each of Ohm's fingers (Mixamo names), collected as OhmWorker collects them.
+        static Transform[][] Fingers(System.Func<string, Transform> bone, string side)
+        {
+            var fingers = new List<Transform[]>();
+            foreach (var name in new[] { "Thumb", "Index", "Middle", "Ring", "Pinky" })
+            {
+                var joints = new[] { bone(side + "Hand" + name + "1"), bone(side + "Hand" + name + "2"), bone(side + "Hand" + name + "3") };
+                if (joints[0] && joints[1] && joints[2]) fingers.Add(joints);
+            }
+            return fingers.ToArray();
+        }
+
+        // The lowest point of a hand as OhmWorker measures it: the wrist, every knuckle joint and each finger's tip (the
+        // last joint carried on by its own segment).
+        static float Lowest(Transform hand, Transform[][] fingers)
+        {
+            float low = hand.position.y;
+            foreach (var joints in fingers)
+            {
+                foreach (var j in joints) low = Mathf.Min(low, j.position.y);
+                low = Mathf.Min(low, (joints[2].position * 2f - joints[1].position).y);
+            }
+            return low;
+        }
+
+        // How far the palm (its bind-pose normal, in hand space) has turned toward the floor, as a fraction of what a
+        // twist about the forearm's axis can give: 1 = as far down as it goes.
+        static float PalmDown(Transform hand, Transform fore, Vector3 palmLocal)
+        {
+            Vector3 axis = (hand.position - fore.position).normalized;
+            float best = Vector3.ProjectOnPlane(Vector3.down, axis).magnitude;
+            return best > 1e-3f ? Vector3.Dot(hand.TransformDirection(palmLocal), Vector3.down) / best : 1f;
         }
     }
 }

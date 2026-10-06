@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: And the opposition.
   ttsText: And the opposition.
-  vo: {fileID: 8300000, guid: 90227b71d078666488b1f15861cbd0c4, type: 3}
+  vo: {fileID: 8300000, guid: b3281433050ff484ca44b0af10b2f1d5, type: 3}
   fallbackDuration: 1.6

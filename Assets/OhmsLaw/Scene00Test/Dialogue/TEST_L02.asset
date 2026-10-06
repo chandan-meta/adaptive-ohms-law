@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Test complete.
   ttsText: Test complete.
-  vo: {fileID: 8300000, guid: f82a43d9f51e35642b9025fda4a3d3c1, type: 3}
+  vo: {fileID: 8300000, guid: cb79e25d3420d9745a1d7ee6af4f4d91, type: 3}
   fallbackDuration: 1.4

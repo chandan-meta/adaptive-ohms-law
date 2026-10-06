@@ -18,5 +18,5 @@ MonoBehaviour:
     drift minus to plus.
   ttsText: Your plus-to-minus answer in the wire? That's conventional current; electrons
     drift minus to plus.
-  vo: {fileID: 8300000, guid: 4c99a786c0c7307449719b619ec39688, type: 3}
+  vo: {fileID: 8300000, guid: 25233f33436e6314d9d6166eaebdf1a6, type: 3}
   fallbackDuration: 5

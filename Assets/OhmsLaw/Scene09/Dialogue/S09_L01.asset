@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: That's our test conductor.
   ttsText: That's our test conductor.
-  vo: {fileID: 8300000, guid: 5822ee1181ceb1e47a95a3b199df0058, type: 3}
+  vo: {fileID: 8300000, guid: 1384a0e02f3d8ea44a4dd3ef8b1b12aa, type: 3}
   fallbackDuration: 1.8

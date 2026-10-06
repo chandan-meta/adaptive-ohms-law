@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: ...we call that electric current.
   ttsText: ...we call that electric current.
-  vo: {fileID: 8300000, guid: 249852d7a250bf54580fa7ffd3f67486, type: 3}
+  vo: {fileID: 8300000, guid: 877db2c9949a24441bf319bf823186f2, type: 3}
   fallbackDuration: 2.4

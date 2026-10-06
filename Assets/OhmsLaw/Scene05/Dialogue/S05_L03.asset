@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: The important question is...
   ttsText: The important question is...
-  vo: {fileID: 8300000, guid: 41ff76e4e5eda7542bb5014fc71b8a8f, type: 3}
+  vo: {fileID: 8300000, guid: 90f260a852ffe5042b98a4e3e0ebc9da, type: 3}
   fallbackDuration: 2.2

@@ -11,17 +11,17 @@ using UnityEngine.UI;
 
 namespace OhmsLaw
 {
-    // One per blockout scene, on the PlayableDirector. Applies Timeline cues, holds the Timeline at interaction
-    // gates while the learner answers, speaks branch lines, and hands the scene on to the next one.
+    // One per scene, on the PlayableDirector. Applies Timeline cues, holds the Timeline at interaction
+    // gates while the learner acts, speaks branch lines, and hands the scene on to the next one. Everything the
+    // learner reads or taps goes through the lesson panel (LessonPanel.Instance).
     public partial class SceneDirector : MonoBehaviour, INotificationReceiver
     {
         public enum BuildMode { LearnerPlaces, AutoPlace }
 
         public static DialogueLine Speaking { get; private set; }
         public static string Gate { get; private set; }
-        // The highest voltage the learner (slider) and Ask Wattson may set while the controls are open. Below the source's
-        // 5 V only while a reading must stay unseen: S10_Set1V / S10_Record cap it at 1 V, so nobody reads 2 V before the
-        // S10_Predict2V prediction. Hold() lifts it after every gate.
+        // The highest voltage the learner and Ask Wattson may set while the controls are open (the Scene 10 steps cap it
+        // at the step being taken, so the rows record in order). Hold() lifts it after every gate.
         public static float ControlsMax { get; private set; } = CircuitRig.MaxVolts;
 
         public string sceneId;
@@ -29,37 +29,31 @@ namespace OhmsLaw
         public CinemachineCamera entryCamera;
 
         [Header("Review toggles")]
-        [Tooltip("Scene 9: the learner drags the meters in, or they fly in by themselves (the key tap stays).")] public BuildMode buildMode = BuildMode.LearnerPlaces;
-        [Tooltip("Scene 9: add \"Your prediction: ...\" from Scene 6 under the reminder card (Reminder() leaves it off when none was recorded).")] public bool showLearnerPrediction = true;
-        [Tooltip("Scene 12: the tunnel narrows while the material opposes the flow (a metaphor, not real geometry).")] public bool narrowingMetaphor = true;
-        [Tooltip("Scene 12: keep the table and graph inside the wire instead of cutting back to the bench.")] public bool tableInWire;
-        [Tooltip("Scenes 12-13: ask the storyboard's adaptive questions (S12_AQ1 = AQ1 / AQ_EASY, S13_AQ2 = AQ2).")] public bool checkpointEnabled = true;
-        [TextArea] public string checkpointPlacement = "AQ1: Scene 12 gate S12_AQ1, after resistance is defined. AQ2: Scene 13 gate S13_AQ2, after V = IR. (The end-of-module S13_Checkpoint cluster is gone.)";
+        [Tooltip("Scene 9: the learner places the meters, or they fly in by themselves (the key tap stays).")] public BuildMode buildMode = BuildMode.LearnerPlaces;
+        [Tooltip("Scene 9: add \"Your prediction: ...\" from Scene 6 under the reminder (Reminder() leaves it off when none was recorded).")] public bool showLearnerPrediction = true;
 
         [Header("Scene parts")]
         public WattsonController wattson;
         public WireInterior wire;
         public CircuitRig rig;
-        public ObservationTableUI table;
-        public GraphUI graph;
         [Tooltip("Objects cues and gates refer to by name.")] public GameObject[] refs = new GameObject[0];
         public AudioSource voice, sfx;
+        [Tooltip("Looping beds the 'ambience' and 'music' cues crossfade.")] public AudioSource ambience, music;
         public AudioClip click, pop;
+        [Tooltip("The sound bank the 'sfx' cue and the gates play, by clip name.")] public AudioClip[] sounds = new AudioClip[0];
 
-        RectTransform prompt;
-        string promptText = "";
-        Slider slider;
-        TMP_Text[] tickLabels = new TMP_Text[0];
-        float ticksShownMax = -1f;
-        bool capPushed; // someone asked for more than ControlsMax while it was lowered: the gate says why the knob stops
-        CalloutLayer callouts; // screen-space callouts; created under the module canvas on first use, persists across scenes
+        bool capPushed; // someone asked for more than ControlsMax while it was lowered: the gate says why the buttons stop
+        VoltageButtons volts;
 
         static ModuleFlow Flow => ModuleFlow.Instance;
+        static LessonPanel Panel => LessonPanel.Instance;
         GameObject Ref(string name) => refs.FirstOrDefault(r => r && r.name == name);
+        ObservationTableUI Table => Panel ? Panel.Table : null;
+        GraphUI Graph => Panel ? Panel.Graph : null;
 
         // A gate line holds while the Ask panel is open or the learner pressed PAUSE (the Timeline is already frozen by then;
-        // the gates run outside it, so they hold themselves). Gate timers (settle, idle hint, reveal beats) advance by Dt,
-        // which is zero under PAUSE; autoAnswer timers also stop while the Ask panel is open (each caller checks IsOpen).
+        // the gates run outside it, so they hold themselves). Gate timers advance by Dt, which is zero under PAUSE;
+        // autoAnswer timers also stop while the Ask panel is open (each caller checks IsOpen).
         static bool Held => AskWattsonUI.IsOpen || ModuleFlow.UserPaused;
         static float Dt => ModuleFlow.UserPaused ? 0f : Time.deltaTime;
 
@@ -83,39 +77,24 @@ namespace OhmsLaw
                 lens.FieldOfView = SceneHandoffState.fieldOfView;
                 entryCamera.Lens = lens;
             }
+            if (Panel && wattson && wattson.agentContext) Panel.SetTitle(wattson.agentContext.sceneTitle);
         }
 
-        // The prompt pill sits top-centre; while the Ask panel is open it moves right until it clears the panel (x 24-544,
-        // plus air), kept on screen. The slider mirrors the rig (cues and Ask Wattson move the knob too) and takes input only
-        // while an activity has opened the controls. While ControlsMax is lowered, the ticks above it dim, and a setting
-        // above it made through the open controls (a request that did not check the cap) is undone at once.
+        // The cap: a setting above it made through the open controls is undone at once (a request that did not check it).
         void Update()
         {
-            if (prompt)
-            {
-                var safe = (RectTransform)prompt.parent;
-                float half = prompt.sizeDelta.x / 2, push = AskWattsonUI.IsOpen ? Mathf.Max(0, AskPanelClear - (safe.rect.width / 2 - half)) : 0;
-                prompt.anchoredPosition = new Vector2(Mathf.Min(push, safe.rect.width / 2 - half - 24f), PromptY);
-            }
             if (!rig) return;
             if (rig.controlsOpen && rig.state.voltage > ControlsMax + 0.001f) { rig.SetVoltage(ControlsMax); capPushed = true; }
-            if (!slider) return;
-            slider.SetValueWithoutNotify(rig.state.voltage);
-            bool open = rig.controlsOpen && !ModuleFlow.UserPaused; // PAUSE holds the knob too
-            if (slider.interactable != open) slider.interactable = open;
-            if (!Mathf.Approximately(ticksShownMax, ControlsMax))
-            {
-                ticksShownMax = ControlsMax;
-                for (int i = 0; i < tickLabels.Length; i++) if (tickLabels[i]) tickLabels[i].color = new Color(1, 1, 1, i > ControlsMax + 0.001f ? 0.3f : 0.85f);
-            }
         }
 
-        // The slider's request: whole volts, never above ControlsMax (the knob stops there).
+        // The learner's request (a voltage button): whole volts, never above ControlsMax.
         float LearnerVoltage(float volts)
         {
             float want = Mathf.Round(volts);
             if (want > ControlsMax + 0.001f) { want = ControlsMax; capPushed = true; }
-            return rig.SetVoltage(want);
+            float applied = rig.SetVoltage(want);
+            Play("VoltStep", 1f + 0.07f * (applied - 1f));
+            return applied;
         }
 
         public void OnNotify(Playable origin, INotification notification, object context)
@@ -137,7 +116,7 @@ namespace OhmsLaw
             if (Flow) Flow.SetPaused(ModuleFlow.PauseReason.Hold, false);
         }
 
-        // Speaks a line outside the Timeline (interaction branches): subtitle, voice and Wattson's talking glow. It takes its
+        // Speaks a line outside the Timeline (interaction branches): caption, voice and Wattson's talking glow. It takes its
         // turn on the voice channel first, so it never starts over an Ask Wattson answer. Speaking is set before that wait:
         // StopSaying can still cancel a line that has not started, and autoAnswer (Pick) waits for the whole line.
         public IEnumerator Say(DialogueLine line)
@@ -150,7 +129,7 @@ namespace OhmsLaw
             float length = line.Duration;
             for (float t = 0; t < length; t += Dt)
             {
-                if (Held) // the Ask panel is open, or PAUSE: the voice and the subtitle wait where they are
+                if (Held) // the Ask panel is open, or PAUSE: the voice and the caption wait where they are
                 {
                     if (voice) voice.Pause();
                     yield return new WaitWhile(() => Held);
@@ -176,6 +155,58 @@ namespace OhmsLaw
             Speaking = null;
         }
 
+        // ------------------------------------------------------------------ sound
+
+        AudioClip Sound(string name) => sounds.FirstOrDefault(c => c && c.name == name);
+
+        // One-shot from the bank, pitched (1 = as recorded). A missing clip is silent, never an error.
+        public void Play(string name, float pitch = 1f)
+        {
+            var clip = Sound(name);
+            if (!clip || !sfx) return;
+            sfx.pitch = pitch;
+            sfx.PlayOneShot(clip);
+            sfx.pitch = 1f;
+        }
+
+        readonly Dictionary<AudioSource, Coroutine> fades = new Dictionary<AudioSource, Coroutine>();
+
+        // A looping bed (ambience or music) crossfades to the named clip, or out ("off"). Idempotent: the same clip again
+        // is left playing, so a replayed cue never restarts the bed.
+        void Bed(AudioSource source, string name, float seconds)
+        {
+            if (!source) return;
+            var clip = name == "off" || name == "" ? null : Sound(name);
+            if (source.clip == clip && (clip == null || source.isPlaying)) return;
+            if (fades.TryGetValue(source, out var running) && running != null) StopCoroutine(running);
+            fades[source] = StartCoroutine(Crossfade(source, clip, seconds));
+        }
+
+        IEnumerator Crossfade(AudioSource source, AudioClip to, float seconds)
+        {
+            var bus = source.GetComponent<AudioBus>();
+            float gain = bus ? bus.gain : 1f;
+            if (source.isPlaying && source.clip)
+            {
+                for (float t = 0; t < 1; t += Time.unscaledDeltaTime / Mathf.Max(0.05f, seconds * 0.5f))
+                {
+                    if (bus) bus.gain = gain * (1 - t);
+                    yield return null;
+                }
+                source.Stop();
+            }
+            if (bus) bus.gain = 0f;
+            source.clip = to;
+            if (to) { source.loop = true; source.Play(); }
+            for (float t = 0; t < 1 && to; t += Time.unscaledDeltaTime / Mathf.Max(0.05f, seconds * 0.5f))
+            {
+                if (bus) bus.gain = gain * t;
+                yield return null;
+            }
+            if (bus) bus.gain = gain;
+            fades.Remove(source);
+        }
+
         // ------------------------------------------------------------------ Timeline cues
 
         public void Run(string command)
@@ -195,45 +226,43 @@ namespace OhmsLaw
                 case "wire.count": wire.counting = on; break;
                 case "wire.impede": wire.impede = value; break;
                 case "wire.lattice": wire.latticeVisibility = value; break;
-                case "wire.radius": if (narrowingMetaphor || value >= wire.tunnelRadius) wire.tunnelRadius = value; break;
                 case "boost": Boost(Ref(rest)); break;
                 case "pulse": Boost(Ref(rest), settle: true); break;
                 case "rig.voltage": rig.SetVoltage(value); break;
                 case "rig.key": if (on) rig.CloseKey(); else rig.state.keyClosed = false; break;
                 case "rig.place": rig.Place(arg); break;
-                case "rig.slider": Slider(on); break;
-                case "table.rows": table.ShowRows(Int(1)); LearnerSession.tableRows = Mathf.Max(LearnerSession.tableRows, Int(1)); break;
-                case "table.ratio": table.ShowRatio(on); if (on) LearnerSession.ratioShown = true; break;
-                case "table.work": table.SetRatio(Int(1), true); break;
-                case "table.result": table.SetRatio(Int(1), false); break;
-                case "table.highlight": foreach (var w in words.Skip(1)) table.Highlight(int.Parse(w), true, table.Pair(int.Parse(w))); break;
-                case "table.clear": table.ClearHighlights(); table.GlowColumn(2, false); break;
-                case "table.glow": table.GlowColumn(Int(1), Int(2) != 0); break;
-                case "graph.axes": graph.Axes(on); break;
-                case "graph.plot": graph.Plot(Int(1)); break;
-                case "graph.line": graph.Line(on); break;
-                case "graph.highlight": graph.Highlight(Int(1), true); graph.Highlight(Int(2), true, "I → 2I\n<color=#" + ColorUtility.ToHtmlStringRGB(UI.AccentColor) + ">V → 2V</color>"); break; // V in voltage blue
-                case "graph.clear": for (int i = 0; i < 5; i++) graph.Highlight(i, false); break;
-                case "graph.triangle": graph.Triangle(Int(1), Int(2)); break;
-                case "graph.pulse": graph.Pulse(); break;
-                case "prompt": Prompt(rest); break;
+                case "rig.slider": Volts(on); break;
+                case "table.rows": Table.ShowRows(Int(1)); LearnerSession.tableRows = Mathf.Max(LearnerSession.tableRows, Int(1)); break;
+                case "table.ratio": Table.ShowRatio(on); if (on) LearnerSession.ratioShown = true; break;
+                case "table.work": Table.SetRatio(Int(1), true); Play("Plot", 1f + 0.06f * Int(1)); break;
+                case "table.result": Table.SetRatio(Int(1), false); Play("Plot", 1f + 0.06f * Int(1)); break;
+                case "table.highlight": foreach (var w in words.Skip(1)) Table.Highlight(int.Parse(w), true); break;
+                case "table.clear": Table.ClearHighlights(); Table.GlowColumn(2, false); break;
+                case "table.glow": Table.GlowColumn(Int(1), Int(2) != 0); break;
+                case "graph.axes": Graph.Axes(on); break;
+                case "graph.plot": Graph.Plot(Int(1)); break;
+                case "graph.line": Graph.Line(on, instant: value >= 2f); if (on && value < 2f) Play("Rise"); break; // "graph.line 2": restored without the sweep
+                case "graph.highlight": Graph.Highlight(Int(1), true); Graph.Highlight(Int(2), true); break;
+                case "graph.clear": for (int i = 0; i < 5; i++) Graph.Highlight(i, false); break;
+                case "graph.triangle": Graph.Triangle(Int(1), Int(2)); if (Int(1) >= 0) Play("Reveal"); break;
+                case "graph.pulse": Graph.Pulse(); break;
+                case "prompt": Instruction(rest); break;
                 case "spotlight": StartCoroutine(Spotlight()); break;
                 case "ohm.freeze": foreach (var worker in FindObjectsByType<OhmWorker>(FindObjectsSortMode.None)) worker.frozen = on; break;
                 case "ohm.pose": foreach (var worker in FindObjectsByType<OhmWorker>(FindObjectsSortMode.None)) worker.SetMode((OhmWorker.Mode)System.Enum.Parse(typeof(OhmWorker.Mode), arg, true)); break;
-                case "ohm.swing": foreach (var worker in FindObjectsByType<OhmWorker>(FindObjectsSortMode.None)) worker.Swing(); break; // re-swing the needle; its [VFX] panel stays up
-                case "lab": Lab(); break;
+                case "ohm.swing": foreach (var worker in FindObjectsByType<OhmWorker>(FindObjectsSortMode.None)) worker.Swing(); break;
+                // "ohm.look <ref>" / "ohm.look": Ohm glances at something (Wattson while he speaks) or back to his work.
+                case "ohm.look": { var at = Ref(rest); foreach (var worker in FindObjectsByType<OhmWorker>(FindObjectsSortMode.None)) worker.Attend(at ? at.transform : null); break; }
                 case "reminder": Reminder(); break;
-                // "callout show <id>" / "callout hide <id>" / "callout hideall" (CalloutDef ids set by the builders).
+                // "callout show <id>" / "callout hide <id>" / "callout hideall": the object's note in the panel.
                 case "callout":
-                    if (callouts || (callouts = CalloutLayer.Instance))
-                    {
-                        string id = words.Length > 2 ? rest.Substring(arg.Length + 1) : "";
-                        if (arg == "show") callouts.Show(id); else if (arg == "hide") callouts.Hide(id); else callouts.HideAll();
-                    }
+                {
+                    string id = words.Length > 2 ? rest.Substring(arg.Length + 1) : "";
+                    if (arg == "show") Callouts.Show(id); else if (arg == "hide") Callouts.Hide(id); else Callouts.HideAll();
                     break;
-                // Showing a "[VFX] ..." object also puts up the matching VfxPanel; hiding it takes the panel down.
-                case "show": SetActive(rest, true); if (rest.StartsWith(CalloutLayer.Prefix) && (callouts || (callouts = CalloutLayer.Instance))) callouts.Vfx(rest, true, Ref(rest)); break;
-                case "hide": SetActive(rest, false); if (rest.StartsWith(CalloutLayer.Prefix) && (callouts || (callouts = CalloutLayer.Instance))) callouts.Vfx(rest, false); break;
+                }
+                case "show": SetActive(rest, true); break;
+                case "hide": SetActive(rest, false); break;
                 case "handoff": SaveHandoff(); break;
                 case "note": break; // visual beat description for Docs/FLOW.md
                 default: if (!AreaCue(verb, words, rest, value, on)) Debug.LogWarning($"{sceneId}: unknown cue '{command}'", this); break;
@@ -242,43 +271,12 @@ namespace OhmsLaw
 
         void SetActive(string name, bool on) { var go = Ref(name); if (go) go.SetActive(on); }
 
-        // Scene 12: back from the wire to the bench, unless the table is shown inside the wire, in which case the
-        // boards, their camera and Wattson's marker move to the anchor inside the tunnel.
-        void Lab()
-        {
-            if (!tableInWire) { SetActive("Wire Section", false); SetActive("Lab", true); }
-            else
-            {
-                var anchor = Ref("Wire Boards Anchor");
-                var boards = Ref("Boards Set");
-                if (anchor && boards)
-                {
-                    Vector3 delta = anchor.transform.position - boards.transform.position;
-                    foreach (var name in new[] { "Boards Set", "Cam Boards", "Boards Point" })
-                    {
-                        var go = Ref(name);
-                        if (go) go.transform.position += delta;
-                    }
-                }
-            }
-            // The cue runs under the white: Wattson is already beside the board when it clears (the spring flight back
-            // from the wire would still be crossing the table).
-            var spot = Ref("Boards Point");
-            if (wattson && spot) wattson.Warp(spot.transform); // settled, no leftover spring velocity from the flight
-        }
-
-        // Scene 9 reminder card, with the learner's own prediction when that toggle is on.
+        // Scene 9 reminder, in the panel: the question from Scene 6 and the learner's own prediction when that toggle is on.
         void Reminder()
         {
-            var card = Ref("Card Reminder");
-            if (!card) return;
-            card.SetActive(true);
-            var mine = card.transform.Find("Your Prediction");
-            if (mine)
-            {
-                mine.gameObject.SetActive(showLearnerPrediction && LearnerSession.prediction != "");
-                mine.GetComponent<TMP_Text>().text = "Your prediction: " + LearnerSession.PredictionText;
-            }
+            if (!Panel) return;
+            string mine = showLearnerPrediction && LearnerSession.prediction != "" ? "Your prediction: " + LearnerSession.PredictionText : "";
+            Panel.Info("reminder", "If the potential difference increases, what happens to the current?", mine);
         }
 
         // "boost" grows the object and brightens its glow and holds both; "pulse" (settle) peaks and returns to normal.
@@ -355,7 +353,7 @@ namespace OhmsLaw
         // Draws the eye to the Ask Wattson button: a scale wobble, or under ReducedMotion.On one dip of its alpha and back.
         IEnumerator Spotlight()
         {
-            var button = Flow ? Flow.transform.Find("SafeArea/Ask Wattson") : null;
+            var button = Panel ? Panel.AskButton.transform : null;
             if (!button) yield break;
             if (ReducedMotion.On)
             {
@@ -370,7 +368,7 @@ namespace OhmsLaw
             }
             for (float t = 0; t < 1.6f; t += Time.deltaTime)
             {
-                button.localScale = Vector3.one * (1 + 0.25f * Mathf.Sin(t / 1.6f * Mathf.PI * 3) * (1 - t / 1.6f));
+                button.localScale = Vector3.one * (1 + 0.12f * Mathf.Sin(t / 1.6f * Mathf.PI * 3) * (1 - t / 1.6f));
                 yield return null;
             }
             button.localScale = Vector3.one;
@@ -386,7 +384,7 @@ namespace OhmsLaw
             if (wire) { SceneHandoffState.fieldOn = wire.fieldOn; SceneHandoffState.driftSpeed = wire.driftSpeed; }
             SceneHandoffState.cardPositions = refs.Where(r => r && r.name.StartsWith("Card ")).Select(r => r.transform.position).ToArray();
             SceneHandoffState.tableRows = LearnerSession.tableRows;
-            if (graph) SceneHandoffState.graphShown = true;
+            SceneHandoffState.graphShown = Panel && Panel.Showing("Graph");
         }
 
         // Signal targets at the end of the scene.
@@ -395,97 +393,32 @@ namespace OhmsLaw
 
         // ------------------------------------------------------------------ on-screen controls
 
-        // Prompt pill: below CinematicControlsUI's top-right buttons (they end at y -124), width fitted to the text.
-        const float PromptY = -140f, PromptMaxWidth = 1200f, PromptMinWidth = 480f, PromptHeight = 108f, PromptPad = 48f;
-        const float AskPanelClear = 24f + 520f + 24f; // the Ask panel's margin + width (AskWattsonUI) + air: the pill's left edge while it is open
-        // Battery control: bottom-left, above the subtitle box (y 40..236, 210 px insets) and left of the Record / x2 chip at x 720.
-        static readonly Vector2 BatteryPos = new Vector2(60, 260), BatterySize = new Vector2(620, 220);
-        // TrackY puts the 96 px knob ~10 px under the BATTERY title and ~8 px over the tick labels.
-        const float TrackWidth = 520f, TrackY = -4f, HandleSize = 96f, TickStep = TrackWidth / 5f;
-        static readonly Vector2 TickRect = new Vector2(96, 44);
-        // Tap hint: the fingertip is FingerTip px above the ring's centre; the ring keeps clear of the subtitle band and of
-        // the Ask Wattson button (28 px inset + 170 px wide + 24 px air) at the bottom-right.
-        const float TapRing = 150f, FingerTip = 54f, AskWattsonClear = 28f + 170f + 24f;
-
-        // An empty text clears the prompt; the pill fades out by itself.
-        void Prompt(string text)
+        // The one current instruction, in the panel. An empty text clears it.
+        void Instruction(string text)
         {
-            promptText = text ?? "";
-            if (prompt) { if (prompt.TryGetComponent(out UIFade fade)) fade.Dismiss(); else Destroy(prompt.gameObject); }
-            prompt = null;
-            if (string.IsNullOrEmpty(text) || !Flow) return;
-            prompt = UI.Rect("Prompt", Flow.transform.Find("SafeArea"), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, PromptY), new Vector2(PromptMaxWidth, PromptHeight));
-            UI.Panel(prompt, UI.AccentFill, true, PromptHeight / 2).raycastTarget = false;
-            prompt.gameObject.AddComponent<UIFade>();
-            var label = UI.Label(prompt, text, UI.PromptFont, Color.white);
-            label.rectTransform.offsetMin = new Vector2(PromptPad, 6);
-            label.rectTransform.offsetMax = new Vector2(-PromptPad, -6);
-            var needed = label.GetPreferredValues(text, PromptMaxWidth - 2 * PromptPad, 0);
-            prompt.sizeDelta = new Vector2(Mathf.Clamp(Mathf.Ceil(needed.x) + 2 * PromptPad, PromptMinWidth, PromptMaxWidth), Mathf.Max(PromptHeight, Mathf.Ceil(needed.y) + 36));
+            if (Panel) Panel.Instruction(text ?? "");
         }
 
-        // Battery voltage control: 0-5 V in 1 V steps, a 96 px handle for touch, voltage-blue fill and a live readout.
-        void Slider(bool on)
+        string CurrentInstruction => Panel ? Panel.CurrentInstruction : "";
+
+        // Battery voltage buttons, 1-5 V, in the panel: they request through LearnerVoltage (whole volts, the cap) and take
+        // input only while an activity has opened the controls.
+        void Volts(bool on)
         {
-            if (slider) Destroy(slider.gameObject);
-            if (!on || !Flow) return;
-            var rect = UI.Rect("Voltage Control", Flow.transform.Find("SafeArea"), new Vector2(0, 0), new Vector2(0, 0), BatteryPos, BatterySize);
-            UI.Panel(rect, UI.HudColor, true, 24f);
-            slider = rect.gameObject.AddComponent<Slider>();
-
-            var title = UI.Label(UI.Rect("Title", rect, new Vector2(0, 1), new Vector2(0, 1), new Vector2(28, -16), new Vector2(300, 40)), "BATTERY", UI.SliderTickFont, new Color(1, 1, 1, 0.8f), TextAlignmentOptions.MidlineLeft);
-            title.characterSpacing = 6f;
-            // Readout at the 36 px "L" tier (meter digits), following rig.state.voltage rather than the 1 V-stepped slider.
-            var readout = UI.Label(UI.Rect("Readout", rect, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-28, -16), new Vector2(220, 40)), "", UI.ScreenButtonFont, UI.AccentColor, TextAlignmentOptions.MidlineRight);
-            var live = rect.gameObject.AddComponent<SliderReadout>();
-            live.label = readout;
-            live.value = () => rig.state.voltage;
-
-            var track = UI.Rect("Track", rect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, TrackY), new Vector2(TrackWidth, 14));
-            UI.Panel(track, new Color(1, 1, 1, 0.25f), true, 7f).raycastTarget = false;
-            var fill = UI.Stretch("Fill", track);
-            UI.Panel(fill, UI.AccentColor, true, 7f).raycastTarget = false;
-            tickLabels = new TMP_Text[6];
-            ticksShownMax = -1f; // Update dims the ticks above ControlsMax
-            for (int i = 0; i <= 5; i++)
-            {
-                UI.Panel(UI.Rect("Tick Mark", track, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-TrackWidth / 2 + i * TickStep, 0), new Vector2(4, 24)), new Color(1, 1, 1, 0.35f), false).raycastTarget = false;
-                tickLabels[i] = UI.Label(UI.Rect("Tick", rect, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-TrackWidth / 2 + i * TickStep, 6), TickRect), i + " V", UI.SliderTickFont, new Color(1, 1, 1, 0.85f));
-            }
-
-            var area = UI.Rect("Handle Area", rect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, TrackY), new Vector2(TrackWidth, HandleSize));
-            // The Slider stretches the handle over the Handle Area's height, so only its width is set: a 96 px circle.
-            var handle = UI.Rect("Handle", area, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(HandleSize, 0));
-            var knob = handle.gameObject.AddComponent<Image>();
-            knob.sprite = UI.Circle();
-            knob.color = UI.AccentColor;
-            var dot = UI.Rect("Dot", handle, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(30, 30)).gameObject.AddComponent<Image>();
-            dot.sprite = UI.Circle();
-            dot.color = Color.white;
-            dot.raycastTarget = false;
-
-            slider.fillRect = fill;
-            slider.handleRect = handle;
-            slider.targetGraphic = knob;
-            slider.minValue = 0;
-            slider.maxValue = 5;
-            slider.wholeNumbers = false; // the carried 0.5 V sits between the ticks; the listener snaps to whole volts
-            slider.SetValueWithoutNotify(rig.state.voltage);
-            slider.interactable = rig.controlsOpen;
-            slider.onValueChanged.AddListener(volts => slider.SetValueWithoutNotify(rig.controlsOpen ? LearnerVoltage(volts) : rig.state.voltage));
-        }
-
-        // Record / x2: a UI.Button in the blue accent.
-        Button ScreenButton(string name, string text, Vector2 position, UnityAction onClick)
-        {
-            var button = UI.Button(name, Flow.transform.Find("SafeArea"), new Vector2(0, 0), new Vector2(0, 0), position, new Vector2(260, 100), text, onClick, UI.ScreenButtonFont);
-            button.GetComponent<Image>().color = UI.AccentFill;
-            return button;
+            if (!on) { if (Panel) Panel.Clear("Volt"); volts = null; return; }
+            if (volts || !Panel || !rig) return;
+            volts = VoltageButtons.Create();
+            volts.set = LearnerVoltage;
+            volts.open = () => rig && rig.controlsOpen;
+            volts.current = () => rig ? rig.state.voltage : 0f;
+            volts.max = () => ControlsMax;
         }
 
         // Scene 4's tap-hand following a world object on screen: faint disc, ring, finger and palm, pulsing. `offset` (canvas
         // px) moves the ring off the target, e.g. below a meter so its reading stays visible; (0, -FingerTip) puts the
-        // fingertip on the target.
+        // fingertip on the target. Kept inside the part of the frame the panel leaves free.
+        const float TapRing = 150f, FingerTip = 54f;
+
         IEnumerator TapHint(Transform target, System.Func<bool> until, Vector2 offset = default)
         {
             var ring = UI.Rect("Tap Hint", Flow.transform, Vector2.zero, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(TapRing, TapRing));
@@ -509,8 +442,9 @@ namespace OhmsLaw
             {
                 if (Camera.main && target)
                 {
+                    float free = frame.x - (Panel ? Panel.Cover : 0f) - reach;
                     var p = (Vector2)Camera.main.WorldToScreenPoint(target.position) / canvas.scaleFactor + offset;
-                    ring.anchoredPosition = new Vector2(Mathf.Min(p.x, frame.x - AskWattsonClear - reach), Mathf.Max(p.y, UI.SubtitleTop + reach + 8f));
+                    ring.anchoredPosition = new Vector2(Mathf.Min(p.x, free), Mathf.Max(p.y, reach + 8f));
                 }
                 ring.localScale = Vector3.one * (1 + 0.12f * Mathf.Sin(Time.unscaledTime * 5f));
                 yield return null;
@@ -520,12 +454,10 @@ namespace OhmsLaw
 
         void OnDestroy() => Shutdown();
 
-        // Ends whatever a gate was doing: SKIP / NEXT SCENE unloads the scene mid-gate (OnDestroy), and the Scene 14 card
-        // comes up over a running Scene 13 (ModuleFlow.Load). The gate coroutines die, the gate's spoken line and subtitle
-        // stop, and everything a gate put on the module canvas (which outlives the scene) is swept: the MCQ panel, RECORD,
-        // the × 2 chip and the tap hint, besides the prompt, slider and readings this director tracks. Collected, deactivated
-        // and destroyed (no DestroyImmediate): an orphaned panel would stay interactable and make Ask Wattson see a question
-        // in every later scene. Safe to call twice.
+        // Ends whatever a gate was doing: SKIP / NEXT SCENE unloads the scene mid-gate (OnDestroy), and the end card
+        // comes up over a running Scene 13 (ModuleFlow.Load). The gate coroutines die, the gate's spoken line and caption
+        // stop, and what a gate put on the module canvas (which outlives the scene) is swept: the panel's question,
+        // voltage buttons and instruction, and the tap hint. Safe to call twice.
         public void Shutdown()
         {
             StopAllCoroutines();
@@ -534,13 +466,10 @@ namespace OhmsLaw
             Speaking = null;
             Gate = null;
             ControlsMax = CircuitRig.MaxVolts; // static: never carried into a scene left mid-gate
-            if (prompt) Destroy(prompt.gameObject);
-            if (slider) Destroy(slider.gameObject);
-            if (readings) Destroy(readings.gameObject); // the HUD variant lives on the module canvas, which outlives the scene
+            if (Panel) { Panel.Clear("MCQ"); Panel.Clear("Volt"); Panel.Instruction(""); }
+            volts = null;
             if (!Flow) return;
             var dead = new List<GameObject>();
-            var safe = Flow.transform.Find("SafeArea");
-            if (safe) foreach (Transform child in safe) if (child.name == "MCQ Panel" || child.name == "Record" || child.name == "Times Two") dead.Add(child.gameObject);
             foreach (Transform child in Flow.transform) if (child.name == "Tap Hint") dead.Add(child.gameObject);
             foreach (var go in dead) { go.SetActive(false); Destroy(go); }
         }

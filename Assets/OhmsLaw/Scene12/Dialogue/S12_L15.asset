@@ -18,5 +18,5 @@ MonoBehaviour:
     volt produces a current of one ampere.
   ttsText: A conductor has a resistance of one ohm when a potential difference of
     one volt produces a current of one ampere.
-  vo: {fileID: 8300000, guid: c5d5786649fd5f342869ebbfece7fbda, type: 3}
+  vo: {fileID: 8300000, guid: d0722b535d8182a4fa536c15abe36073, type: 3}
   fallbackDuration: 6.5

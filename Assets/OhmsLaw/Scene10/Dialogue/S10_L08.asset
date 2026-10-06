@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Good. But I think there's an even better pattern hiding in there.
   ttsText: Good. But I think there's an even better pattern hiding in there.
-  vo: {fileID: 8300000, guid: e6ceb659dd983e6418af1076f867b76d, type: 3}
+  vo: {fileID: 8300000, guid: ed1b9cd94b3d6c34eaeadcfa87a9154f, type: 3}
   fallbackDuration: 4

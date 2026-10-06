@@ -18,5 +18,5 @@ MonoBehaviour:
     you.
   ttsText: Interesting. Remember your answer. Let's see if Ohm's experiment agrees
     with you.
-  vo: {fileID: 8300000, guid: 6b6363a046da33143bb5e1344b83a936, type: 3}
+  vo: {fileID: 8300000, guid: d810463af40fec94eb7bd93c1daaaf17, type: 3}
   fallbackDuration: 5

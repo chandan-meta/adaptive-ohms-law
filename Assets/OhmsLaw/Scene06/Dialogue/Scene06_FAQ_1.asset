@@ -22,5 +22,5 @@ MonoBehaviour:
     the rest fixed: the same wire, the same material, the same length and thickness,
     and the same temperature. Then whatever happens to the current, we know what
     caused it.'
-  vo: {fileID: 8300000, guid: 2c9a98103f3c3af4985f73551c91fff6, type: 3}
+  vo: {fileID: 8300000, guid: 91b611f8bc863bb42a2a1a3941249a66, type: 3}
   fallbackDuration: 14

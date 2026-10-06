@@ -20,5 +20,5 @@ MonoBehaviour:
   ttsText: An open key is a gap in the path. The push from the source is still there,
     but charge cannot cross the gap, so no current flows and the ammeter reads zero.
     Close the key and the loop is complete.
-  vo: {fileID: 8300000, guid: 31c813d98f919b348a5cd6a86d548ecb, type: 3}
+  vo: {fileID: 8300000, guid: 2170a2eccd1127a4783113422f73dfc7, type: 3}
   fallbackDuration: 12.09

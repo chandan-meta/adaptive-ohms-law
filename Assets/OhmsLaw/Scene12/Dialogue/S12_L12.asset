@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Every straight line has a slope.
   ttsText: Every straight line has a slope.
-  vo: {fileID: 8300000, guid: 283a7d7281e4fb8499fa1039a4f0bbfe, type: 3}
+  vo: {fileID: 8300000, guid: 5ac61b6e59797ef42b3c56609af5a818, type: 3}
   fallbackDuration: 2.2

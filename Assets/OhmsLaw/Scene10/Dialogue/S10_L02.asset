@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Note the reading of Potential difference in voltmeter.
   ttsText: Note the reading of Potential difference in voltmeter.
-  vo: {fileID: 8300000, guid: a07318f8768ac7a45ae0716805bb8d12, type: 3}
+  vo: {fileID: 8300000, guid: 145abe42e713bf548829f3e338b59ebd, type: 3}
   fallbackDuration: 3.2

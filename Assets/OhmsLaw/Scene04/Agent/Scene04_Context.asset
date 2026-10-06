@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Scene04_Context
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.SceneAgentContext
   sceneId: Scene04
-  sceneTitle: Meet Wattson & Georg Ohm
+  sceneTitle: Meet Wattson and Georg Ohm
   askWattsonEnabled: 1
   covered:
   - 'The Christmas-lights mystery: the lights were dim, and a new battery made them

@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: S10_Callback_If_S06_Prediction_A
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: S10_Callback_If_S06_Prediction_A
+  speaker: WATTSON
+  text: Back in the wire you predicted the current would rise. Your data agrees.
+  ttsText: Back in the wire you predicted the current would rise. Your data agrees.
+  vo: {fileID: 8300000, guid: 1210e1f3575c68546b4914a9857c2cc2, type: 3}
+  fallbackDuration: 4

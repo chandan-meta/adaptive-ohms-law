@@ -18,5 +18,5 @@ MonoBehaviour:
     is the current doing?
   ttsText: Hmm. Look at the table once more. As the potential difference goes up,
     what is the current doing?
-  vo: {fileID: 8300000, guid: b32f85ff98289d345bc0b0075e6a5362, type: 3}
+  vo: {fileID: 8300000, guid: 233eea6bc877a044eac91caa1461f3b5, type: 3}
   fallbackDuration: 5.5

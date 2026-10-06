@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: So now we know all three pieces.
   ttsText: So now we know all three pieces.
-  vo: {fileID: 8300000, guid: 059ae0ca77531e94b8c26d53ac36a3e7, type: 3}
+  vo: {fileID: 8300000, guid: 06d2b93781f40854b9270efe3281bf5f, type: 3}
   fallbackDuration: 2.4

@@ -22,7 +22,7 @@ namespace OhmsLaw
             info.rectTransform.offsetMin = new Vector2(24, 0);
             info.rectTransform.offsetMax = new Vector2(-24, -20);
             info.lineSpacing = 8f;
-            Button(0, 0, "NEXT SCENE", CinematicControlsUI.Skip);
+            Button(0, 0, "NEXT SCENE", LessonPanel.Skip);
             // Not during a gate (CinematicControlsUI REPLAY): the Gate row shows why.
             Button(1, 0, "REPLAY LINE", () => { if (SceneDirector.Gate == null && SubtitleTrack.LastLineStart >= 0) ModuleFlow.Instance.JumpTo(SubtitleTrack.LastLineStart); });
             autoLabel = Button(0, 1, "", () => ReviewMode.autoAnswer = !ReviewMode.autoAnswer);

@@ -1,55 +1,22 @@
-using TMPro;
 using UnityEngine;
-using Object = UnityEngine.Object;
 
 namespace OhmsLaw.Editor
 {
-    // Scene 11: Turn Data into a Graph. Points in a straight line through the origin; V ∝ I; then the learner uses the
-    // line (S11_Target: make the ammeter read 0.60 A with the battery slider or Ask Wattson, live readings above the graph).
-    // Classroom frame: the observation table and the V-I graph sit on the teaching board (Boards kit), the Boards
-    // camera holds the whole scene (match-cut from Scene 10, hand-off to Scene 12 on the same shot) and Wattson
-    // teaches from TableSideC beside the board's left rail, where Scene 10 leaves him and Scene 12 picks him up.
-    // The graph effects are built here on top of the canvases' own layout.
+    // Scene 11: the discovery. The five points on the panel's graph are joined by a line that sweeps out from the
+    // origin, the two highlighted readings show the doubling, V ∝ I is revealed in the panel with a musical rise and
+    // Wattson's reaction. No challenge interrupts it: the learner sees why the relationship is true in their own data.
     public class Scene11Builder : SceneBuilderBase
     {
         public override string SceneId => "Scene11";
         public override string SceneName => "Scene11_Graph";
-        public override string Title => "Turn Data into a Graph";
-
-        // Heights above the chalk face: the canvases sit at 0.006, the card over them, the effects over the card.
-        // GlowLift and CardLift are public: Scene12Builder rebuilds the "Graph Line Glow" strand and the card for its match-cut.
-        public const float GlowLift = 0.018f, CardLift = 0.026f;
-        const float FxLift = 0.03f;
-        // "V ∝ I" at the top of the line, right of it (graph coordinates): Scene 12 rebuilds the card at this exact spot.
-        public const float CardAmps = 1.15f, CardVolts = 4.4f;
-        // The live readings strip sits in the band above the graph's chalk frame (board v ≈ 0.87-0.98, gate contract).
-        const float ReadingsV = 0.92f;
-        const float ColumnsFlight = 1.2f;      // the cells' travel to the axes (the beat's Visual is 1.5 s)
-        const float LineSweep = 0.9f;          // the head's run from the origin to the end of the line (Visual 1.0 s)
-        // ObservationTableUI lays its V and I columns out 380 and 280 px wide (its private Columns): the digits' centres.
-        static readonly float[] TableColumnX = { 190f, 380f + 140f };
-
-        ExperimentData data;
-        Material amber, blue, lineGlow, ringGlow, pointGlow;
+        public override string Title => "The Pattern";
 
         protected override void Dialogue()
         {
             L("S11_L01", "Now we've got our biggest clue. They're all in a line!", 3.5f);
-            L("S11_L02", "Double the potential difference...and the current doubles.", 3.5f);
-            L("S11_L03", "And it keeps happening.", 1.8f);
             L("S11_L04", "For this conductor that is the nichrome wire, while its temperature remains constant...the potential difference across it is directly proportional to the current flowing through it.", 9.0f);
             L("S11_L05", "But there's still one clue we haven't explained.", 2.8f);
-
-            // S11_Target (gate contract, WOW_PLAN §8). Every value a line quotes is guaranteed by the gate: _OK plays only on a
-            // hit (0.60 A is 3 V on this wire, whole volts only), _X while Wattson sets the target himself. _H also serves the
-            // bonus round and the 15 s idle hint, so it names no target.
-            L("S11_Target_GO", "Your turn: make the ammeter read 0.60 amperes. Use the slider, or ask me!", 4.4f, proposed: true);
-            L("S11_Target_H", "Each volt adds 0.20 amperes. So how many volts reach your target?", 3.8f, proposed: true);
-            L("S11_Target_X", "Let me show you: three steps of 0.20 make 0.60. So, 3 volts.", 3.8f, proposed: true);
-            L("S11_Target_OK", "3 volts, 0.60 amperes. Your point sits right on the line!", 3.4f, proposed: true);
-            L("S11_Target_GO2", "Bonus round, detective: now make it read 0.80 amperes.", 3.0f, proposed: true);
-            L("S11_Target_X2", "Watch: four steps of 0.20 make 0.80. So, 4 volts.", 3.2f, proposed: true);
-            L("S11_Target_OK2", "4 volts, 0.80 amperes. Every volt, another 0.20. The pattern holds!", 3.8f, proposed: true);
+            L("S11_N01", "Look at the pattern! Double the voltage, and the current doubles too. They change together in the same proportion.", 6.0f, proposed: true);
         }
 
         protected override SceneAgentContext Agent() => Context(
@@ -67,356 +34,49 @@ namespace OhmsLaw.Editor
         protected override void Stage()
         {
             ClassroomSet(modernBench: true, audience: false);
-            // Scene 10's "Table Side" spot, beside the board's left rail and clear of the table's V column: the 10 -> 11 -> 12
-            // match-cuts do not pop him, and he stays here all scene (the kit's "Table Point" marks it).
-            Wattson(TableSideC, BoardsCamC);
+            Wattson(Scene10Builder.SourceSide, Scene10Builder.StudyCamC);
             director.matchCutFrom = "Scene10_Experiment";
             director.rig = Rig(assembled: true, keyClosed: true, voltage: 5);
-            director.rig.showPath = false; // off since Scene 9's "rig.path 0": plain cables wherever the bench shows
-            Boards(withTable: true, withGraph: true);
-            data = BlockoutAssets.ExperimentData();
-            GraphMaterials();
-
-            // Scene 10's last frame has its chalk discovery beside rows 1-2 (Scene10Builder's own text, UV, cap and
-            // alignment): here at frame 0, settled (no pop on the cut); the graph takes its place on the first beat.
-            var discovery = Board(Scene10Builder.DiscoveryText, palette.current, Scene10Builder.DiscoveryUV, BoardsShotTitleCap, align: TextAlignmentOptions.Left, name: "Discovery");
-            discovery.SetActive(true);
-            foreach (var pop in discovery.GetComponentsInChildren<PopIn>(true)) { pop.fromScale = 1f; pop.overshoot = 1f; }
-
-            // Scene 10 has only the table on the board, so the graph is not there at the cut: it pops onto the board
-            // in the first beat (soft PopIn on the canvas and its chalk-framed panel).
-            foreach (var name in new[] { "Graph", "Graph Panel" })
-            {
-                var pop = refs[name].AddComponent<PopIn>();
-                pop.duration = 0.5f;
-                pop.fromScale = 0.6f;
-                pop.overshoot = 1.04f;
-                refs[name].SetActive(false);
-            }
-            ColumnsBecomeAxes();
-            LineDraw();
-            for (int i = 0; i < data.Count; i++) PointSpark(i);
-            GraphPulse();
-            Marker("Graph Pair", GraphPoint((data.currents[0] + data.currents[1]) / 2, (data.voltages[0] + data.voltages[1]) / 2, FxLift));
-
-            // V ∝ I: the formula glows at the top of the line, the line's destination (right of it, under its end, clear of
-            // point 5's up-left label), inside the graph panel, lying on the board like the canvases (a Face() toward the
-            // camera would tilt its far edge into the slab). Scene 12 rebuilds it identically (settled, no sparks).
-            var card = Card("Proportional", "V ∝ I", palette.voltage, null, GraphPoint(CardAmps, CardVolts, CardLift), BoardsShotTitleCap, WorldText.Look.Glow);
-            card.transform.rotation = BoardSurface(GraphBoardUV).rotation;
-
-            // Where Wattson points as S11_Target starts: the live readings strip above the graph (the I value and the target).
-            // Not at the line itself: pointing at the 0.60 A point would give the answer away.
-            Marker("Readings Point", BoardSurface(new Vector2(GraphBoardUV.x, ReadingsV), FxLift).position);
+            director.rig.showPath = false;
+            Vcam("Bench Study", Scene10Builder.StudyCamC, Scene10Builder.StudyLookC, Scene10Builder.StudyFov, refs["Bench Point"].transform, lensMedium);
         }
 
         protected override void Beats()
         {
-            Shot("Boards");
-            Cue("table.rows 5", "match-cut from Scene 10 with the full table on screen");
-            Cue("table.highlight 0 1", "rows 1 and 2 still highlighted from Scene 10's discovery; its V × 2 → I × 2 chalk still beside them");
-            Gesture(WattsonController.Gesture.Point, point: "Observation Table", moveTo: "Table Point");
-            Wait(0.5);
-            Hide("Board Discovery"); // the chalk makes way for the graph on the same frame
-            Show("Graph Panel");
-            Show("Graph");
-            Cue("table.clear", "the table hands its highlights over to the graph");
-            Show("[VFX] columns become axes");
-            Gesture(WattsonController.Gesture.Point, point: "Graph");
-            Visual("The graph panel pops onto the board; the I column's cells fly across to become the x-axis ticks, the V column's rise to become the y-axis ticks", 1.5);
-            Cue("graph.axes 1", "axes labelled: Current, I (A) horizontal · Potential Difference, V (V) vertical");
-            Hide("[VFX] columns become axes", 1.0);
-            Visual("Axis labels appear", 1.2);
-            for (int i = 1; i <= 5; i++)
-            {
-                Cue("graph.plot " + i, $"point {i} plots with its coordinate label");
-                Show("Graph Spark " + i);
-                Visual("", 0.6);
-            }
-            Show("Graph Line Sweep");
-            Cue("graph.line 1", "a glowing line draws through the points and the origin", LineSweep);
-            Show("Graph Line Glow", LineSweep);
-            Visual("Line through the origin", 1.0);
+            // Match-cut from Scene 10: the same data in the panel (the cues rebuild it), rows 1-2 still highlighted.
+            Shot("Bench Study");
+            Ambience("RoomTone");
+            Music("PadLab");
+            Cue("table.rows 5");
+            Cue("table.highlight 0 1");
+            Cue("readings 1");
+            Cue("graph.axes 1"); Cue("graph.plot 5");
+            Formula("V × 2   →   I × 2");
+            Gesture(WattsonController.Gesture.Point, point: "Panel Point");
+            Wait(0.4);
+            Cue("table.clear", "the table hands its highlights to the graph");
+            Cue("formula.clear");
+            Cue("graph.line 1", "the line sweeps out from the origin through every point, with the musical rise");
+            Visual("Line through the origin", 1.4);
             Gesture(WattsonController.Gesture.Greet);
             Line("S11_L01");
 
-            Gesture(WattsonController.Gesture.Point, point: "Graph Pair");
-            Cue("graph.highlight 0 1", "points (0.20, 1.0) and (0.40, 2.0) highlight with I → 2I and V → 2V tags");
-            Line("S11_L02");
-            Cue("graph.pulse", "graph pulse");
-            Show("[VFX] graph pulse");
-            Line("S11_L03");
-            Hide("[VFX] graph pulse");
-
-            Gesture(WattsonController.Gesture.Point, point: "Card Proportional"); // at the top of the line, where V ∝ I appears
-            // The state S11_L04 starts from, restated (no-ops on a straight run): REPLAY of this line from the activity's
-            // run-up below must not bring the card back over a live point.
-            Cue("graph.live 0", "", 0.05);
-            Cue("readings 0", "", 0.05);
-            Cue("graph.highlight 0 1", "", 0.05);
-            Hide("Card Proportional", 0.05);
+            Gesture(WattsonController.Gesture.Point, point: "Panel Point");
+            Cue("graph.highlight 0 1", "points (0.20, 1.0) and (0.40, 2.0) highlight");
+            Cue("table.highlight 0 1");
+            Line("S11_N01");
+            Cue("graph.pulse");
+            Cue("graph.clear");
+            Cue("table.clear");
+            Cue("panel Table 0", "the table steps aside: the graph and the law fill the panel");
             Line("S11_L04", 0.2);
-            Show("Card Proportional", -3.2); // on "...directly proportional..."
-            Visual("V ∝ I glows at the top of the line", 0.8);
-
-            // S11_Target: the learner uses the line. The pair highlights go (a clean plot to read; Scene 12 does not rebuild
-            // them) and the card steps aside: the bench is still at Scene 10's 5 V, so the live point starts on point 5 and
-            // its "now" label (right-below) would sit on the card's ∝. The readings strip and the live point come up on the
-            // Timeline (the gate would turn them on too), so a replay or skip lands on the same state.
-            Cue("graph.clear", "the I → 2I / V → 2V highlights go");
-            Hide("Card Proportional");
-            Cue("readings 1", "live V / I strip in the band above the graph's chalk frame: 5.0 V, 1.00 A (the bench as Scene 10 left it)");
-            Cue("graph.live 1", "the amber 'now' ring lands on point 5 (1.00, 5.0)");
-            Gesture(WattsonController.Gesture.Point, point: "Readings Point"); // "there": the strip as it appears
-            Visual("The live readings strip appears above the graph; the 'now' ring sits on the last point; Wattson points at the strip", 1.2);
-            // While the learner works he faces them, arms down: from his spot left of the table a held point at the graph
-            // would lie across the table's V column for the whole activity.
-            Gesture(WattsonController.Gesture.Idle);
-            Cue("spotlight", "the Ask Wattson button pulses once as he offers help (\"...or ask me!\")");
-            Gate("S11_Target", "Make the ammeter read 0.60 A with the battery slider (bottom-left, created and removed by the gate) or Ask Wattson. The strip shows V, I and the target; the 'now' ring and its ghost move on the graph. A held miss: '▲ more volts' / '▼ fewer volts' and S11_Target_H (once; 15 s idle also); 2nd miss: Wattson sets 3 V with S11_Target_X while point 3 lights. Hit: S11_Target_OK. Confident(Graph) after a first-time hit: bonus 0.80 A (S11_Target_GO2 / _X2 / _OK2). autoAnswer sets the target.",
-                "S11_Target_GO", "S11_Target_H", "S11_Target_X", "S11_Target_OK", "S11_Target_GO2", "S11_Target_X2", "S11_Target_OK2");
-            // The instruments go and V ∝ I comes back: the exit frame is the board as it was after S11_L04 (Scene 12's match-cut).
-            Cue("graph.live 0", "the live point and its ghost go");
-            Cue("readings 0", "the readings strip goes (it shares the band above the graph with Scene 12's cards)");
-            Show("Card Proportional", 0.2);
-            Wait(0.4);
+            Reveal("V ∝ I", "directly proportional, for this wire at constant temperature", -3.0);
+            Sfx("Rise", -3.0);
+            Visual("V ∝ I glows in the panel", 1.0);
             Gesture(WattsonController.Gesture.Thinking);
             Line("S11_L05", 0.2);
-            Cue("handoff", "graph and table stay for Scene 12");
-            Handoff("Scene11Complete", cut: true, afterSeconds: 0.4);
-        }
-
-        // ------------------------------------------------------------------ board geometry
-
-        // World position of a table cell's centre (column 0 = V, 1 = I; row 0 = the first reading).
-        Vector3 TableCell(int column, int row, float lift)
-        {
-            var (pos, rot) = BoardSurface(TableBoardUV, lift);
-            var px = new Vector2(TableColumnX[column] - TableCanvas.x / 2, TableCanvas.y / 2 - ObservationTableUI.HeaderRow - (row + 0.5f) * ObservationTableUI.RowHeight);
-            return pos + rot * (Vector3)(px * BoardCanvasScale);
-        }
-
-        void GraphMaterials()
-        {
-            amber = Glow("Glow_GraphCurrent", Hdr(palette.current, 3f));
-            blue = Glow("Glow_GraphVoltage", Hdr(palette.voltage, 3f));
-            lineGlow = Glow("Glow_GraphLine", Hdr(palette.voltage, 2.2f), softTexture: false);
-            ringGlow = Glow("Glow_GraphRing", Hdr(palette.current, 3f), softTexture: false);
-            pointGlow = Glow("Glow_Spark_" + ColorUtility.ToHtmlStringRGB(palette.charge), Hdr(palette.charge, 4f));
-        }
-
-        // ------------------------------------------------------------------ effects
-
-        // "[VFX] columns become axes", in place of the Boards kit's magenta tag at the seam: each cell of the table's
-        // I column slides across to its tick on the graph's x-axis and each V cell rises to its tick on the y-axis
-        // (glowing clouds the size of the digits, straight flight), then both axes flash as the cells land and
-        // graph.axes shows the real ones. Plays whenever the object is shown; the cue hides it after.
-        void ColumnsBecomeAxes()
-        {
-            const string name = "[VFX] columns become axes";
-            var set = refs["Boards Set"].transform;
-            var (seam, rot) = BoardSurface(new Vector2(0.505f, 0.5f), FxLift);
-            if (refs.TryGetValue(name, out var tag)) Object.DestroyImmediate(tag);
-            var root = Ref(Node(name, set, set.InverseTransformPoint(seam)));
-            root.transform.rotation = rot;
-            for (int r = 0; r < data.Count; r++)
-            {
-                CellFlight(root.transform, "I " + (r + 1), amber, TableCell(1, r, FxLift), GraphPoint(data.currents[r], 0, FxLift), new Vector2(0.12f, 0.07f));
-                CellFlight(root.transform, "V " + (r + 1), blue, TableCell(0, r, FxLift), GraphPoint(0, data.voltages[r], FxLift), new Vector2(0.06f, 0.07f));
-            }
-            AxisFlash(root.transform, "X Axis", amber, GraphPoint(0, 0, FxLift), GraphPoint(GraphUI.MaxI, 0, FxLift));
-            AxisFlash(root.transform, "Y Axis", blue, GraphPoint(0, 0, FxLift), GraphPoint(0, GraphUI.MaxV, FxLift));
-            Calm(root);
-            root.SetActive(false);
-        }
-
-        // The graph effects are activated by plain `show` cues (no Soften from the fx cue), so each root reads reduced motion
-        // itself: about a third of the sparks, dimmer (Soften's 0.35).
-        static void Calm(GameObject root) => root.AddComponent<ReducedMotionFx>().calm = 0.35f;
-
-        // A cloud of sparks the size of a cell's digits, flying in a straight line from the cell to its tick.
-        void CellFlight(Transform root, string name, Material glow, Vector3 from, Vector3 to, Vector2 size) =>
-            Emitter("Cell " + name, root, root.InverseTransformPoint(from), glow, ps =>
-            {
-                var main = ps.main;
-                main.loop = false;
-                main.duration = ColumnsFlight;
-                main.startLifetime = ColumnsFlight + 0.1f;
-                main.startSpeed = 0f;
-                main.startSize = new ParticleSystem.MinMaxCurve(0.028f, 0.042f);
-                main.maxParticles = 32;
-                var emission = ps.emission;
-                emission.rateOverTime = 0f;
-                emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 20) });
-                var shape = ps.shape;
-                shape.shapeType = ParticleSystemShapeType.Box;
-                shape.scale = new Vector3(size.x, size.y, 0.005f);
-                var velocity = ps.velocityOverLifetime;
-                velocity.enabled = true;
-                velocity.space = ParticleSystemSimulationSpace.Local;
-                var v = root.InverseTransformVector(to - from) / ColumnsFlight;
-                velocity.x = v.x;
-                velocity.y = v.y;
-                velocity.z = v.z;
-                Hold(ps);
-            });
-
-        // Sparks along an axis the moment the cells land on it.
-        void AxisFlash(Transform root, string name, Material glow, Vector3 a, Vector3 b) =>
-            Emitter(name + " Flash", root, root.InverseTransformPoint((a + b) / 2), glow, ps =>
-            {
-                var main = ps.main;
-                main.loop = false;
-                main.duration = ColumnsFlight + 0.5f;
-                main.startLifetime = new ParticleSystem.MinMaxCurve(0.25f, 0.45f);
-                main.startSpeed = new ParticleSystem.MinMaxCurve(0.1f, 0.35f);
-                main.startSize = new ParticleSystem.MinMaxCurve(0.012f, 0.03f);
-                main.maxParticles = 64;
-                var emission = ps.emission;
-                emission.rateOverTime = 0f;
-                emission.SetBursts(new[] { new ParticleSystem.Burst(ColumnsFlight, 48) });
-                var shape = ps.shape;
-                shape.shapeType = ParticleSystemShapeType.Box;
-                var along = root.InverseTransformVector(b - a);
-                shape.scale = new Vector3(Mathf.Abs(along.x) + 0.02f, Mathf.Abs(along.y) + 0.02f, 0.005f);
-                shape.randomDirectionAmount = 1f;
-            });
-
-        // The line draws itself: one bright head runs from the origin past the last point, trailing the line behind
-        // it ("Graph Line Sweep"); as it arrives, graph.line shows the real line and "Graph Line Glow", a thin additive
-        // strand over it, keeps it blooming (UI images do not).
-        void LineDraw()
-        {
-            var set = refs["Boards Set"].transform;
-            Vector3 origin = GraphPoint(0, 0, GlowLift), end = GraphPoint(1.1f, 1.1f * data.resistance, GlowLift);
-            var glow = Polyline("Graph Line Glow", set, lineGlow, 0.014f, false, true, origin, end); // ~7 px over the 5 px UI line
-            glow.gameObject.SetActive(false);
-            Ref(glow.gameObject);
-            var sweep = Emitter("Graph Line Sweep", set, set.InverseTransformPoint(origin), blue, ps =>
-            {
-                var main = ps.main;
-                main.loop = false;
-                main.duration = LineSweep;
-                main.startLifetime = LineSweep;
-                main.startSpeed = 0f;
-                main.startSize = 0.05f;
-                main.maxParticles = 2;
-                var emission = ps.emission;
-                emission.rateOverTime = 0f;
-                emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 1) });
-                var shape = ps.shape;
-                shape.enabled = false;
-                var velocity = ps.velocityOverLifetime;
-                velocity.enabled = true;
-                velocity.space = ParticleSystemSimulationSpace.Local;
-                var v = set.InverseTransformVector(end - origin) / LineSweep;
-                velocity.x = v.x;
-                velocity.y = v.y;
-                velocity.z = v.z;
-                var trails = ps.trails;
-                trails.enabled = true;
-                trails.lifetime = 1f; // the whole run stays lit until the head dies, exactly when the real line appears
-                trails.minVertexDistance = 0.005f;
-                trails.widthOverTrail = 0.4f;
-                trails.inheritParticleColor = false;
-                ps.GetComponent<ParticleSystemRenderer>().trailMaterial = lineGlow;
-                Hold(ps);
-            });
-            Calm(sweep.gameObject);
-            sweep.gameObject.SetActive(false);
-            Ref(sweep.gameObject);
-        }
-
-        // A small burst where a point lands as it plots ("Graph Spark n", shown with graph.plot n).
-        void PointSpark(int i)
-        {
-            var set = refs["Boards Set"].transform;
-            var spark = Emitter("Graph Spark " + (i + 1), set, set.InverseTransformPoint(GraphPoint(data.currents[i], data.voltages[i], FxLift)), pointGlow, ps =>
-            {
-                var main = ps.main;
-                main.loop = false;
-                main.duration = 0.6f;
-                main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.55f);
-                main.startSpeed = new ParticleSystem.MinMaxCurve(0.15f, 0.5f);
-                main.startSize = new ParticleSystem.MinMaxCurve(0.008f, 0.02f);
-                main.gravityModifier = 0.25f;
-                main.maxParticles = 32;
-                var emission = ps.emission;
-                emission.rateOverTime = 0f;
-                emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 24) });
-                var shape = ps.shape;
-                shape.shapeType = ParticleSystemShapeType.Sphere;
-                shape.radius = 0.015f;
-            });
-            Calm(spark.gameObject);
-            spark.gameObject.SetActive(false);
-            Ref(spark.gameObject);
-        }
-
-        // "[VFX] graph pulse", in place of the magenta tag: rings pulse twice out of the two highlighted points
-        // (I → 2I, V → 2V) with a spark burst each while graph.pulse breathes the plot. Hidden; cues frame S11_L03 with it.
-        void GraphPulse()
-        {
-            var set = refs["Boards Set"].transform;
-            var (centre, rot) = BoardSurface(GraphBoardUV, FxLift);
-            var root = Ref(Node("[VFX] graph pulse", set, set.InverseTransformPoint(centre)));
-            root.transform.rotation = rot;
-            var ring = Torus("GraphPulseRing", 0.12f);
-            for (int i = 0; i < 2; i++)
-            {
-                var at = root.transform.InverseTransformPoint(GraphPoint(data.currents[i], data.voltages[i], FxLift));
-                Emitter("Ring " + (i + 1), root.transform, at, ringGlow, ps =>
-                {
-                    var main = ps.main;
-                    main.loop = false;
-                    main.duration = 1.4f;
-                    main.startLifetime = 0.7f;
-                    main.startSpeed = 0f;
-                    main.startSize = 0.16f; // the torus is unit-radius: the ring grows to 0.16 m, half-way to the next point
-                    main.maxParticles = 4;
-                    var emission = ps.emission;
-                    emission.rateOverTime = 0f;
-                    emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 1), new ParticleSystem.Burst(0.6f, 1) });
-                    var shape = ps.shape;
-                    shape.enabled = false;
-                    var size = ps.sizeOverLifetime;
-                    size.enabled = true;
-                    size.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.15f, 1f, 1f));
-                    var renderer = ps.GetComponent<ParticleSystemRenderer>();
-                    renderer.renderMode = ParticleSystemRenderMode.Mesh;
-                    renderer.mesh = ring;
-                    renderer.alignment = ParticleSystemRenderSpace.Local; // lies in the board plane, facing the room
-                });
-                Emitter("Sparks " + (i + 1), root.transform, at, amber, ps =>
-                {
-                    var main = ps.main;
-                    main.loop = false;
-                    main.duration = 1.4f;
-                    main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.6f);
-                    main.startSpeed = new ParticleSystem.MinMaxCurve(0.2f, 0.6f);
-                    main.startSize = new ParticleSystem.MinMaxCurve(0.01f, 0.025f);
-                    main.gravityModifier = 0.2f;
-                    main.maxParticles = 64;
-                    var emission = ps.emission;
-                    emission.rateOverTime = 0f;
-                    emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 24), new ParticleSystem.Burst(0.6f, 24) });
-                    var shape = ps.shape;
-                    shape.shapeType = ParticleSystemShapeType.Sphere;
-                    shape.radius = 0.02f;
-                });
-            }
-            Calm(root);
-            root.SetActive(false);
-        }
-
-        // Bright all the way, out in the last tenth (Emitter's default fades the whole second half of the life).
-        static void Hold(ParticleSystem ps)
-        {
-            var fade = ps.colorOverLifetime;
-            var gradient = new Gradient();
-            gradient.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) },
-                new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.08f), new GradientAlphaKey(1, 0.88f), new GradientAlphaKey(0, 1) });
-            fade.color = gradient;
+            Cue("handoff", "the data stays for Scene 12");
+            Handoff("Scene11Complete", cut: true, afterSeconds: 0.3);
         }
     }
 }

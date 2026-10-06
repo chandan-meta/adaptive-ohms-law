@@ -21,5 +21,5 @@ MonoBehaviour:
     other, tripling one triples the other, and so on. Our table shows exactly that:
     double the volts, double the amperes. Scientists write it with the symbol V \u221D
     I."
-  vo: {fileID: 8300000, guid: 73a86327cd69b404a9ef5a13e06e56af, type: 3}
+  vo: {fileID: 8300000, guid: 90930dd18b10ee84e8c103c8727bc06c, type: 3}
   fallbackDuration: 14

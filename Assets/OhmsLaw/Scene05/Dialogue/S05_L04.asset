@@ -18,5 +18,5 @@ MonoBehaviour:
     two points."
   ttsText: "The battery creates a potential difference \u2014 voltage \u2014 between
     two points."
-  vo: {fileID: 8300000, guid: e6eb51de4518d0c42b0a60bb8c992fc5, type: 3}
+  vo: {fileID: 8300000, guid: 3b79539ccb502174490a604fa286bb29, type: 3}
   fallbackDuration: 5

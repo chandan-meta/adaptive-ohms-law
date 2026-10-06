@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -16,7 +17,9 @@ namespace OhmsLaw.Editor
     // The one voice bake for every scene: Scene 4, the blockouts 5-13 and the test scene, proposed lines included.
     // - With the Wattson proxy running and an ElevenLabs key set: each line goes through /tts and lands as "<id>.mp3" in its
     //   scene's Audio/VO (lines under Shared, such as Agent_Offline, go to Scene 4's). That is the real voice; BlockoutAssets.FindVo prefers it.
-    // - Without it: a line with no clip gets "scratch_<id>.wav" from the clearest local voice, so timing works before keys exist.
+    // - Without it: the lines go through edge-tts (Microsoft's free neural voices, EdgeVoice at the end of this file; python and
+    //   internet, no key), one batched run per scene, and land as the same "<id>.mp3". Scratch clips those lines had are removed.
+    // - Without edge-tts either: a line with no clip gets "scratch_<id>.wav" from the clearest local voice, so timing still works.
     // - A voice actor's "<id>.wav" / "<id>.ogg" is never touched.
     // Text-to-speech gets PronunciationLexicon.ForSpeech(text); subtitles never change. Each clip remembers the words and the
     // voice it was made from (importer userData), so a re-bake redoes only lines whose words or voice settings changed, and
@@ -49,23 +52,28 @@ namespace OhmsLaw.Editor
         {
             AssetDatabase.Refresh(); // picks up clips renamed or dropped in outside Unity
             var config = AssetDatabase.LoadAssetAtPath<ProxyConfig>(BlockoutAssets.Shared + "/Agent/ProxyConfig.asset");
-            string voice = config ? ProxyVoice(config) : null; // null: no proxy with an ElevenLabs key, so scratch voice only
-            Debug.Log(voice != null
-                ? $"Bake VO: real voice through {config.BaseUrl} ({voice})."
-                : "Bake VO: no proxy with an ElevenLabs key; lines without a clip get the local scratch voice. See Server/wattson-proxy/README.md.");
+            string voice = config ? ProxyVoice(config) : null; // null: no proxy with an ElevenLabs key, so the edge voice speaks
+            bool edge = voice == null;
+            if (edge) voice = EdgeVoice.Signature;
+            edgeUnavailable = false;
+            Debug.Log(edge
+                ? $"Bake VO: no proxy with an ElevenLabs key; neural voice through edge-tts ({voice}). For the real one see Server/wattson-proxy/README.md."
+                : $"Bake VO: real voice through {config.BaseUrl} ({voice}).");
             var rebuild = new List<string>();
+            bool stoppedEarly = false;
             try
             {
                 foreach (var sceneId in sceneIds)
                 {
                     var (changed, stopped) = BakeScene(sceneId, config, voice);
                     if (changed) rebuild.Add(sceneId);
-                    if (stopped) break;
+                    if (stopped) { stoppedEarly = true; break; }
                 }
             }
             finally { EditorUtility.ClearProgressBar(); }
             AssetDatabase.SaveAssets();
             foreach (var sceneId in rebuild) Rebuild(sceneId);
+            if (!stoppedEarly) RemoveScratch(sceneIds); // a stopped bake may hold clips its lines are not pointed at yet; the next full pass cleans up
         }
 
         static (bool changed, bool stopped) BakeScene(string sceneId, ProxyConfig config, string voice)
@@ -80,6 +88,17 @@ namespace OhmsLaw.Editor
             Directory.CreateDirectory(vo);
             var byId = lines.ToDictionary(line => line.id);
 
+            // The edge voice speaks the whole scene in one run first; the loop below then finds those clips in place.
+            bool edge = EdgeVoice.Is(voice);
+            var fresh = new HashSet<string>(StringComparer.Ordinal); // ids the edge batch just gave a new mp3
+            if (edge && !edgeUnavailable && !EdgeBatch(sceneId, vo, voice, lines, fresh))
+            {
+                edgeUnavailable = true;
+                Debug.LogWarning("Bake VO: edge-tts made no clip (it needs python with the edge-tts package on PATH, and internet). " +
+                                 "Lines without a clip get the local scratch voice for the rest of this bake.");
+            }
+            if (edge && edgeUnavailable) voice = null; // the scratch path below
+
             int real = 0, scratch = 0, actor = 0, failed = 0, made = 0;
             bool changed = false, stopped = false;
             for (int i = 0; i < lines.Length && !stopped; i++)
@@ -93,7 +112,9 @@ namespace OhmsLaw.Editor
                 else if (voice != null)
                 {
                     string stamp = Stamp(speech, voice);
-                    if (File.Exists(mp3) && StampOf(mp3) == stamp) real++;
+                    if (fresh.Contains(line.id)) { real++; made++; }
+                    else if (File.Exists(mp3) && StampOf(mp3) == stamp) real++;
+                    else if (edge) failed++; // edge_bake.py reported it; see the warning above
                     else
                     {
                         var body = new TtsBody { text = speech, previous_text = Neighbour(byId, line.id, -1), next_text = Neighbour(byId, line.id, +1) };
@@ -137,6 +158,23 @@ namespace OhmsLaw.Editor
             if (sceneId == Scene04) { Scene04Builder.Build(); return; }
             var builder = BlockoutAssets.Builders().FirstOrDefault(b => b.SceneId == sceneId);
             if (builder != null) builder.Build();
+        }
+
+        // Ohm's Law/Bake VO/Remove scratch clips: every scratch_<id>.wav with a real <id>.mp3 beside it goes (its .meta too), so no
+        // old-voice clip lingers once a line is spoken for real. Run does the same for the scenes it baked.
+        [MenuItem("Ohm's Law/Bake VO/Remove scratch clips")]
+        public static void RemoveScratch() => RemoveScratch(Directory.GetDirectories(BlockoutAssets.Root).Select(Path.GetFileName));
+
+        static void RemoveScratch(IEnumerable<string> sceneIds)
+        {
+            int count = 0;
+            foreach (var vo in sceneIds.Select(id => BlockoutAssets.Root + "/" + id + "/Audio/VO").Where(Directory.Exists))
+                foreach (var wav in Directory.GetFiles(vo, "scratch_*.wav").Select(path => path.Replace('\\', '/')))
+                {
+                    string id = Path.GetFileNameWithoutExtension(wav).Substring("scratch_".Length);
+                    if (File.Exists(vo + "/" + id + ".mp3") && AssetDatabase.DeleteAsset(wav)) count++;
+                }
+            Debug.Log($"Removed {count} scratch clip(s) whose line now has a real voice.");
         }
 
         // ------------------------------------------------------------------ clip stamps
@@ -221,6 +259,48 @@ namespace OhmsLaw.Editor
             return Result.Ok;
         }
 
+        // ------------------------------------------------------------------ edge-tts (neural voice, no key)
+
+        [Serializable] class EdgeLine { public string id, text, @out; }
+        static bool edgeUnavailable; // set for the rest of a Run once edge_bake.py could not make a single clip
+
+        // One edge-tts run for every line of the scene whose mp3 is missing or stale: the manifest goes to the temp folder,
+        // Tools/edge_bake.py speaks the lines four at a time, and each clip it reports OK is imported with its stamp and its id
+        // added to "fresh". False only when the script failed without making anything, so the caller falls back to the scratch voice.
+        static bool EdgeBatch(string sceneId, string vo, string voice, DialogueLine[] lines, HashSet<string> fresh)
+        {
+            var pending = new List<(string id, string speech, string mp3)>();
+            foreach (var line in lines)
+            {
+                if (File.Exists(vo + "/" + line.id + ".wav") || File.Exists(vo + "/" + line.id + ".ogg")) continue; // voice actor
+                string speech = PronunciationLexicon.ForSpeech(line.Spoken), mp3 = vo + "/" + line.id + ".mp3";
+                if (!File.Exists(mp3) || StampOf(mp3) != Stamp(speech, voice)) pending.Add((line.id, speech, mp3));
+            }
+            if (pending.Count == 0) return true;
+
+            EditorUtility.DisplayProgressBar("Bake VO " + sceneId, $"edge-tts: speaking {pending.Count} line(s) as {EdgeVoice.Name}...", 0f);
+            string manifest = Path.Combine(Path.GetTempPath(), "ohm_edge_" + sceneId + ".json");
+            File.WriteAllText(manifest, "[" + string.Join(",", pending.Select(p => JsonUtility.ToJson(new EdgeLine { id = p.id, text = p.speech, @out = Path.GetFullPath(p.mp3) }))) + "]",
+                              new UTF8Encoding(false));
+            string script = Path.Combine(Path.GetDirectoryName(Application.dataPath), "Tools", "edge_bake.py");
+            var output = new StringBuilder();
+            bool ok;
+            try { ok = Run("python", $"\"{script}\" \"{manifest}\" --voice={EdgeVoice.Name} --rate={EdgeVoice.Rate} --pitch={EdgeVoice.Pitch}", 600000, output); }
+            catch (Exception e) { Debug.LogWarning("edge-tts could not start: " + e.Message); ok = false; }
+
+            var spoken = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var raw in output.ToString().Split('\n'))
+            {
+                string text = raw.Trim();
+                if (text.StartsWith("OK ")) spoken.Add(text.Substring(3));
+                else if (text.StartsWith("FAIL ")) Debug.LogWarning("edge-tts failed for " + text.Substring(5));
+            }
+            EditorUtility.DisplayProgressBar("Bake VO " + sceneId, $"edge-tts: importing {spoken.Count} clip(s)", 0f);
+            foreach (var (id, speech, mp3) in pending)
+                if (spoken.Contains(id) && File.Exists(mp3)) { Import(mp3, Stamp(speech, voice)); fresh.Add(id); }
+            return ok || fresh.Count > 0;
+        }
+
         // ------------------------------------------------------------------ local scratch voice
 
         // Windows: the OneCore voice "Microsoft Mark" (WinRT), the clearest and youngest-sounding male voice that ships with
@@ -280,13 +360,21 @@ $s.Dispose()
             catch (Exception e) { Debug.LogWarning("Local text-to-speech unavailable: " + e.Message); return false; }
         }
 
-        static bool Run(string file, string args)
+        // Runs a tool to completion, a minute by default; "output" collects its standard output when given.
+        static bool Run(string file, string args, int timeoutMs = 60000, StringBuilder output = null)
         {
-            using var process = Process.Start(new ProcessStartInfo(file, args) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true });
+            var info = new ProcessStartInfo(file, args) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = output != null };
+            if (output != null) info.StandardOutputEncoding = Encoding.UTF8;
+            using var process = Process.Start(info);
             if (process == null) return false;
-            string error = process.StandardError.ReadToEnd();
-            process.WaitForExit(60000);
-            if (process.ExitCode != 0) Debug.LogWarning($"{file} failed: {error}");
+            var error = Task.Run(() => process.StandardError.ReadToEnd()); // both pipes drain while we wait, so neither fills and stalls the tool
+            var stdout = output != null ? Task.Run(() => process.StandardOutput.ReadToEnd()) : null;
+            bool exited = process.WaitForExit(timeoutMs);
+            if (!exited) { try { process.Kill(); } catch { } }
+            if (stdout != null) output.Append(stdout.Result);
+            string err = error.Result; // both pipes close with the process, killed or not
+            if (!exited) { Debug.LogWarning($"{file} did not finish within {timeoutMs / 1000} s and was stopped."); return false; }
+            if (process.ExitCode != 0) Debug.LogWarning($"{file} failed: {err}");
             return process.ExitCode == 0;
         }
 
@@ -371,5 +459,14 @@ $s.Dispose()
 
             Debug.Log(fails == 0 ? "PASS Voice Pipeline: all checks passed" : $"FAIL Voice Pipeline: {fails} check(s) failed");
         }
+    }
+
+    // Microsoft's neural "Ana" (a bright, young voice) through the free edge-tts endpoint: Wattson's voice until an ElevenLabs key
+    // exists. Changing any constant changes the signature, so the next bake redoes every edge clip.
+    public static class EdgeVoice
+    {
+        public const string Name = "en-US-AnaNeural", Rate = "+10%", Pitch = "-4Hz";
+        public static string Signature => "edge:" + Name + "|" + Rate + "|" + Pitch;
+        public static bool Is(string voice) => voice != null && voice.StartsWith("edge:");
     }
 }

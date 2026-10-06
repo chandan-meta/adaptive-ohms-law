@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Everything we're measuring revolves around this wire.
   ttsText: Everything we're measuring revolves around this wire.
-  vo: {fileID: 8300000, guid: e7ff938a8bf2c61418eefb56a77053c4, type: 3}
+  vo: {fileID: 8300000, guid: 090021d7178f3664eac4da9b77e7d1fe, type: 3}
   fallbackDuration: 3.2

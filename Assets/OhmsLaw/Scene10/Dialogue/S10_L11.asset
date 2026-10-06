@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Now we're getting somewhere.
   ttsText: Now we're getting somewhere.
-  vo: {fileID: 8300000, guid: e67fa31f064a2e04a808281bfe333127, type: 3}
+  vo: {fileID: 8300000, guid: bd83b07793f52b84b861ca50c58a3f62, type: 3}
   fallbackDuration: 2

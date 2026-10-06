@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: This is the blockout framework test. One line, one question, one hand-off.
   ttsText: This is the blockout framework test. One line, one question, one hand-off.
-  vo: {fileID: 8300000, guid: 3701327193c37e049b346840fea36b12, type: 3}
+  vo: {fileID: 8300000, guid: 88741eb3b9be89246bd145c1cfeeda59, type: 3}
   fallbackDuration: 4.5

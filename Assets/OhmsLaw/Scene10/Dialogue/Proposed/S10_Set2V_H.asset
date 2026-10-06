@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
   id: S10_Set2V_H
   speaker: WATTSON
-  text: Slide the knob to the 2 V tick.
-  ttsText: Slide the knob to the 2 V tick.
-  vo: {fileID: 8300000, guid: 026ef03a05df6f2498c384da00e3c444, type: 3}
-  fallbackDuration: 2.4
+  text: Tap the 2 V button.
+  ttsText: Tap the 2 V button.
+  vo: {fileID: 8300000, guid: 8d33f518ce7458447ac28de3c13321e5, type: 3}
+  fallbackDuration: 1.8

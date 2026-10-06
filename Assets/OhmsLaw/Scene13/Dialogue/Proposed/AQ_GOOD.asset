@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Case closed, detective.
   ttsText: Case closed, detective.
-  vo: {fileID: 8300000, guid: 52a7d35b80765a44cacbb751b2ff7dff, type: 3}
+  vo: {fileID: 8300000, guid: f035c3d0b9fee204693342d8921ff808, type: 3}
   fallbackDuration: 1.8

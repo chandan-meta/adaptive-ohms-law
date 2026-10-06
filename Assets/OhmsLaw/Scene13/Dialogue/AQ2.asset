@@ -18,5 +18,5 @@ MonoBehaviour:
     Which has greater resistance?
   ttsText: Two conductors carry the same current. One requires a larger potential
     difference. Which has greater resistance?
-  vo: {fileID: 8300000, guid: 3268a28efacf0bc439d3fd5904aba2c2, type: 3}
+  vo: {fileID: 8300000, guid: 2569a8508fee15a45a881c829f2217b1, type: 3}
   fallbackDuration: 6.5

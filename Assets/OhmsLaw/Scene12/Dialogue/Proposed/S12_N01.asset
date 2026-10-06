@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: S12_N01
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: S12_N01
+  speaker: WATTSON
+  text: Keep the voltage the same, but change the wire material. This one allows
+    more current. The other opposes the flow more.
+  ttsText: Keep the voltage the same, but change the wire material. This one allows
+    more current. The other opposes the flow more.
+  vo: {fileID: 8300000, guid: 328f21f77d4044248ac83ed4b6492ce6, type: 3}
+  fallbackDuration: 6.5

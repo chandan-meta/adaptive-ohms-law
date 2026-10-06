@@ -20,5 +20,5 @@ MonoBehaviour:
   ttsText: Nichrome is an alloy, a metal mixture of mostly nickel and chromium. It
     is tough, it does not rust, and it behaves very steadily in experiments like
     ours, which is exactly why school labs use a nichrome wire as the test conductor.
-  vo: {fileID: 8300000, guid: 28733a8608e4bee4b826100e35373c68, type: 3}
+  vo: {fileID: 8300000, guid: 985c67cbb7458754eb85c1d58b764afa, type: 3}
   fallbackDuration: 14

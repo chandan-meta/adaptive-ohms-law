@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'Careful: needing more push means it resists more, not less.'
   ttsText: 'Careful: needing more push means it resists more, not less.'
-  vo: {fileID: 8300000, guid: 7bc2ed56d2b5c4140830ff09ff3e0c6a, type: 3}
+  vo: {fileID: 8300000, guid: 89fe12c26e2733148888714a61197e5c, type: 3}
   fallbackDuration: 3.6

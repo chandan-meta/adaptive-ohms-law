@@ -20,5 +20,5 @@ MonoBehaviour:
   ttsText: 'One ampere means one coulomb of charge crossing a section of the wire
     every second, and one coulomb is about six billion billion electrons. Our counter
     is doing exactly that job: counting charge per second.'
-  vo: {fileID: 8300000, guid: 530d538ee45f96143ab2d9195ca7b4e9, type: 3}
+  vo: {fileID: 8300000, guid: 433eadda33d8bab4ebc14bdea565dcdf, type: 3}
   fallbackDuration: 12.771999

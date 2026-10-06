@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: He wanted to know how these two are connected.
   ttsText: He wanted to know how these two are connected.
-  vo: {fileID: 8300000, guid: 916d54a54a48e2e4ba1d82f8bf992885, type: 3}
+  vo: {fileID: 8300000, guid: 2c2e51e2463c7e54fa57319bd020decb, type: 3}
   fallbackDuration: 3

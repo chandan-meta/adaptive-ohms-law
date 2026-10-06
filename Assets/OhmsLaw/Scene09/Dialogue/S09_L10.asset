@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Investigation ready.
   ttsText: Investigation ready.
-  vo: {fileID: 8300000, guid: d62abae0f2ad33f44bd5fec456a5591d, type: 3}
+  vo: {fileID: 8300000, guid: d9cded15d20d76f4cb694e88ea95f1ec, type: 3}
   fallbackDuration: 1.6

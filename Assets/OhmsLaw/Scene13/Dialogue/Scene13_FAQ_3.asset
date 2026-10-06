@@ -20,5 +20,5 @@ MonoBehaviour:
   ttsText: Georg Simon Ohm was a German teacher and physicist, born in 1789. He built
     much of his own equipment, measured patiently for years, and published this relationship
     in 1827. The unit of resistance, the ohm, is named in his honour.
-  vo: {fileID: 8300000, guid: 754e7c9cb62da2d44a8b64d4581ba99f, type: 3}
+  vo: {fileID: 8300000, guid: cc737637d65598141b097d4713d5e112, type: 3}
   fallbackDuration: 14

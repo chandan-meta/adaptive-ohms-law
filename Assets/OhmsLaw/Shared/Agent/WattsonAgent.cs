@@ -39,6 +39,7 @@ namespace OhmsLaw
 
         public State Current { get; private set; }
         public bool Offline { get; private set; }            // the chat proxy could not be reached last time
+        public bool LiveAnswered { get; private set; }       // the chat proxy has answered at least once this session
         // The proxy is up but answered "rate_limited" / "busy": saved answers until its Retry-After has passed or a live
         // answer arrives. Labelled RESTING, not OFFLINE, because that is what is true.
         public bool Resting => Time.realtimeSinceStartup < restUntil;
@@ -166,6 +167,7 @@ namespace OhmsLaw
                         SetState(State.Thinking);
                         string answer = await Answer(question, cancel);
                         Offline = false;
+                        LiveAnswered = true;
                         restUntil = 0;
                         if (answer != null) Remember(question, answer); // null: cut short, never shown to the model as a whole turn
                     }
@@ -331,8 +333,10 @@ namespace OhmsLaw
             parts.Add(WattsonActions.ResistanceState(live));
 
             parts.Add(SceneDirector.Gate != null ? "Learner activity in progress: " + SceneDirector.Gate : "No learner activity right now; the story waits while the learner talks to you");
-            string prompt = ScreenText("SafeArea/Prompt");
+            string prompt = LessonPanel.Instance ? LessonPanel.Instance.CurrentInstruction : "";
             if (prompt.Length > 0) parts.Add("On-screen instruction: " + prompt);
+            string note = LessonPanel.Instance ? LessonPanel.Instance.CurrentInfo : "";
+            if (note.Length > 0) parts.Add("On-screen note: " + note);
             if (question.Length > 0) parts.Add("On-screen question the learner is answering: " + question);
 
             var rig = CircuitRig.Active;
@@ -342,7 +346,7 @@ namespace OhmsLaw
                 // Scenes 9-10 hide the digital plates until the 1 V baseline (rig.readoutsShown): the AI gets no number the screen does not show.
                 bench.Append(!rig.ammeterPlaced ? ", ammeter not connected yet" : !rig.readoutsShown ? ", ammeter connected, its reading is not shown yet" : ", ammeter reads " + WattsonActions.Amps(rig.Amps) + " A");
                 bench.Append(!rig.voltmeterPlaced ? ", voltmeter not connected yet" : !rig.readoutsShown ? ", voltmeter connected, its reading is not shown yet" : ", voltmeter reads " + WattsonActions.Volts(rig.Volts) + " V");
-                bench.Append(rig.controlsOpen ? ". The learner may change the voltage now (battery slider, or by asking you; whole volts 0-" + WattsonActions.Volts(SceneDirector.ControlsMax) + " V)" : ". The voltage controls are locked right now");
+                bench.Append(rig.controlsOpen ? ". The learner may change the voltage now (the voltage buttons, or by asking you; whole volts 0-" + WattsonActions.Volts(SceneDirector.ControlsMax) + " V)" : ". The voltage controls are locked right now");
                 if (rig.targetAmps >= 0) bench.Append(". Target activity: the learner must make the ammeter read " + WattsonActions.Amps(rig.targetAmps) + " A by choosing the voltage");
                 if (!Mathf.Approximately(rig.PreviousVoltage, rig.state.voltage)) bench.Append(". Previous source setting: " + WattsonActions.Volts(rig.PreviousVoltage) + " V");
                 parts.Add(bench.ToString());
@@ -367,20 +371,12 @@ namespace OhmsLaw
 
         static string Cap(string text, int max) => text.Length > max ? text.Substring(0, max) : text;
 
-        static string ScreenText(string path)
-        {
-            var flow = ModuleFlow.Instance;
-            var found = flow ? flow.transform.Find(path) : null;
-            var label = found ? found.GetComponentInChildren<TMP_Text>() : null;
-            return label ? label.text.Trim() : "";
-        }
-
         // The MCQ on screen: its question, then its options, then the hint after a wrong answer (MCQPanel creates the
         // question label first, "Option A", "Option B", ... next and the hint label last; both labels are named "Label").
         static string OnScreenQuestion()
         {
-            var flow = ModuleFlow.Instance;
-            var panel = flow ? flow.transform.Find("SafeArea/MCQ Panel") : null;
+            var lesson = LessonPanel.Instance;
+            var panel = lesson && lesson.Showing("MCQ") ? lesson.Block("MCQ").Find("MCQ Panel") : null;
             if (!panel) return "";
             string question = "", hint = "";
             var options = new List<string>();

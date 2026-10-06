@@ -287,7 +287,7 @@ namespace OhmsLaw
                 return bench.ResistanceTaught
                     ? "This experiment keeps the same nichrome wire, so its resistance stays at " + Volts(Ohms(bench)) + " ohms. You can change the voltage instead."
                     : "This experiment keeps the same nichrome wire, so its resistance stays the same. You can change the voltage instead.";
-            if (!bench.ControlsOpen) return "The battery control isn't open right now. When it is, use the slider or ask me to set the voltage.";
+            if (!bench.ControlsOpen) return "The battery control isn't open right now. When it is, tap a voltage button or ask me to set the voltage.";
             if (intent.kind == Kind.Unclear) return intent.note.Replace(Example, ExampleCommand(bench));
             if (intent.kind == Kind.Current) return CurrentReply(intent, bench);
 
@@ -488,7 +488,7 @@ namespace OhmsLaw
             if (!bench.Present) return "You can still tap a suggested question for a saved answer, or carry on with the case.";
             string s = $"Here's what I can see: the source is set to {Volts(bench.Voltage)} V";
             s += !bench.AmmeterIn ? "." : !bench.KeyClosed ? " and the key is open, so no current flows." : !bench.ReadoutsShown ? "." + ReadoutHidden : $" and the ammeter reads {Amps(bench.Amps)} A.";
-            if (bench.ControlsOpen) s += $" You can move the battery slider, or type \"{ExampleCommand(bench)}\": I can still do that without my radio.";
+            if (bench.ControlsOpen) s += $" You can tap a voltage button, or type \"{ExampleCommand(bench)}\": I can still do that without my radio.";
             return s;
         }
 

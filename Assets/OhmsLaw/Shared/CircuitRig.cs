@@ -73,10 +73,13 @@ namespace OhmsLaw
         public int pulseRepeats = 3;
 
         [Header("Learner input")]
-        [Tooltip("Part the learner may drag right now: \"ammeter\", \"voltmeter\" or empty.")] public string draggable = "";
+        [Tooltip("Part the learner may select right now: \"ammeter\", \"voltmeter\" or empty.")] public string draggable = "";
         public bool keyArmed;
+        // The part the learner has selected (tapped) and not yet placed: it lifts and waits for a tap on its slot.
+        public string SelectedPart { get; private set; } = "";
 
         public event Action<string> Placed;
+        public event Action<string> Selected;
         public event Action KeyClosed;
 
         float shownVolts, shownAmps, shownKnob;
@@ -84,7 +87,8 @@ namespace OhmsLaw
         Vector3 seriesGlowScale, parallelGlowScale, highlightScale;
         bool lampLit;
         Transform dragging;
-        Vector3 dragHome;
+        Vector3 dragHome, selectedHome;
+        Transform bench => transform;
         Vector2 pressAt;
         bool moving;
         Coroutine pulsing;
@@ -147,13 +151,9 @@ namespace OhmsLaw
         }
 
         // The X → Y pulse: shows the "[VFX] Pulse travels from X to Y" object; Update runs it and hides it again.
-        // The matching "[VFX]" screen panel comes up as it would for a cue, and leaves when the object hides.
         public void PlayPulse()
         {
-            if (!pulse) return;
-            pulse.SetActive(true);
-            var panels = CalloutLayer.Instance;
-            if (panels) panels.Vfx(pulse.name, true, pulse);
+            if (pulse) pulse.SetActive(true);
         }
 
         Transform Part(string part) => part == "ammeter" ? ammeter : part == "voltmeter" ? voltmeter : null;
@@ -162,6 +162,7 @@ namespace OhmsLaw
         {
             if (part == "ammeter") { ammeterPlaced = true; PlayPulse(); } else voltmeterPlaced = true;
             if (draggable == part) draggable = "";
+            if (SelectedPart == part) SelectedPart = "";
             Placed?.Invoke(part);
         }
 
@@ -212,6 +213,7 @@ namespace OhmsLaw
         void Update()
         {
             Pointing();
+            Lift();
 
             float ease = 1 - Mathf.Exp(-6f * Time.deltaTime);
             shownVolts = Mathf.Lerp(shownVolts, Volts, ease);
@@ -329,38 +331,65 @@ namespace OhmsLaw
             sourceBody.SetPropertyBlock(block, lampMaterialIndex);
         }
 
-        // Drag a part into its glowing slot, or just tap it. Tap the key to close the circuit. Mouse and touch. Nothing while
-        // the learner has pressed PAUSE (a part mid-drag waits where it is).
+        // Select the part with a tap (it lifts and its slot glows), then tap the slot to place it, or drag it there.
+        // Tap the key to close the circuit. Mouse and touch. Nothing while the learner has pressed PAUSE (a part
+        // mid-drag waits where it is).
         void Pointing()
         {
             var pointer = Pointer.current;
             var cam = Camera.main;
             if (pointer == null || !cam || ModuleFlow.UserPaused) return;
             Vector2 screen = pointer.position.ReadValue();
+            var part = Part(draggable);
+            var slot = draggable == "ammeter" ? ammeterSlot : draggable == "voltmeter" ? voltmeterSlot : null;
 
             if (pointer.press.wasPressedThisFrame && !(EventSystem.current && EventSystem.current.IsPointerOverGameObject()))
             {
                 if (!Physics.Raycast(cam.ScreenPointToRay(screen), out var hit, 50f)) return;
                 if (keyArmed && hit.transform.IsChildOf(key)) { CloseKey(); return; }
-                var part = Part(draggable);
-                if (part && hit.transform.IsChildOf(part)) { dragging = part; dragHome = part.position; pressAt = screen; moving = false; }
+                if (part && hit.transform.IsChildOf(part))
+                {
+                    if (SelectedPart != draggable) { SelectedPart = draggable; selectedHome = part.position; Selected?.Invoke(draggable); }
+                    dragging = part; dragHome = selectedHome; pressAt = screen; moving = false;
+                    return;
+                }
+                // The highlighted position: tapping the slot (or its glow) places the selected part.
+                if (part && slot && SelectedPart == draggable && (hit.transform.IsChildOf(slot) || hit.transform == bench) && SlotHit(cam, screen, slot))
+                    StartCoroutine(Fly(part, slot, draggable));
             }
             if (!dragging) return;
 
             if (pointer.press.isPressed)
             {
                 moving |= (screen - pressAt).magnitude > 18f;
-                var bench = new Plane(Vector3.up, dragHome + Vector3.up * 0.08f);
+                var plane = new Plane(Vector3.up, dragHome + Vector3.up * 0.08f);
                 var ray = cam.ScreenPointToRay(screen);
-                if (moving && bench.Raycast(ray, out float at)) dragging.position = ray.GetPoint(at);
+                if (moving && plane.Raycast(ray, out float at)) dragging.position = ray.GetPoint(at);
                 return;
             }
 
             var dropped = dragging;
             dragging = null;
-            var slot = dropped == ammeter ? ammeterSlot : voltmeterSlot;
-            if (!moving || Vector3.Distance(dropped.position, slot.position) < 0.2f) StartCoroutine(Fly(dropped, slot, draggable));
+            var target = dropped == ammeter ? ammeterSlot : voltmeterSlot;
+            if (!moving) return; // a tap: the part stays selected and lifted, waiting for the slot
+            if (Vector3.Distance(dropped.position, target.position) < 0.2f) StartCoroutine(Fly(dropped, target, draggable));
             else StartCoroutine(ShakeHome(dropped, dragHome));
+        }
+
+        // The slot's footprint on the bench top, generously: a tap within 0.22 m of the slot counts as the slot.
+        static bool SlotHit(Camera cam, Vector2 screen, Transform slot)
+        {
+            var plane = new Plane(Vector3.up, slot.position);
+            var ray = cam.ScreenPointToRay(screen);
+            return plane.Raycast(ray, out float at) && Vector3.Distance(ray.GetPoint(at), slot.position) < 0.22f;
+        }
+
+        // The selected part hovers a little above its place until it is placed or dragged.
+        void Lift()
+        {
+            var part = Part(SelectedPart);
+            if (!part || dragging || IsPlaced(SelectedPart)) return;
+            part.position = Vector3.Lerp(part.position, selectedHome + Vector3.up * (0.035f + 0.008f * Mathf.Sin(Time.time * 3f)), 1 - Mathf.Exp(-8f * Time.deltaTime));
         }
     }
 }

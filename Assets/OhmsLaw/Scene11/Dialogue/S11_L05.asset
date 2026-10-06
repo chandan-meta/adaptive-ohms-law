@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: But there's still one clue we haven't explained.
   ttsText: But there's still one clue we haven't explained.
-  vo: {fileID: 8300000, guid: fa5fcf9c02fd0394f8f1557e2026dcf6, type: 3}
+  vo: {fileID: 8300000, guid: 8d53940302725ca418765bd864fff314, type: 3}
   fallbackDuration: 2.8

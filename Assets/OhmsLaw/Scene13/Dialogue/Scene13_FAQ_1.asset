@@ -20,5 +20,5 @@ MonoBehaviour:
   ttsText: 'It says the potential difference across a conductor equals the current
     through it multiplied by its resistance. Our nichrome wire: 5 ohms times 0.2
     ampere gives 1 volt, 5 ohms times 1 ampere gives 5 volts. Three clues, one relationship.'
-  vo: {fileID: 8300000, guid: f0a6cc726a95f734fabf1a238f4f95aa, type: 3}
+  vo: {fileID: 8300000, guid: ccbdef347bd846445ad95b23a48d337c, type: 3}
   fallbackDuration: 14

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Your turn, detective. What is 3.0 divided by 0.60?
   ttsText: Your turn, detective. What is 3.0 divided by 0.60?
-  vo: {fileID: 8300000, guid: 7b72eb749ee01174eb438b3f58ff6457, type: 3}
+  vo: {fileID: 8300000, guid: d55be5fc73ea8fd469408a9f9db8a616, type: 3}
   fallbackDuration: 3.2

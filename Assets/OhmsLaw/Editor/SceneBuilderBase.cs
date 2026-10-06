@@ -90,6 +90,16 @@ namespace OhmsLaw.Editor
         protected void Show(string obj, double offset = 0) => Cue("show " + obj, "", offset);
         protected void Hide(string obj, double offset = 0) => Cue("hide " + obj, "", offset);
 
+        // Sound: a one-shot from the bank, the ambience bed, the music bed (crossfaded; "off" stops one).
+        protected void Sfx(string clip, double offset = 0) => Cue("sfx " + clip, "", offset);
+        protected void Ambience(string clip, double offset = 0) => Cue("ambience " + clip, "", offset);
+        protected void Music(string clip, double offset = 0) => Cue("music " + clip, "", offset);
+        // The lesson panel: the one instruction, a note (title | body), a formula line, a hero reveal (big | small).
+        protected void Instruction(string text, double offset = 0) => Cue("prompt " + text, "", offset);
+        protected void Info(string id, string title, string body) => Cue("callout show " + id, title + " / " + body);
+        protected void Formula(string text, double offset = 0) => Cue("formula " + text, "", offset);
+        protected void Reveal(string big, string small, double offset = 0) => Cue("reveal " + big + "|" + small, "", offset);
+
         protected void Shot(string camName, bool cut = false) => beats.Add(new Beat { kind = Kind.Camera, at = clock, id = camName, cut = cut });
 
         protected void Gesture(WattsonController.Gesture gesture, string look = "Main Camera", string point = null, string moveTo = null, bool gadget = false) =>
@@ -144,6 +154,15 @@ namespace OhmsLaw.Editor
             director.sfx = sfx;
             director.click = sounds["Click"];
             director.pop = sounds["Pop"];
+            // The whole synthesized bank, by clip name, for the "sfx" cue and the gates; two looping beds for the
+            // "ambience" and "music" cues (quiet, ducked under the voice like every other source).
+            director.sounds = sounds.Values.Where(c => c).ToArray();
+            director.ambience = Audio("Ambience", host.transform, AudioBus.Kind.Sfx);
+            director.ambience.loop = true;
+            director.ambience.GetComponent<AudioBus>().gain = 0.5f;
+            director.music = Audio("Music", host.transform, AudioBus.Kind.Music);
+            director.music.loop = true;
+            director.music.GetComponent<AudioBus>().gain = 0.35f;
             MainCamera();
 
             Stage();

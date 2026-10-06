@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: And when electric charge flows...
   ttsText: And when electric charge flows...
-  vo: {fileID: 8300000, guid: 32ce4908600c53b45804478a386ef8c2, type: 3}
+  vo: {fileID: 8300000, guid: 141420b79528c784288d75821440a925, type: 3}
   fallbackDuration: 2.4

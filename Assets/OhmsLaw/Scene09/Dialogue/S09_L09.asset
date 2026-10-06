@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
   id: S09_L09
   speaker: WATTSON
-  text: Click on the key to close the circuit.
-  ttsText: Click on the key to close the circuit.
-  vo: {fileID: 8300000, guid: b5c69feaa077c1748ab5b6130957ac9b, type: 3}
-  fallbackDuration: 2.8
+  text: Close the switch to complete the circuit.
+  ttsText: Close the switch to complete the circuit.
+  vo: {fileID: 8300000, guid: 686d8b1d8161a9d4c9ceb913ebd699b0, type: 3}
+  fallbackDuration: 2.4

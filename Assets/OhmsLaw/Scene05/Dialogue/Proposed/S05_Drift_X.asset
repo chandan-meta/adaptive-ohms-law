@@ -18,5 +18,5 @@ MonoBehaviour:
     end.'
   ttsText: 'Follow the bright one: it jiggles, but keeps creeping toward the positive
     end.'
-  vo: {fileID: 8300000, guid: a0cc468b604d0ac46941590d2973bff7, type: 3}
+  vo: {fileID: 8300000, guid: 1dbc95c4384d50c4e83a06693a2a80d0, type: 3}
   fallbackDuration: 4.2

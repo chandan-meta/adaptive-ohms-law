@@ -1,17 +1,15 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace OhmsLaw
 {
-    // Bottom-centre subtitles for every spoken line, scripted or AI. Two lines at a time; longer text pages through,
-    // each page coming up when the voice reaches its first word.
+    // Captions for every spoken line, scripted or AI, in the lesson panel's Caption block: the speaker and the text.
+    // Two lines at a time; longer text pages through, each page coming up when the voice reaches its first word.
     public class SubtitleUI : MonoBehaviour
     {
         public static SubtitleUI Instance { get; private set; }
 
-        // Box spans y 40..236 with a 210 px left inset; other HUD elements (battery control) stay above it. The right inset
-        // leaves ~50 px of air to the Ask Wattson button (x >= 1722), even while the spotlight cue scales it up.
-        const float SideInset = 210f, RightSide = 250f, Bottom = 40f;
         RectTransform box;
         TextMeshProUGUI speaker, body;
         object owner;
@@ -19,37 +17,37 @@ namespace OhmsLaw
         public static bool Enabled
         {
             get => PlayerPrefs.GetInt("ohm.subtitles", 1) == 1;
-            set { PlayerPrefs.SetInt("ohm.subtitles", value ? 1 : 0); if (Instance) Instance.box.gameObject.SetActive(value && Instance.owner != null); }
+            set { PlayerPrefs.SetInt("ohm.subtitles", value ? 1 : 0); if (Instance) Instance.Apply(); }
         }
 
         void Awake()
         {
             Instance = this;
-            box = UI.Stretch("Subtitles", transform);
-            box.anchorMax = new Vector2(1, 0);
-            box.offsetMin = new Vector2(SideInset, Bottom);
-            box.offsetMax = new Vector2(-RightSide, UI.SubtitleTop);
-            UI.Panel(box, UI.HudColor, true, 22f).raycastTarget = false;
-
-            speaker = UI.Label(box, "", UI.SpeakerFont, UI.Theme ? UI.Theme.wattsonAccent : Color.cyan, TextAlignmentOptions.TopLeft);
-            speaker.rectTransform.offsetMin = new Vector2(36, 0);
-            speaker.rectTransform.offsetMax = new Vector2(-36, -10);
+            var panel = LessonPanel.Instance;
+            box = panel.Caption;
+            var layout = box.GetComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(18, 18, 8, 10);
+            layout.spacing = 0f;
+            UI.Panel(box, UI.Alpha(Color.Lerp(UI.PanelColor, Color.black, 0.35f), 1f), true, 16f).raycastTarget = false;
+            speaker = UI.Label(box, "", LessonPanel.SpeakerFont, UI.Theme ? UI.Theme.wattsonAccent : Color.cyan, TextAlignmentOptions.TopLeft);
             speaker.characterSpacing = 4f;
-
-            // 196 px box - 10/44 insets = 142 px: two 60 px lines of the 44 px body fit, a third pages (TYPOGRAPHY.md).
-            body = UI.Label(box, "", UI.SubtitleFont, Color.white, TextAlignmentOptions.Center);
-            body.rectTransform.offsetMin = new Vector2(36, 10);
-            body.rectTransform.offsetMax = new Vector2(-36, -44);
+            speaker.fontStyle = FontStyles.Bold;
+            LessonPanel.Fixed(speaker.rectTransform, LessonPanel.SpeakerFont * 1.4f); // never squeezed under the text
+            body = UI.Label(box, "", LessonPanel.CaptionFont, Color.white, TextAlignmentOptions.TopLeft);
             body.overflowMode = TextOverflowModes.Page;
-            box.gameObject.SetActive(false);
+            // Two caption lines per page, whatever the panel width: the label's height is fixed, the layout keeps it.
+            LessonPanel.Fixed(body.rectTransform, LessonPanel.CaptionFont * 1.25f * 2f + 6f);
+            Apply();
         }
+
+        void Apply() { if (box) box.gameObject.SetActive(Enabled && owner != null); }
 
         // progress (0..1) through the spoken line picks which two-line page is on screen: a page comes up once the
         // voice has covered the characters before it, so a 3-line text (pages of 2 + 1 lines) turns at two thirds.
         public void Show(object shownBy, string speakerName, string text, float progress = 0)
         {
             owner = shownBy;
-            box.gameObject.SetActive(Enabled);
+            Apply();
             if (!Enabled) return;
             speaker.text = speakerName;
             if (body.text != text)
@@ -72,7 +70,7 @@ namespace OhmsLaw
         {
             if (!ReferenceEquals(owner, shownBy)) return;
             owner = null;
-            box.gameObject.SetActive(false);
+            Apply();
         }
     }
 }

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 2.0 divided by 0.40 is 5. The slope is 5.
   ttsText: 2.0 divided by 0.40 is 5. The slope is 5.
-  vo: {fileID: 8300000, guid: 61e872f72407f9440b81da02bcd990e5, type: 3}
+  vo: {fileID: 8300000, guid: 5501168e289af32439e5652d010b2dba, type: 3}
   fallbackDuration: 3.2

@@ -22,5 +22,5 @@ MonoBehaviour:
     wire. In series, the ammeter is part of the same single path, so every bit of
     charge that passes through the wire also passes through the ammeter. Same path,
     same current.
-  vo: {fileID: 8300000, guid: f2278a907a54ba74c9dd68a606a03cbd, type: 3}
+  vo: {fileID: 8300000, guid: 00f37af8931e18749986530251c22cec, type: 3}
   fallbackDuration: 14

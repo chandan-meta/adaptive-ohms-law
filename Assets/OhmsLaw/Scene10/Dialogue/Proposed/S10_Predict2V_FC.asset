@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: You expected less current, but the meter climbed to 0.40.
   ttsText: You expected less current, but the meter climbed to 0.40.
-  vo: {fileID: 8300000, guid: 50d065035e4bccd418c95813697a85ea, type: 3}
+  vo: {fileID: 8300000, guid: 46f7fa91f6263c54da620181c5785c22, type: 3}
   fallbackDuration: 3.4

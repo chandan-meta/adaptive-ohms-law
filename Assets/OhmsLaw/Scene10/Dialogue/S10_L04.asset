@@ -18,5 +18,5 @@ MonoBehaviour:
     and ammeter.
   ttsText: Now lets keep increasing the battery voltage, and see the readings in
     voltmeter and ammeter.
-  vo: {fileID: 8300000, guid: 18cf578fc927ae74d937f4169744799c, type: 3}
+  vo: {fileID: 8300000, guid: d6c8972d15f93c442a6f26afa2e65788, type: 3}
   fallbackDuration: 5.5

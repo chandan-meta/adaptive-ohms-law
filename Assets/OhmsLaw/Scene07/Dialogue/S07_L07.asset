@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: He wasn't looking for one reading. He was looking for a pattern.
   ttsText: He wasn't looking for one reading. He was looking for a pattern.
-  vo: {fileID: 8300000, guid: 0daa79fb4435bef40bf94d2d55a57a15, type: 3}
+  vo: {fileID: 8300000, guid: 1e928c5a003d170418718e5c768db1a9, type: 3}
   fallbackDuration: 4.5

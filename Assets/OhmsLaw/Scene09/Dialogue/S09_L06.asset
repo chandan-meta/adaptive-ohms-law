@@ -18,5 +18,5 @@ MonoBehaviour:
     it and the test wire.
   ttsText: Exactly. An ammeter is connected in series, so the same current passes
     through it and the test wire.
-  vo: {fileID: 8300000, guid: 5fdb1948eae7f3d4fbf976befc367299, type: 3}
+  vo: {fileID: 8300000, guid: 92dde84ee65ae8a4698cbd6ada78b168, type: 3}
   fallbackDuration: 5.5

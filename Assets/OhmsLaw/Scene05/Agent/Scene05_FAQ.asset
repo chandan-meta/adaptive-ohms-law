@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Scene05_FAQ
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.LocalFAQ
   entries:
-  - question: Why were the charges moving before the battery?
+  - question: Why were the charges moving before the voltage?
     answer: {fileID: 11400000, guid: cf42ec1c49a6f2b4f98f639af4ee1575, type: 2}
   - question: Which way do electrons move?
     answer: {fileID: 11400000, guid: a6af120eb1459b949bfd9319de7b5f7a, type: 2}

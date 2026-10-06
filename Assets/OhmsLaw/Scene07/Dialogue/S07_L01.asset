@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Now you know the two clues.
   ttsText: Now you know the two clues.
-  vo: {fileID: 8300000, guid: ed35bb390ebf7ac46906fa4e69e07d7f, type: 3}
+  vo: {fileID: 8300000, guid: 0e3a1cea9783f474184e037d5eab7bf5, type: 3}
   fallbackDuration: 2.2

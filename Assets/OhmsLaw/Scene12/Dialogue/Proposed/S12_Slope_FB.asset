@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: "That's \u0394I divided by \u0394V, upside down. Volts go on top."
   ttsText: "That's \u0394I divided by \u0394V, upside down. Volts go on top."
-  vo: {fileID: 8300000, guid: 530b4c8fc6c46514581b10f9b6f7cb3e, type: 3}
+  vo: {fileID: 8300000, guid: 4feed3ed97ef95b4ea2f1c3dbf745af9, type: 3}
   fallbackDuration: 3.6

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Resistance is measured in ohms.
   ttsText: Resistance is measured in ohms.
-  vo: {fileID: 8300000, guid: 87a7b478be9f5b044a99cc5ebf470fd7, type: 3}
+  vo: {fileID: 8300000, guid: 5695dd5e3b9fd0149b511fd22797632f, type: 3}
   fallbackDuration: 2.4

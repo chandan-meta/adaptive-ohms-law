@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Think R = V divided by I. Same I for both, so compare V.
   ttsText: Think R = V divided by I. Same I for both, so compare V.
-  vo: {fileID: 8300000, guid: e6f946700ab40694191cb8465f3f2050, type: 3}
+  vo: {fileID: 8300000, guid: 5379de7afe6f4cd478076225a4626e85, type: 3}
   fallbackDuration: 4.2

@@ -20,5 +20,5 @@ MonoBehaviour:
   ttsText: Georg Ohm was a German teacher and scientist, born in 1789. He loved careful
     experiments and built much of his own equipment to study electricity. We are
     standing in his lab right now, detective!
-  vo: {fileID: 8300000, guid: bbe98a101493b6245aca468062596d41, type: 3}
+  vo: {fileID: 8300000, guid: 91f21f8a45f95f9478fa9a0c0bd1dad9, type: 3}
   fallbackDuration: 11

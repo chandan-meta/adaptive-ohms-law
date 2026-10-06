@@ -83,6 +83,13 @@ namespace OhmsLaw
         bool fogWas; FogMode fogModeWas; AmbientMode ambientModeWas; Color fogColorWas, ambientWas, backgroundWas; float fogDensityWas;
 
         public int LastSecond { get; private set; }
+        // This second so far: the charges counted since the window started (1, 2, 3 ...), and how far through it we are.
+        public int Tally => counting ? tally : 0;
+        public float SecondProgress => counting ? Mathf.Clamp01(second) : 0f;
+        // A completed second has been shown on the counter at least once.
+        public bool Shown => shown;
+        // A charge crossed the ring and was counted (the panel's counter ticks on it).
+        public event System.Action Counted;
 
         void Awake()
         {
@@ -270,6 +277,7 @@ namespace OhmsLaw
                 second = Mathf.Max(0f, 1f - 0.5f * length / count / drift);
             }
             tally++;
+            if (!skip) Counted?.Invoke();
         }
 
         void Count(float dt)

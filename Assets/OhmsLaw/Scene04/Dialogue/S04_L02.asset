@@ -18,5 +18,5 @@ MonoBehaviour:
     Ohm was investigating the relationship that can help us answer it.
   ttsText: Your Christmas lights gave you a question. Nearly two centuries ago, Georg
     Ohm was investigating the relationship that can help us answer it.
-  vo: {fileID: 8300000, guid: d8febb6fd02b4fe418367933c8a59abe, type: 3}
+  vo: {fileID: 8300000, guid: 73af6c5c7196ba44db9ab7122944d46a, type: 3}
   fallbackDuration: 8.5

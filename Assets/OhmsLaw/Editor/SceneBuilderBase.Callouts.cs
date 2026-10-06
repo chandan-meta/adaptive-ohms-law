@@ -69,6 +69,16 @@ namespace OhmsLaw.Editor
             return def;
         }
 
+        // A note on its own node (nothing to point at): "Note <id>" in the refs; the cue "callout show <id>" puts it in the panel.
+        protected CalloutDef Note(string id, string title, string body)
+        {
+            var def = Def(id, Node("Note " + id));
+            def.kind = CalloutDef.Kind.Concept;
+            def.title = title;
+            def.description = body;
+            return def;
+        }
+
         CalloutDef Def(string id, GameObject host)
         {
             if (scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<CalloutDef>(true)).Any(d => d.id == id))

@@ -82,19 +82,21 @@ namespace OhmsLaw.Editor
                 Shot(a, start[shot], end[shot] - 0.05);
                 Shot(b, start[shot] + 0.05, end[shot]);
             }
+            // A restrained plan: an establishing view with one slow settle, a held two-shot for the entrance, held character
+            // framings, one cut to Ohm and back, the words and the gadget held, one apparatus close-up that then holds for
+            // the tap. Only the arrival drifts and the post-tap dive moves; no orbit, no racks, no pushes.
             Move("SH01", "SH01a Arrival", "SH01b Arrival");
-            Move("SH02", "SH02a Wattson Enters", "SH02b Wattson Enters");
+            Shot("SH02b Wattson Enters", start["SH02"], end["SH02"]);
             Shot("SH03 Welcome", start["SH03"], end["SH03"]);
-            Shot("SH04a Over Shoulder", start["SH04"], T("SH04", 2.6));          // focus on Wattson
-            Shot("SH04b Rack To Ohm", T("SH04", 1.0), end["SH04"] - 0.5);        // rack focus and push in
-            Shot("SH04a Over Shoulder", end["SH04"] - 1.8, end["SH04"]);          // and back to Wattson
-            Shot("SH05 Words", start["SH05"], end["SH05"]);
-            Move("SH06", "SH06a Orbit", "SH06b Orbit");
+            Shot("SH04a Over Shoulder", start["SH04"], T("SH04", 2.6));          // Wattson, then one cut to Ohm and back
+            Shot("SH04b Rack To Ohm", T("SH04", 2.6), end["SH04"] - 1.8);
+            Shot("SH04a Over Shoulder", end["SH04"] - 1.8, end["SH04"]);
+            Shot("SH05 Words", start["SH05"], end["SH06"]);                      // the words and the question mark, one held frame
             Shot("SH07 Before", start["SH07"], end["SH07"]);
-            Move("SH08", "SH08a Hero", "SH08b Hero");
-            Move("SH09", "SH09a Aim", "SH09b Aim");
+            Shot("SH08a Hero", start["SH08"], end["SH08"]);                      // the Ohm-niscope raise, held
+            Shot("SH09b Aim", start["SH09"], end["SH09"]);                       // the wire close-up: the lock-on
             Shot("SH10 Everybody In", start["SH10"], end["SH10"]);
-            Shot("SH11a Dive", start["SH11"], end["SH11"] - 1.0);                 // holds here for the tap, then dolly-zooms
+            Shot("SH11a Dive", start["SH11"], end["SH11"] - 1.0);                 // holds here for the tap, then the dive
             Shot("SH11b Dive", T("SH11", 0.4), end["SH11"]);
             var shots = cameras.GetClips().OrderBy(c => c.start).ToArray();
             for (int i = 1; i < shots.Length; i++)
@@ -185,10 +187,16 @@ namespace OhmsLaw.Editor
             }
             var musicTrack = timeline.CreateTrack<AudioTrack>(null, "Music");
             director.SetGenericBinding(musicTrack, s.music);
-            var music = musicTrack.CreateClip(sfx["Pad"]);
+            var music = musicTrack.CreateClip(sfx["PadLab"]);
             music.start = 0;
             music.duration = total;
             ((AudioPlayableAsset)music.asset).loop = true;
+            var ambienceTrack = timeline.CreateTrack<AudioTrack>(null, "Ambience");
+            director.SetGenericBinding(ambienceTrack, s.ambience);
+            var ambience = ambienceTrack.CreateClip(sfx["StudyTone"]);
+            ambience.start = 0;
+            ambience.duration = total;
+            ((AudioPlayableAsset)ambience.asset).loop = true;
 
             // --- VFX activation and signals
             var vfxGroup = timeline.CreateTrack<GroupTrack>(null, "VFX");
@@ -237,12 +245,12 @@ namespace OhmsLaw.Editor
             Active("Reticle", T("SH09", 1.3), T("SH11", 1.2));
             Sfx("Click", T("SH09", 1.75));
             Active("Wire Highlight", T("SH09", 1.8), total);
-            // SH11 dive
+            // SH11: the tap (the instruction stays in the panel until the wire is tapped), then the dive
             Signal("Scene04_WaitForTap", T("SH11", 0.1), scene04.WaitForTap);
             Active("Beam", T("SH11", 0.45), total);
             Sfx("Beam", T("SH11", 0.45));
             Active("Dive Streaks", T("SH11", 0.8), total);
-            Sfx("Dive", T("SH11", 0.8));
+            Sfx("Enter", T("SH11", 0.6));
             Signal("Scene04Complete", total - 0.7, scene04.Complete);
 
             EditorUtility.SetDirty(timeline);
@@ -286,6 +294,7 @@ namespace OhmsLaw.Editor
                 ["Pad"] = () => Make(16f, (t, u) => new[] { 110f, 164.8125f, 220f, 261.625f, 329.625f }.Select((f, i) => Mathf.Sin(tau * f * t) * (0.6f + 0.4f * Mathf.Sin(tau * t / 8 + i))).Sum() * 0.09f),
             };
 
+            foreach (var recipe in SfxBank.Recipes()) recipes[recipe.Key] = recipe.Value; // the designed bank (SfxBank.cs)
             foreach (var recipe in recipes)
             {
                 string path = S4 + "/Audio/SFX/" + recipe.Key + ".wav";

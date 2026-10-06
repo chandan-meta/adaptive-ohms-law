@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: '0.80 amperes times 5 ohms is 4 volts. There: 0.80 amperes.'
   ttsText: '0.80 amperes times 5 ohms is 4 volts. There: 0.80 amperes.'
-  vo: {fileID: 8300000, guid: 9e9d2dd58eeb9564499a7e1ba415b4c1, type: 3}
+  vo: {fileID: 8300000, guid: 7a11bbcba00f802499db913d7c1555c4, type: 3}
   fallbackDuration: 4.2

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: We call that constant value resistance of the nichrome wire XY.
   ttsText: We call that constant value resistance of the nichrome wire XY.
-  vo: {fileID: 8300000, guid: f157f30cbbde0024da44503c98e39b3d, type: 3}
+  vo: {fileID: 8300000, guid: fed1c58da8381734ca58f3dc27ef6d59, type: 3}
   fallbackDuration: 3.8

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Scene11_Context
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.SceneAgentContext
   sceneId: Scene11
-  sceneTitle: Turn Data into a Graph
+  sceneTitle: The Pattern
   askWattsonEnabled: 1
   covered:
   - "Everything from Scenes 5 to 10: voltage (V, volt), current (I, ampere), the

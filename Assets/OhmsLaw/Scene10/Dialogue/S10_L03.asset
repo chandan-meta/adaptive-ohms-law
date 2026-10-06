@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Record the current reading in ammeter.
   ttsText: Record the current reading in ammeter.
-  vo: {fileID: 8300000, guid: 17ab7452127fdad47a7902d5970fe769, type: 3}
+  vo: {fileID: 8300000, guid: 4d753372d0bc0294695f8e3bec126177, type: 3}
   fallbackDuration: 2.6

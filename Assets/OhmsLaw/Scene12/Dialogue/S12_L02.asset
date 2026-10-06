@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: ...and we've measured how much charge flows...
   ttsText: ...and we've measured how much charge flows...
-  vo: {fileID: 8300000, guid: e7f9c5becd4044c44971d8068fb90041, type: 3}
+  vo: {fileID: 8300000, guid: a6a2f9caf763a994da2af5c5067967a3, type: 3}
   fallbackDuration: 2.8

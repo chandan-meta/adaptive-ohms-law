@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Double the push, double the charge per second. Just like your table.
   ttsText: Double the push, double the charge per second. Just like your table.
-  vo: {fileID: 8300000, guid: 35c81b197896a8a43856e72710654b4d, type: 3}
+  vo: {fileID: 8300000, guid: 13ab401c4af750046a3b55fbd587e845, type: 3}
   fallbackDuration: 3.8

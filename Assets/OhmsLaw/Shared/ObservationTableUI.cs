@@ -6,19 +6,19 @@ using UnityEngine.UI;
 
 namespace OhmsLaw
 {
-    // Observation table on a world-space canvas. Values come from ExperimentData; rows fill one by one,
-    // a V/I column can be added, rows and cells can be highlighted and tapped.
-    // Layout in canvas px (WorldCanvasScale 0.0015 on the Boards shot): 44 px cells read ~24 px tall on screen.
-    // The table IS the board (ART_DIRECTION section 3): chalk text and rules on a lighter patch of board in a chalk frame,
-    // which Refresh() sizes to the visible columns.
+    // Observation table in the lesson panel (a Canvas-sized rect scaled into the Table block). Values come from
+    // ExperimentData; rows fill one by one (a recorded row shows what the meters read then), a V/I column can be added,
+    // rows and cells can be highlighted and tapped. Layout in canvas px: at the panel's 0.58 scale the 44 px cells read
+    // ~26 px tall. The frame sizes itself to the visible columns.
     public class ObservationTableUI : MonoBehaviour
     {
-        public const float ColumnWidth = 360f, RowHeight = 84f, HeaderRow = 100f, TagWidth = 280f, TagGap = 20f;
-        public const float HeaderFont = 36f, CellFont = 44f, TagFont = 40f;
+        public static readonly Vector2 Canvas = new Vector2(1080, 516);   // HeaderRow + 5 rows + the board margins: the frame never overruns its block
+        public const float ColumnWidth = 360f, RowHeight = 76f, HeaderRow = 92f, TagWidth = 280f, TagGap = 20f;
+        public const float HeaderFont = 34f, CellFont = 44f, TagFont = 40f;
         // The board-panel look the classroom kit's BoardPanel gives the graph, in canvas px at BoardCanvasScale 0.00135:
         // margins 0.015 x 0.02 board UV around the content, a 0.012 m chalk line, Classroom_BoardPanel's green.
         public const float BoardMarginX = 36f, BoardMarginY = 22f, ChalkLine = 9f;
-        public static readonly Color BoardTint = new Color(0.16f, 0.28f, 0.25f, 0.55f), ChalkColor = new Color(0.93f, 0.93f, 0.87f, 0.92f);
+        public static readonly Color BoardTint = new Color(0.05f, 0.07f, 0.1f, 0.9f), ChalkColor = new Color(0.93f, 0.93f, 0.87f, 0.75f);
         // Per-column widths summing to 3 x ColumnWidth: V holds "Potential Difference", V/I holds "1.0 ÷ 0.20 = 5".
         static readonly float[] Columns = { 380f, 280f, 420f };
 

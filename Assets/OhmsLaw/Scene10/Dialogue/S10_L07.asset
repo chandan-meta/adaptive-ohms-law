@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: What do you notice?
   ttsText: What do you notice?
-  vo: {fileID: 8300000, guid: a1aceae06b78fb048a6644597916b566, type: 3}
+  vo: {fileID: 8300000, guid: 26341d5a3641a00488d59f1c021bac99, type: 3}
   fallbackDuration: 1.6

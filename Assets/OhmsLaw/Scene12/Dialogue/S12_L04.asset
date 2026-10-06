@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: The material itself opposes the flow of current.
   ttsText: The material itself opposes the flow of current.
-  vo: {fileID: 8300000, guid: c438e5a45ff5f324ca23185292277db8, type: 3}
+  vo: {fileID: 8300000, guid: 174aa0f35b9e94e4ab0704e0dde3a4e3, type: 3}
   fallbackDuration: 3

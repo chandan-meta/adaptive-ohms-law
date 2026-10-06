@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: ...you need to see what electricity looks like from the inside.
   ttsText: ...you need to see what electricity looks like from the inside.
-  vo: {fileID: 8300000, guid: 9dcc24f59a5a1c24b946a382ef527018, type: 3}
+  vo: {fileID: 8300000, guid: ed77245ba85075647abc6018bf0c4e8d, type: 3}
   fallbackDuration: 3.8

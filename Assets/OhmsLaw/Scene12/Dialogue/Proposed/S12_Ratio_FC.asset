@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'That''s 3.0 times 0.60. We need to divide: volts by amps.'
   ttsText: 'That''s 3.0 times 0.60. We need to divide: volts by amps.'
-  vo: {fileID: 8300000, guid: 4e55087e50430354090a94917be4dc71, type: 3}
+  vo: {fileID: 8300000, guid: 676335484eb06fc43b599da3bab4ea3c, type: 3}
   fallbackDuration: 3.6

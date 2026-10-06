@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Detective test.
   ttsText: Detective test.
-  vo: {fileID: 8300000, guid: 57adc16b61cd59f409bd6bfeee8a009b, type: 3}
+  vo: {fileID: 8300000, guid: 73baebe4e9f4e89438e8b61bfe3a4dd4, type: 3}
   fallbackDuration: 1.5

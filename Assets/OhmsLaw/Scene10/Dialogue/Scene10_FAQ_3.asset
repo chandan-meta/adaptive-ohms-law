@@ -14,11 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
   id: Scene10_FAQ_3
   speaker: WATTSON
-  text: 'It means writing down what the instrument shows at that moment: the voltmeter''s
+  text: 'It means writing down what the instruments show at that moment: the voltmeter''s
     volts and the ammeter''s amperes, side by side in the observation table. One
     row per setting, so afterwards we can compare them and hunt for a pattern.'
-  ttsText: 'It means writing down what the instrument shows at that moment: the voltmeter''s
+  ttsText: 'It means writing down what the instruments show at that moment: the voltmeter''s
     volts and the ammeter''s amperes, side by side in the observation table. One
     row per setting, so afterwards we can compare them and hunt for a pattern.'
-  vo: {fileID: 8300000, guid: b2ca75e7f7df6e14387faaa273a698d0, type: 3}
+  vo: {fileID: 8300000, guid: a5cb1837479842940b47f4d4983cbfa9, type: 3}
   fallbackDuration: 14

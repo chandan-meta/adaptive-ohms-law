@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Is there a mathematical relationship between voltage and current?
   ttsText: Is there a mathematical relationship between voltage and current?
-  vo: {fileID: 8300000, guid: bc8b96fa345840c4785dbdcebf5ed6b0, type: 3}
+  vo: {fileID: 8300000, guid: dfd1f0ccb3a83624bab067dfb2c7be81, type: 3}
   fallbackDuration: 4.2

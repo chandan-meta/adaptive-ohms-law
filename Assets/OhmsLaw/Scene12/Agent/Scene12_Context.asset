@@ -19,19 +19,18 @@ MonoBehaviour:
   - "Everything from Scenes 5 to 11: voltage (V, volt), current (I, ampere), the
     five readings, V \u221D I for the nichrome wire at constant temperature, the
     straight-line graph through the origin."
-  - 'Inside the nichrome wire Wattson set the bench to 1 V (0.20 A), then 2 V (0.40
-    A): every electron''s drift doubled and so did the charges crossing the ring
-    each second. The counter shows a small sample, not the real number of electrons.'
+  - 'The panel compared two wires of the same length, thickness and temperature at
+    the same voltage: copper lets more current through, nichrome opposes the flow
+    more. Resistance limits the current; the charges are not destroyed.'
   - The material of a conductor opposes the flow of current. That opposition is electrical
     resistance, symbol R.
   - "For the nichrome wire XY, V/I is the same for every reading (1.0 \xF7 0.20 =
-    5, 2.0 \xF7 0.40 = 5, ...). R = V / I."
-  - "The slope of the V-I graph, \u0394V/\u0394I, is the resistance: 2.0 V \xF7 0.40
-    A = 5."
+    5, 2.0 \xF7 0.40 = 5, ...). V \u221D I means V = kI, so V/I = k, and that constant
+    k is the resistance R: V = IR."
+  - "The slope of the V-I graph (V vertical, I horizontal) is \u0394V/\u0394I = 2.0
+    V \xF7 0.40 A = 5, the resistance."
   - "Resistance is measured in ohms (\u03A9). 1 \u03A9 = 1 V / 1 A: one ohm when
-    one volt produces one ampere."
-  - Inside the wire, the charge carriers are impeded by the lattice of metal ions;
-    the narrowing tunnel is only a metaphor for that opposition.
+    one volt produces one ampere. This wire: 5 \u03A9."
   doNotSpoil:
   - The name 'Ohm's law' and V = IR as the named law (Scene 13)
   - The Christmas-lights answer

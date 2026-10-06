@@ -18,5 +18,5 @@ MonoBehaviour:
     today.
   ttsText: Ohm didn't have the modern instruments sitting in your school laboratory
     today.
-  vo: {fileID: 8300000, guid: 9cfae18b55d134740a92fadf4d9f3749, type: 3}
+  vo: {fileID: 8300000, guid: 450137fde042a434893a554af1679680, type: 3}
   fallbackDuration: 4.5

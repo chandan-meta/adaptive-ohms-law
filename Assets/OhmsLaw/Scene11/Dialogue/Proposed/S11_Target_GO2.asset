@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'Bonus round, detective: now make it read 0.80 amperes.'
   ttsText: 'Bonus round, detective: now make it read 0.80 amperes.'
-  vo: {fileID: 8300000, guid: 513c7da93636fa04992832e8e64e8883, type: 3}
+  vo: {fileID: 8300000, guid: bcf95a92153803e418fc6face5f92141, type: 3}
   fallbackDuration: 3

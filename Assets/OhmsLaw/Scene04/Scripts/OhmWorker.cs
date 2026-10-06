@@ -11,6 +11,10 @@ namespace OhmsLaw
     // The pose is written in Awake too, so the model's T-pose never reaches a frame. Besides the spine, head and arms, the
     // neck shares the head turn, the collarbones follow each reach a little and the fingers always keep a curl (a pen
     // grip while writing, open palms presenting, a grip on the wire examining), so no pose has stiff splayed hands.
+    // The hands never sink into the desk: in every mode the lowest point of a hand (wrist, finger joints, finger tips) is
+    // kept contactClearance above deskTop by raising the wrist target, a hand changing props lifts over in an arc instead
+    // of dragging across the desk, and the palms lie on the page while he works. Attend(someone) turns his head part-way
+    // toward them in every mode (Wattson while he speaks); Attend() gives his eyes back to the work.
     // The galvanometer needle (optional) takes a new deflection with every reading and a full swing on Swing(), which
     // showing the "[VFX] galvanometer needle swing" object triggers.
     public class OhmWorker : MonoBehaviour
@@ -19,6 +23,10 @@ namespace OhmsLaw
 
         [Tooltip("Wrist targets of the work loop. Each hand serves the props on its own side of him, so the hand nearest the notebook writes.")]
         public Transform notebook, galvanometer, wirePost;
+        [Tooltip("World height of the desk top his hands work over. NaN (the default) infers it in Awake from the notebook target, which the builders place 2 cm above the desk.")]
+        public float deskTop = float.NaN;
+        [Tooltip("Metres kept between the lowest point of a hand (wrist, finger joints, finger tips) and the desk top.")]
+        public float contactClearance = 0.012f;
         [Tooltip("Forward bend of the torso while working, degrees. With this model's 0.33 m arms, 22 reaches 0.3 m in front of his feet at desk height and 36 reaches 0.4 m.")]
         public float lean = 22f;
         public float writeSeconds = 5.5f, checkSeconds = 3.5f;
@@ -28,6 +36,8 @@ namespace OhmsLaw
         public bool frozen;
         [Tooltip("Mode blend rate: 3 = a third of a second.")] public float blendSpeed = 3f;
         [Tooltip("Present: what he looks at. The main camera when empty.")] public Transform lookTarget;
+        [Tooltip("Someone to glance at (Wattson while he speaks); the head turns part-way toward it in every mode.")] public Transform attention;
+        [Range(0, 1)] public float attentionWeight = 0.65f;
         [Tooltip("Examine: the copper wire he holds, its local X along the wire. Placed between his hands while examining, hidden otherwise.")]
         public Transform handWire;
 
@@ -48,15 +58,26 @@ namespace OhmsLaw
         float blend = 1f, clock;
         int writeSide;                   // +1 the right hand writes, -1 the left
         Vector3 rightGoal, leftGoal, lookGoal;
+        Vector3 rightWant, leftWant;     // where each hand's current move ends: a new destination starts a new move
+        float rightTotal, leftTotal;     // the length of each hand's current move, for the lift-over arc
+        float rightLift, leftLift;       // the eased raise of each wrist target that keeps the hand off the desk
+        Vector3 attendAt;                // where his attention last was (the glance eases out from there)
+        float attend;                    // how much of the look the attention takes right now, eased toward attentionWeight
         int adjustedCycle = -1;
         float needleAngle, needleTarget, needleVelocity, cueSwingAt;
         bool cueOn;
 
         // Readings per cycle as fractions of the full swing, alternating sides; the loop runs through them in order.
         static readonly float[] Deflections = { 0.85f, -0.5f, 1f, -0.7f, 0.4f, -0.9f };
+        // The height of the arc a hand rises in when it changes props (less for a move shorter than this).
+        const float LiftOver = 0.07f;
 
-        void Awake()
+        void Awake() => Init();
+
+        // Finds the rig and writes the first pose. Runs once: Simulate() calls it too, for the pose test outside play mode.
+        void Init()
         {
+            if (bones != null) return;
             spine = Find("Spine"); chest = Find("Spine2"); head = Find("Head"); neck = Find("Neck", false);
             rightClav = Find("RightShoulder", false); leftClav = Find("LeftShoulder", false);
             rightArm = Find("RightArm"); rightForeArm = Find("RightForeArm"); rightHand = Find("RightHand");
@@ -73,9 +94,10 @@ namespace OhmsLaw
             rest = bones.Select(b => b.localRotation).ToArray();
             from = (Quaternion[])rest.Clone();
             pose = (Quaternion[])rest.Clone();
+            if (float.IsNaN(deskTop)) deskTop = P(notebook).y - 0.02f; // the builders put the notebook target 2 cm above the desk
             writeSide = notebook ? Side(notebook) : 1;
-            rightGoal = Rest(1);
-            leftGoal = Rest(-1);
+            rightWant = rightGoal = Rest(1);
+            leftWant = leftGoal = Rest(-1);
             lookGoal = P(notebook);
             needleAngle = needleTarget = needleSwing * 0.6f; // mid-experiment: the needle already shows a reading
             shown = fromMode = mode;
@@ -119,11 +141,20 @@ namespace OhmsLaw
 
         void LateUpdate() => Pose(frozen ? 0f : Time.deltaTime);
 
+        // One frame of the pose from outside play mode (the pose test), exactly as LateUpdate would write it; initialises
+        // first when Awake has not run.
+        public void Simulate(float dt) { Init(); Pose(frozen ? 0f : dt); }
+
         // Holds the pose on screen (the 'ohm.freeze' cue); Freeze(false) lets the clock and the blend run again.
         public void Freeze(bool hold = true) => frozen = hold;
 
         // Blends to a new pose; also releases a freeze, which would otherwise hold the blend at its start.
         public void SetMode(Mode next) { mode = next; frozen = false; }
+
+        // His attention: Attend(wattson) while Wattson speaks turns his head part-way toward him in every mode (eased in
+        // over ~1/4 s, so the glance never snaps); Attend() gives his eyes back to the work.
+        public void Attend(Transform target) { attention = target; }
+        public void Attend() => attention = null;
 
         // A full sweep to the far side of the scale that overshoots and rings down, like a real galvanometer.
         public void Swing()
@@ -150,8 +181,8 @@ namespace OhmsLaw
             switch (shown)
             {
                 case Mode.Work: Work(dt); break;
-                case Mode.Present: Present(); break;
-                default: Examine(); break;
+                case Mode.Present: Present(dt); break;
+                default: Examine(dt); break;
             }
 
             float w = Mathf.SmoothStep(0f, 1f, blend);
@@ -174,8 +205,8 @@ namespace OhmsLaw
             bool writing = cycle < writeSeconds;
             bool adjusting = !writing && cycle - writeSeconds >= checkSeconds * 0.5f;
             Transform active = writing ? notebook : adjusting ? wirePost : galvanometer;
-            rightGoal = Vector3.Lerp(rightGoal, Goal(1, active), Ease(3f, dt));
-            leftGoal = Vector3.Lerp(leftGoal, Goal(-1, active), Ease(3f, dt));
+            float rightArc = Travel(ref rightGoal, ref rightWant, ref rightTotal, Goal(1, active), dt);
+            float leftArc = Travel(ref leftGoal, ref leftWant, ref leftTotal, Goal(-1, active), dt);
             lookGoal = Vector3.Lerp(lookGoal, P(active), Ease(2.5f, dt));
 
             // Lean over the desk, with a slow breath.
@@ -184,15 +215,14 @@ namespace OhmsLaw
             chest.Rotate(transform.right, lean * 0.5f, Space.World);
             // Head part-way to the work and a little toward the camera, so his face stays readable over the desk.
             if (!cam && Camera.main) cam = Camera.main.transform;
-            Look(cam ? Vector3.Lerp(lookGoal, cam.position, 0.25f) : lookGoal, 0.6f, lean);
+            Look(Glance(cam ? Vector3.Lerp(lookGoal, cam.position, 0.25f) : lookGoal, dt), 0.6f, lean);
 
-            // The targets are wrist positions; the writing hand scribbles small loops on the page.
+            // The targets are wrist positions; the writing hand scribbles small loops on the page. The arcs lift a hand that
+            // is changing props, the palms lie on the desk, and Hand() keeps every finger off its top.
             Vector3 scribble = writing ? transform.right * (Mathf.Sin(clock * 9f) * 0.015f) + transform.forward * (Mathf.Sin(clock * 13f) * 0.008f) : Vector3.zero;
             Vector3 elbowOut = -transform.forward * 0.3f - transform.up * 0.15f;
-            Arm(1, rightGoal + (writeSide > 0 ? scribble : Vector3.zero), rightArm.position + transform.right * 0.35f + elbowOut);
-            Arm(-1, leftGoal + (writeSide < 0 ? scribble : Vector3.zero), leftArm.position - transform.right * 0.35f + elbowOut);
-            Curl(1, writing && writeSide > 0 ? 0.6f : 0.35f);
-            Curl(-1, writing && writeSide < 0 ? 0.6f : 0.35f);
+            Hand(1, rightGoal + Vector3.up * rightArc + (writeSide > 0 ? scribble : Vector3.zero), rightArm.position + transform.right * 0.35f + elbowOut, Vector3.down, writing && writeSide > 0 ? 0.6f : 0.35f, dt);
+            Hand(-1, leftGoal + Vector3.up * leftArc + (writeSide < 0 ? scribble : Vector3.zero), leftArm.position - transform.right * 0.35f + elbowOut, Vector3.down, writing && writeSide < 0 ? 0.6f : 0.35f, dt);
 
             // A new deflection each time he touches the wire; it settles while he writes.
             int cycleIndex = Mathf.FloorToInt(clock / period);
@@ -206,6 +236,19 @@ namespace OhmsLaw
 
         // The hand on the active prop's side reaches for it; the other waits just short of its own prop.
         Vector3 Goal(int side, Transform active) => active && Side(active) == side ? P(active) : Rest(side);
+
+        // Eases a hand's goal toward `next`. A destination more than 5 mm from the last starts a new move, and the height
+        // returned lifts the hand in an arc over the first 60 % of it (a sine up to LiftOver, never taller than the move
+        // is long), so it rises off one prop before it travels across the desk to the next; the last 40 % settles level.
+        float Travel(ref Vector3 goal, ref Vector3 want, ref float total, Vector3 next, float dt)
+        {
+            if ((next - want).sqrMagnitude > 2.5e-5f) total = Vector3.Distance(goal, next);
+            want = next;
+            goal = Vector3.Lerp(goal, want, Ease(3f, dt));
+            if (total < 1e-4f) return 0f;
+            float progress = Mathf.Clamp01(1f - Vector3.Distance(goal, want) / total);
+            return progress < 0.6f ? Mathf.Sin(progress / 0.6f * Mathf.PI) * Mathf.Min(LiftOver, total) : 0f;
+        }
 
         // Where a free hand waits: pulled back from the prop it serves toward him and down to the notebook's height (the
         // desk); the writing hand a little higher, pen lifted off the page.
@@ -225,14 +268,14 @@ namespace OhmsLaw
 
         // ------------------------------------------------------------------ Present
 
-        void Present()
+        void Present(float dt)
         {
             float breath = Mathf.Sin(clock * 1.1f);
             spine.Rotate(transform.right, 2f + breath * 1.2f, Space.World);
             chest.Rotate(transform.right, 2f, Space.World);
             if (!cam && Camera.main) cam = Camera.main.transform;
             Vector3 eye = lookTarget ? lookTarget.position : cam ? cam.position : head.position + transform.forward;
-            Look(eye, 0.85f, 4f);
+            Look(Glance(eye, dt), 0.85f, 4f);
 
             // Both arms open low toward the apparatus (94 % of his reach, so the elbows stay soft), elbows out and back,
             // palms turned up; the breath lifts the hands.
@@ -240,28 +283,24 @@ namespace OhmsLaw
             foreach (int side in Sides)
             {
                 Transform upper = side > 0 ? rightArm : leftArm;
-                Arm(side, hands + transform.right * (side * 0.32f), upper.position + transform.right * (side * 0.3f) - transform.forward * 0.2f - Vector3.up * 0.25f);
-                Palm(side, Vector3.up);
-                Curl(side, 0.18f + breath * 0.03f);
+                Hand(side, hands + transform.right * (side * 0.32f), upper.position + transform.right * (side * 0.3f) - transform.forward * 0.2f - Vector3.up * 0.25f, Vector3.up, 0.18f + breath * 0.03f, dt);
             }
         }
 
         // ------------------------------------------------------------------ Examine
 
-        void Examine()
+        void Examine(float dt)
         {
             float breath = Mathf.Sin(clock * 1.2f);
             spine.Rotate(transform.right, 6f + breath, Space.World);
             chest.Rotate(transform.right, 6f, Space.World);
             // The wire sits at chest height a forearm's length in front of him, a hand's width either side of centre.
             Vector3 centre = transform.position + Vector3.up * (1.02f + breath * 0.005f) + transform.forward * 0.26f;
-            Look(centre, 0.8f, 12f);
+            Look(Glance(centre, dt), 0.8f, 12f);
             foreach (int side in Sides)
             {
                 Transform upper = side > 0 ? rightArm : leftArm;
-                Arm(side, centre + transform.right * (side * 0.17f), upper.position + transform.right * (side * 0.15f) - transform.forward * 0.05f - Vector3.up * 0.3f);
-                Palm(side, Vector3.up);
-                Curl(side, 0.7f);
+                Hand(side, centre + transform.right * (side * 0.17f), upper.position + transform.right * (side * 0.15f) - transform.forward * 0.05f - Vector3.up * 0.3f, Vector3.up, 0.7f, dt);
             }
         }
 
@@ -298,6 +337,15 @@ namespace OhmsLaw
             else head.rotation = Quaternion.Slerp(Quaternion.identity, aim, amount) * head.rotation;
         }
 
+        // Blends a look target toward whoever has his attention, by attentionWeight once the glance has eased in (~1/4 s);
+        // it eases out the same way, from where they last were, when Attend() clears it.
+        Vector3 Glance(Vector3 at, float dt)
+        {
+            if (attention) attendAt = attention.position;
+            attend = Mathf.Lerp(attend, attention ? attentionWeight : 0f, Ease(4f, dt));
+            return attend > 1e-3f ? Vector3.Lerp(at, attendAt, attend) : at;
+        }
+
         void Arm(int side, Vector3 target, Vector3 elbowHint)
         {
             // The collarbone turns 15 % of the way toward the hand's goal (at most 12 degrees): the shoulder leads the
@@ -309,9 +357,65 @@ namespace OhmsLaw
                 float angle = Mathf.Min(Vector3.Angle(bone, want) * 0.15f, 12f);
                 clav.rotation = Quaternion.FromToRotation(bone, Vector3.RotateTowards(bone, want, angle * Mathf.Deg2Rad, 0)) * clav.rotation;
             }
+            Solve(side, target, elbowHint);
+        }
+
+        // The two-bone reach alone (no collarbone), which Hand() runs again when the desk contact raises the wrist target.
+        void Solve(int side, Vector3 target, Vector3 elbowHint)
+        {
             if (side > 0) Limb.Reach(rightArm, rightForeArm, rightHand, target, elbowHint);
             else Limb.Reach(leftArm, leftForeArm, leftHand, target, elbowHint);
         }
+
+        // Places a hand: the arm reaches the wrist target, the palm turns to `palm`, the fingers curl, and the hand is kept
+        // off the desk. The lowest of the wrist, every finger joint and every finger tip must clear deskTop by
+        // contactClearance; while it does not, the wrist target is raised by the shortfall and the arm solved again. The
+        // second pass scales the shortfall by how far the hand actually rose per metre of raise on the first (at full
+        // stretch the arm only tilts up, so it rises less than the target), which lands it within a millimetre; a third
+        // runs only if that one hit the per-pass cap. The raise is a per-side lift that eases toward the raise that would
+        // put the lowest point exactly on the plane, so the hand comes off the desk, and the correction fades, smoothly
+        // instead of popping; what the eased lift lacks on the way down, the passes make up within the frame.
+        void Hand(int side, Vector3 target, Vector3 elbowHint, Vector3 palm, float curl, float dt)
+        {
+            float lift = side > 0 ? rightLift : leftLift;
+            Arm(side, target + Vector3.up * lift, elbowHint);
+            Palm(side, palm);
+            Curl(side, curl);
+            float plane = deskTop + contactClearance;
+            if (float.IsNaN(plane)) return;
+            float raised = lift, low = Lowest(side), gain = 1f;
+            for (int i = 0; i < 3 && low < plane - 0.0005f; i++)
+            {
+                float step = Mathf.Min((plane - low) / gain, 0.5f);
+                Solve(side, target + Vector3.up * (raised + step), elbowHint); // the curl is hand-relative, so it survives
+                Palm(side, palm);
+                float was = low;
+                low = Lowest(side);
+                gain = Mathf.Clamp((low - was) / step, 0.1f, 2f);
+                raised += step;
+            }
+            float need = Mathf.Max(0f, raised + (plane - low) / gain);
+            lift = Mathf.Lerp(lift, need, Ease(8f, dt));
+            if (side > 0) rightLift = lift; else leftLift = lift;
+        }
+
+        // The lowest world point of a hand: the wrist, every finger joint and every finger tip.
+        float Lowest(int side)
+        {
+            Transform hand = side > 0 ? rightHand : leftHand;
+            var fingers = side > 0 ? rightFingers : leftFingers;
+            float low = hand.position.y;
+            for (int f = 0; f < fingers.Length; f++)
+            {
+                var joints = fingers[f];
+                for (int j = 0; j < joints.Length; j++) low = Mathf.Min(low, joints[j].position.y);
+                low = Mathf.Min(low, Tip(joints).y);
+            }
+            return low;
+        }
+
+        // A finger's tip: the chains end at the last knuckle, so its segment is carried on by its own length.
+        static Vector3 Tip(Transform[] joints) => joints[joints.Length - 1].position * 2f - joints[joints.Length - 2].position;
 
         // Curls every finger toward the palm: 0 open, 1 a loose fist; the thumb follows at half strength.
         void Curl(int side, float amount)

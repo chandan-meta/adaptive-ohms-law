@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: And remember the straight line you made in the graph?
   ttsText: And remember the straight line you made in the graph?
-  vo: {fileID: 8300000, guid: 101174d29202f4348ac3d861828189b4, type: 3}
+  vo: {fileID: 8300000, guid: 5e323de3f8723c24d8242d609a3c5179, type: 3}
   fallbackDuration: 3.2

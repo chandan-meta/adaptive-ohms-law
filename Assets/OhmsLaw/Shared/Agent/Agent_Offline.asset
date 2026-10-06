@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: My detective radio is fuzzy right now. Try one of these clues!
   ttsText: My detective radio is fuzzy right now. Try one of these clues!
-  vo: {fileID: 8300000, guid: 2971de6800d82084c847522e2dc8d637, type: 3}
+  vo: {fileID: 8300000, guid: c027d7a484defb348874769b65ee3844, type: 3}
   fallbackDuration: 4.2

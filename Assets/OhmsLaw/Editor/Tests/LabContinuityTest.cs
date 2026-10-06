@@ -174,7 +174,7 @@ namespace OhmsLaw.Editor
             foreach (var (scene, name) in new[] { (s7, "[VFX] historical apparatus starts transforming → modern circuit"), (s8, "[VFX] Ohm's apparatus becomes today's instruments") })
             {
                 var fx = Find(scene, name);
-                Check($"'{name}' panel is placed top-centre", fx && fx.TryGetComponent(out CalloutDef tag) && tag.kind == CalloutDef.Kind.Vfx && tag.anchor == CalloutDef.Anchor.TopCentre);
+                Check($"'{name}' exists (its note now lives in the lesson panel, no floating card)", fx);
                 Check($"'{name}' reads reduced motion", fx && fx.TryGetComponent<ReducedMotionFx>(out _));
             }
             var director9 = s9.GetRootGameObjects().Select(r => r.GetComponentInChildren<SceneDirector>(true)).FirstOrDefault(d => d);

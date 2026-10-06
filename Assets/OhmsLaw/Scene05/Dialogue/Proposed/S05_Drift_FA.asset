@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: 'Right: negative electrons are pulled toward the positive end.'
   ttsText: 'Right: negative electrons are pulled toward the positive end.'
-  vo: {fileID: 8300000, guid: a48ff77687bfa7a4d80b121dae3cd0f6, type: 3}
+  vo: {fileID: 8300000, guid: ff83fb00cab4299429668c832c30b8f2, type: 3}
   fallbackDuration: 3.2

@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Don't look at me.
   ttsText: Don't look at me.
-  vo: {fileID: 8300000, guid: 3897c9c44a1e3ad4c868a8cfe9821d19, type: 3}
+  vo: {fileID: 8300000, guid: 33c4dcad80638114ab72640be8ec691a, type: 3}
   fallbackDuration: 1.4

@@ -22,5 +22,5 @@ MonoBehaviour:
     of patience, and his thermoelectric source gave only a tiny push. Today's ammeter
     and voltmeter give clear numbers straight away, so we can see the relationship
     much more clearly.
-  vo: {fileID: 8300000, guid: a7dde3256bae03d42b584a64ba7147e9, type: 3}
+  vo: {fileID: 8300000, guid: fca227d741ea91e44bba6106bd018cf0, type: 3}
   fallbackDuration: 14

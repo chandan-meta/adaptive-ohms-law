@@ -8,8 +8,10 @@ namespace OhmsLaw
     // the tap-the-wire hold before the dive, and the hand-off to Scene 5.
     public class Scene04Director : MonoBehaviour
     {
+        public const string TapInstruction = "Click or tap the highlighted wire to explore what happens inside.";
+
         [Tooltip("Wait for the student to tap the wire before the dive.")] public bool tapToEnter = true;
-        [Tooltip("Dive anyway after this many seconds. 0 waits for the tap.")] public float autoAdvance = 6f;
+        [Tooltip("Dive anyway after this many seconds in a hands-free review run (ReviewMode.autoAnswer). 0 waits for the tap.")] public float autoAdvance = 4f;
         public Transform wire, words;
         public Vector3 wordsDrift = new Vector3(0, 0.3f, 0);
         public WattsonController wattson;
@@ -20,7 +22,11 @@ namespace OhmsLaw
         float holdStarted = -1;
         bool drifting;
 
-        void Start() { wordsHome = words.position; }
+        void Start()
+        {
+            wordsHome = words.position;
+            if (LessonPanel.Instance && wattson && wattson.agentContext) LessonPanel.Instance.SetTitle(wattson.agentContext.sceneTitle);
+        }
 
         public void DriftWords() => drifting = true;
 
@@ -33,18 +39,25 @@ namespace OhmsLaw
             wattson.motionScale = niscope.timeScale = 1f;
         }
 
+        // The hold: the instruction goes into the panel and stays until the wire is tapped; a large tap target follows
+        // the wire (the highlighted outline shows which wire). Only a hands-free review run advances by itself.
         public void WaitForTap()
         {
             if (!tapToEnter || holdStarted >= 0) return;
             ModuleFlow.Instance.SetPaused(ModuleFlow.PauseReason.Hold, true);
             holdStarted = Time.unscaledTime;
+            if (LessonPanel.Instance) LessonPanel.Instance.Instruction(TapInstruction);
 
-            // A tap-hand over the wire, no text: pulsing ring, finger and palm.
-            tapIcon = UI.Rect("Tap Wire", ModuleFlow.Instance.transform, Vector2.zero, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(150, 150));
+            // A tap-hand over the wire: pulsing ring, finger and palm; the ring itself is the target (220 px, easy to hit).
+            tapIcon = UI.Rect("Tap Wire", ModuleFlow.Instance.transform, Vector2.zero, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(220, 220));
             tapIcon.SetAsFirstSibling();
             var ring = tapIcon.gameObject.AddComponent<Image>();
-            ring.sprite = UI.Theme ? UI.Theme.circle : null;
-            ring.color = new Color(1, 1, 1, 0.22f);
+            ring.sprite = UI.Circle();
+            ring.color = new Color(1, 1, 1, 0.12f);
+            var outline = UI.Stretch("Ring", tapIcon).gameObject.AddComponent<Image>();
+            outline.sprite = UI.Circle(0.92f);
+            outline.color = new Color(1, 1, 1, 0.85f);
+            outline.raycastTarget = false;
             tapIcon.gameObject.AddComponent<Button>().onClick.AddListener(Dive);
             var finger = UI.Rect("Finger", tapIcon, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0), new Vector2(-6, -8), new Vector2(26, 62));
             UI.Panel(finger, Color.white).raycastTarget = false;
@@ -57,6 +70,7 @@ namespace OhmsLaw
             if (holdStarted < 0) return;
             holdStarted = -1;
             if (tapIcon) Destroy(tapIcon.gameObject);
+            if (LessonPanel.Instance) LessonPanel.Instance.Instruction("");
             ModuleFlow.Instance.SetPaused(ModuleFlow.PauseReason.Hold, false);
         }
 
@@ -72,11 +86,11 @@ namespace OhmsLaw
             {
                 var canvas = ModuleFlow.Instance.GetComponent<Canvas>();
                 tapIcon.anchoredPosition = cam.WorldToScreenPoint(wire.position) / canvas.scaleFactor;
-                tapIcon.localScale = Vector3.one * (1 + 0.12f * Mathf.Sin(Time.unscaledTime * 5f));
+                tapIcon.localScale = Vector3.one * (1 + 0.1f * Mathf.Sin(Time.unscaledTime * 5f));
             }
             // The Ask panel pauses the countdown, so a question never gets cut off by the dive.
             if (AskWattsonUI.IsOpen) holdStarted += Time.unscaledDeltaTime;
-            else if (autoAdvance > 0 && Time.unscaledTime - holdStarted > autoAdvance) Dive();
+            else if (ReviewMode.autoAnswer && autoAdvance > 0 && Time.unscaledTime - holdStarted > autoAdvance) Dive();
         }
 
         void OnDestroy() { if (tapIcon) Destroy(tapIcon.gameObject); }

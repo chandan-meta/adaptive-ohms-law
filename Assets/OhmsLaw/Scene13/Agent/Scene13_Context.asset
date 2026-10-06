@@ -13,18 +13,15 @@ MonoBehaviour:
   m_Name: Scene13_Context
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.SceneAgentContext
   sceneId: Scene13
-  sceneTitle: The Law Gets Its Name
+  sceneTitle: Ohm's Law
   askWattsonEnabled: 1
   covered:
   - "Everything from Scenes 5 to 12: voltage V (the push, volt), current I (the flow,
     ampere), resistance R (the opposition, ohm), V \u221D I for the nichrome wire
-    at constant temperature, V/I constant, slope = R, 1 \u03A9 = 1 V / 1 A."
+    at constant temperature, V/I constant, slope = R, 1 \u03A9 = 1 V / 1 A, this
+    wire's R = 5 \u03A9."
   - 'Ohm''s law: V = IR. The potential difference across a conductor equals the current
     through it times its resistance, at constant temperature.'
-  - "The closing activity (S13_Apply): the learner sets the battery so the ammeter
-    reads 0.80 A, using V = IR with the nichrome wire's R = 5 \u03A9. While it runs,
-    hint the reasoning (R is 5 ohms; V = I times R) and let the learner find the
-    voltage."
   - 'If asked about the Christmas lights, give only a hint: think about which battery
     could keep a bigger potential difference across the lights.'
   doNotSpoil:

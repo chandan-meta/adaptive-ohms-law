@@ -22,5 +22,5 @@ MonoBehaviour:
     Push it with one volt and you get 0.2 ampere; push it with two volts and you
     get 0.4 ampere. Volts divided by amperes comes out at 5 every single time, and
     that constant is the wire's resistance.
-  vo: {fileID: 8300000, guid: 38b51ffdc260d4147bf6bf1a99c5b78a, type: 3}
+  vo: {fileID: 8300000, guid: 87dd632c6c57e7a4ba1f553f348a6336, type: 3}
   fallbackDuration: 14

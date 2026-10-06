@@ -16,5 +16,5 @@ MonoBehaviour:
   speaker: WATTSON
   text: Laws are for using. Your turn, and ask me if you get stuck.
   ttsText: Laws are for using. Your turn, and ask me if you get stuck.
-  vo: {fileID: 8300000, guid: 7c7b8e29649b37d4e886af464a0c2c58, type: 3}
+  vo: {fileID: 8300000, guid: dcc9df6bdb6c3984b900488df835cb6b, type: 3}
   fallbackDuration: 3.6

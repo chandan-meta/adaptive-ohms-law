@@ -18,5 +18,5 @@ MonoBehaviour:
     wire XY.
   ttsText: So for a V-versus-I graph, the slope tells us the resistance of the nichrome
     wire XY.
-  vo: {fileID: 8300000, guid: 9f989fb5d95cd4446ba67e0c255b5f66, type: 3}
+  vo: {fileID: 8300000, guid: 08660e850ab3f4246821206f8195f727, type: 3}
   fallbackDuration: 4.5
