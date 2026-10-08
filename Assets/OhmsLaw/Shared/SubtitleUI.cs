@@ -4,23 +4,39 @@ using UnityEngine.UI;
 
 namespace OhmsLaw
 {
-    // Captions for every spoken line, scripted or AI, in the HUD's bottom bar (LessonPanel.Caption): the speaker in
-    // small cyan caps, the line in large white text, two lines at a time; longer text pages through, each page coming
-    // up when the voice reaches its first word. The bar fades in and out (0.25 s) and CC OFF hides it.
+    // Captions for every spoken line, scripted or AI, in the HUD's caption bar (LessonPanel.Caption): the speaker in
+    // small spark caps over the line in large warm white, centred. The bar hugs the line (at most 1080 px, two lines a
+    // page; longer text pages through, each page coming up when the voice reaches its first word) and sits centred in
+    // the part of the frame the dock leaves free, clear of Ask Wattson. It fades in and out (0.25 s); CC OFF hides it.
     public class SubtitleUI : MonoBehaviour
     {
         public static SubtitleUI Instance { get; private set; }
 
+        const float PadX = 28f, SideClear = 48f, AvatarClear = 200f;
+
         RectTransform box;
         CanvasGroup group;
         TextMeshProUGUI speaker, body;
+        LayoutElement bodySize;
         object owner;
         bool shown;
+        string laidOut = "", speakerShown;
+        float laidFree = -1f;
+
+        // Read every frame by the HUD: cached, PlayerPrefs touched only on a change (as ReducedMotion).
+        static int enabled = -1;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => enabled = -1;
 
         public static bool Enabled
         {
-            get => PlayerPrefs.GetInt("ohm.subtitles", 1) == 1;
-            set { PlayerPrefs.SetInt("ohm.subtitles", value ? 1 : 0); if (Instance) Instance.Apply(); }
+            get
+            {
+                if (enabled < 0) enabled = PlayerPrefs.GetInt("ohm.subtitles", 1);
+                return enabled == 1;
+            }
+            set { enabled = value ? 1 : 0; PlayerPrefs.SetInt("ohm.subtitles", enabled); if (Instance) Instance.Apply(); }
         }
 
         void Awake()
@@ -32,29 +48,57 @@ namespace OhmsLaw
             group.alpha = 0f;
             group.blocksRaycasts = false;
             var layout = box.gameObject.AddComponent<VerticalLayoutGroup>();
-            layout.padding = new RectOffset(26, 26, 14, 16);
-            layout.spacing = 4f;
+            layout.padding = new RectOffset((int)PadX, (int)PadX, 14, 17);
+            layout.spacing = 6f;
+            layout.childAlignment = TextAnchor.UpperCenter;
             layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
             box.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            speaker = UI.Label(box, "", LessonPanel.SpeakerFont, UI.Theme ? UI.Theme.wattsonAccent : Color.cyan, TextAlignmentOptions.TopLeft);
-            speaker.characterSpacing = 4f;
+            speaker = UI.Label(box, "", LessonPanel.SpeakerFont, LessonPanel.Spark, TextAlignmentOptions.Center);
+            speaker.characterSpacing = 8f;
             speaker.fontStyle = FontStyles.Bold;
-            LessonPanel.Fixed(speaker.rectTransform, LessonPanel.SpeakerFont * 1.3f);
-            body = UI.Label(box, "", LessonPanel.CaptionFont, new Color(0.98f, 0.97f, 0.94f), TextAlignmentOptions.TopLeft);
+            LessonPanel.Fixed(speaker.rectTransform, LessonPanel.SpeakerFont * 1.25f);
+            body = UI.Label(box, "", LessonPanel.CaptionFont, LessonPanel.Paper, TextAlignmentOptions.Top);
             body.overflowMode = TextOverflowModes.Page;
-            // Two caption lines per page, whatever the bar's width: the label's height is fixed, the layout keeps it.
-            LessonPanel.Fixed(body.rectTransform, LessonPanel.CaptionFont * 1.2f * 2f + 4f);
+            bodySize = LessonPanel.Fixed(body.rectTransform, LineHeight(1));
             Apply();
         }
+
+        // Nunito Sans's line box is ~1.37 em: a page shorter than its lines shows nothing, so leave room.
+        static float LineHeight(int lines) => LessonPanel.CaptionFont * 1.42f * lines + 6f;
 
         void Apply() => shown = Enabled && owner != null;
 
         void Update()
         {
-            float target = shown ? 1f : 0f;
+            // While Ask Wattson is open only his answer is captioned: the lesson's paused line waits behind the conversation.
+            bool visible = shown && (!AskWattsonUI.IsOpen || owner is WattsonAgent);
+            float target = visible ? 1f : 0f;
             group.alpha = ReducedMotion.On ? target : Mathf.MoveTowards(group.alpha, target, Time.unscaledDeltaTime / 0.25f);
+            if (visible) Layout();
+        }
+
+        // Width from the line (one line if it fits, else two lines at the widest the frame allows), centred in the frame
+        // the dock leaves free. Recomputed only when the text or the free width changes.
+        void Layout()
+        {
+            var panel = LessonPanel.Instance;
+            if (!panel) return;
+            float full = panel.Root.rect.width, free = full - panel.Cover;
+            if (body.text == laidOut && Mathf.Approximately(free, laidFree)) return;
+            laidOut = body.text;
+            laidFree = free;
+            float clear = panel.Cover > 0f ? SideClear : AvatarClear;   // without a dock the bar stays clear of the avatar
+            float maxBox = Mathf.Min(LessonPanel.CaptionMax, free - 2f * clear);
+            float maxText = maxBox - 2f * PadX;
+            float one = body.GetPreferredValues(body.text, 99999f, 0f).x;
+            bool wraps = one > maxText;
+            float textWidth = wraps ? maxText : Mathf.Ceil(one) + 4f;
+            float speakerWidth = speaker.GetPreferredValues(speaker.text, 99999f, 0f).x;
+            bodySize.preferredHeight = bodySize.minHeight = LineHeight(wraps ? 2 : 1);
+            box.sizeDelta = new Vector2(Mathf.Max(textWidth, speakerWidth) + 2f * PadX, box.sizeDelta.y);
+            box.anchoredPosition = new Vector2(free / 2f, LessonPanel.BottomInset);
         }
 
         // progress (0..1) through the spoken line picks which two-line page is on screen: a page comes up once the
@@ -64,11 +108,17 @@ namespace OhmsLaw
             owner = shownBy;
             Apply();
             if (!Enabled) return;
-            speaker.text = (speakerName ?? "").ToUpperInvariant();
+            if (speakerName != speakerShown)   // the caps once per speaker, not every frame
+            {
+                speakerShown = speakerName;
+                speaker.text = (speakerName ?? "").ToUpperInvariant();
+            }
             if (body.text != text)
             {
                 body.text = text;
                 body.pageToDisplay = 1;
+                Layout();
+                Canvas.ForceUpdateCanvases();
                 body.ForceMeshUpdate();
             }
             var info = body.textInfo;

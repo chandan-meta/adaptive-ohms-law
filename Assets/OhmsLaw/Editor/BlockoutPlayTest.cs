@@ -50,6 +50,7 @@ namespace OhmsLaw.Editor
         static PlayableDirector capturesFor;
         static TimelineAsset sceneTimeline; // the active scene's Timeline, for Verify() when no builder owns the scene (Scene 4)
         static int shotIndex;
+        static bool titleShot;
         static string currentScene = "", lastGate;
         static double lastTime = -1;
         static float lastProgress, started;
@@ -212,9 +213,15 @@ namespace OhmsLaw.Editor
         {
             // Play mode stopped from the editor: close the test down so playModeStartScene does not stick.
             if (!EditorApplication.isPlaying) { if (started > 0) { Note("STOPPED  play mode exited before the end card"); Finish(); } return; }
-            if (started == 0) { started = Time.realtimeSinceStartup; lastProgress = started; Application.runInBackground = true; SubtitleUI.Enabled = true; ReducedMotion.On = SessionState.GetString(SceneKey + ".req", "").Contains("calm"); } // captures show full motion unless the request says "calm"
+            if (started == 0) { titleShot = false; started = Time.realtimeSinceStartup; lastProgress = started; Application.runInBackground = true; SubtitleUI.Enabled = true; ReducedMotion.On = SessionState.GetString(SceneKey + ".req", "").Contains("calm"); // captures show full motion unless the request says "calm"
+                // "fresh" plays as a new learner (no saved progress: chapters locked, no Continue); "larger" turns Larger text on.
+                var words = SessionState.GetString(SceneKey + ".req", "");
+                if (words.Contains("fresh")) { PlayerPrefs.DeleteKey("ohm.reached"); PlayerPrefs.DeleteKey("ohm.finished"); }
+                HudScale.Larger = words.Contains("larger"); }
             foreach (var due in pending.Where(p => Time.realtimeSinceStartup >= p.due).ToList()) { Shot(due.what); pending.Remove(due); }
             ReviewMode.autoAnswer = true;
+            if (ModuleFlow.Instance && SessionState.GetString(SceneKey + ".req", "").Contains("clean")) ModuleFlow.Instance.GetComponent<Canvas>().enabled = false; // frames without the HUD (design backdrops)
+            if (TitleScreen.IsOpen && !titleShot) { titleShot = true; Later("title_screen", 0.2f); } // the title holds ~0.8 s before autoAnswer starts the case
             if (!Mathf.Approximately(ReviewMode.timeScale, SessionState.GetFloat(SpeedKey, 1f))) ReviewMode.timeScale = SessionState.GetFloat(SpeedKey, 1f);
 
             var flow = ModuleFlow.Instance;

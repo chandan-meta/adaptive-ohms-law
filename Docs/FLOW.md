@@ -1,6 +1,6 @@
 # Ohm's Law module flow
 
-Generated 2026-10-06 16:07 from the scene Timelines. Scene 4 is the polished build; Scenes 5-13 are blockouts.
+Generated 2026-10-07 18:57 from the scene Timelines. Scene 4 is the polished build; Scenes 5-13 are blockouts.
 
 ## Scene05 — Journey Inside the Wire
 
@@ -21,23 +21,26 @@ Generated 2026-10-06 16:07 from the scene Timelines. Scene 4 is the polished bui
 | 19.4 s | VO | `S05_W02` This end connects to the battery's negative terminal. | 3.7 s |
 | 23.3 s | VO | `S05_W03` That end, to the positive terminal. | 3.1 s |
 | 26.8 s | VO | `S05_N02` Now we apply a voltage: a difference in electric potential between the two ends. | 5.7 s |
-| 32.6 s | VO | `S05_N03` That creates the electrical push that gives the electrons an overall direction. They still jiggle, but now they all drift together. | 9.3 s |
-| 32.9 s | Visual | field set up along the whole conduit at once; every electron starts drifting − → +, random motion kept (`wire.field 1`) |  |
-| 42.2 s | Visual | The electrons keep jiggling and now all drift together; the arrow under the conduit says electron drift, − → + | 2.4 s |
-| 44.6 s | VO | `S05_N04` Watch this section. One, two, three... Now count how much charge passes in one second. | 8.0 s |
-| 44.6 s | Visual | the panel's counter: charges through the section this second, the one-second ring (`counter 1`) |  |
-| 44.6 s | Visual | a soft tick for every counted charge (`wire.ticks 1`) |  |
-| 52.8 s | Visual | A full second completes: the panel shows that second's count | 1.6 s |
-| 54.4 s | VO | `S05_L06` And when electric charge flows... | 2.8 s |
-| 57.5 s | VO | `S05_L07` ...we call that electric current. | 3.0 s |
-| 60.8 s | VO | `S05_N05` That rate of charge flow, the charge passing each second, is the current. | 5.4 s |
-| 66.5 s | VO | `S05_L08` And that's exactly the clue we need for your Christmas lights. The new battery changed the electrical conditions—but before we solve your mystery, we need to find out exactly how voltage and current are connected. | 13.6 s |
-| 80.4 s | VO | `S05_L09` Want to predict what we'll find? | 2.4 s |
-| 83.0 s | Visual | Ask Wattson pulses once (`spotlight`) |  |
-| 83.8 s | Visual | handoff — SceneHandoffState: camera pose, fieldOn, drift speed, card positions |  |
-| 84.0 s | Hand-off | Scene05Complete → next scene |  |
+| 32.6 s | Interaction | `S05_ApplyVoltage` — the learner taps the + terminal: the voltage is applied, and the field goes up | waits |
+| 32.8 s | Camera | Wire Drift |  |
+| 32.8 s | VO | `S05_N03` That creates the electrical push that gives the electrons an overall direction. They still jiggle, but now they all drift together. | 9.3 s |
+| 33.1 s | Visual | field set up along the whole conduit at once; every electron starts drifting − → +, random motion kept (`wire.field 1`) |  |
+| 42.4 s | Visual | The electrons keep jiggling and now all drift together; the arrow under the conduit says electron drift, − → + | 2.4 s |
+| 44.8 s | Camera | Wire Inside |  |
+| 44.8 s | VO | `S05_N04` Watch this section. One, two, three... Now count how much charge passes in one second. | 8.0 s |
+| 44.8 s | Visual | the panel's counter: charges through the section this second, the one-second ring (`counter 1`) |  |
+| 44.8 s | Visual | a soft tick for every counted charge (`wire.ticks 1`) |  |
+| 53.0 s | Visual | A full second completes: the panel shows that second's count | 1.6 s |
+| 54.6 s | VO | `S05_L06` And when electric charge flows... | 2.8 s |
+| 57.7 s | VO | `S05_L07` ...we call that electric current. | 3.0 s |
+| 61.0 s | VO | `S05_N05` That rate of charge flow, the charge passing each second, is the current. | 5.4 s |
+| 66.7 s | VO | `S05_L08` And that's exactly the clue we need for your Christmas lights. The new battery changed the electrical conditions—but before we solve your mystery, we need to find out exactly how voltage and current are connected. | 13.6 s |
+| 80.6 s | VO | `S05_L09` Want to predict what we'll find? | 2.4 s |
+| 83.2 s | Visual | Ask Wattson pulses once (`spotlight`) |  |
+| 84.0 s | Visual | handoff — SceneHandoffState: camera pose, fieldOn, drift speed, card positions |  |
+| 84.2 s | Hand-off | Scene05Complete → next scene |  |
 
-**Scene total:** 85.1 s of Timeline, plus time spent at 0 interaction gate(s).
+**Scene total:** 85.3 s of Timeline, plus time spent at 1 interaction gate(s).
 
 ## Scene06 — Your Prediction
 
@@ -145,6 +148,7 @@ Generated 2026-10-06 16:07 from the scene Timelines. Scene 4 is the polished bui
 | 36.2 s | Visual | the parallel slot glows: the voltmeter may be selected now (`rig.drag voltmeter`) |  |
 | 42.5 s | Interaction | `S09_PlaceVoltmeter` — Panel: 'Select the voltmeter.' then 'Click the highlighted position to place it.' Its leads reach X and Y; the schematic's V and its parallel leads light. | waits |
 | 42.7 s | VO | `S09_L08` That's why a voltmeter is connected in parallel across the nichrome wire. | 5.0 s |
+| 42.7 s | Visual | the empty tray folds away, so the last frame matches Scene 10's bench (`retract 0.5 Parts Tray`) |  |
 | 48.0 s | VO | `S09_L09` Close the switch to complete the circuit. | 3.0 s |
 | 51.1 s | Interaction | `S09_CloseKey` — Panel: 'Close the switch to complete the circuit.' Tap the key (tap-hand hint): the lever closes with a clack, the needles move at the small default voltage, the loop in the schematic warms to amber (conventional current, + → −). | waits |
 | 51.3 s | VO | `S09_L10` Investigation ready. | 2.2 s |
@@ -193,20 +197,21 @@ Generated 2026-10-06 16:07 from the scene Timelines. Scene 4 is the polished bui
 | Start | Type | Beat | Duration |
 |---:|---|---|---:|
 | 0.0 s | Camera | Bench Study |  |
-| 0.4 s | Visual | the table hands its highlights to the graph (`table.clear`) |  |
-| 0.4 s | Visual | the line sweeps out from the origin through every point, with the musical rise (`graph.line 1`) |  |
-| 0.4 s | Visual | Line through the origin | 1.4 s |
-| 1.8 s | VO | `S11_L01` Now we've got our biggest clue. They're all in a line! | 4.6 s |
-| 6.7 s | VO | `S11_N01` Look at the pattern! Double the voltage, and the current doubles too. They change together in the same proportion. | 8.6 s |
-| 6.7 s | Visual | points (0.20, 1.0) and (0.40, 2.0) highlight (`graph.highlight 0 1`) |  |
-| 15.6 s | VO | `S11_L04` For this conductor that is the nichrome wire, while its temperature remains constant...the potential difference across it is directly proportional to the current flowing through it. | 10.3 s |
-| 15.6 s | Visual | the table steps aside: the graph and the law fill the panel (`panel Table 0`) |  |
-| 26.1 s | Visual | V ∝ I glows in the panel | 1.0 s |
-| 27.1 s | VO | `S11_L05` But there's still one clue we haven't explained. | 3.5 s |
-| 30.9 s | Visual | handoff — the data stays for Scene 12 |  |
-| 31.2 s | Hand-off | Scene11Complete → next scene |  |
+| 0.4 s | Interaction | `S11_DrawLine` — the learner taps the graph: the line sweeps out through the five points | waits |
+| 0.6 s | Visual | the table hands its highlights to the graph (`table.clear`) |  |
+| 0.6 s | Visual | the line sweeps out from the origin through every point, with the musical rise (`graph.line 1`) |  |
+| 0.6 s | Visual | Line through the origin | 1.4 s |
+| 2.0 s | VO | `S11_L01` Now we've got our biggest clue. They're all in a line! | 4.6 s |
+| 6.9 s | VO | `S11_N01` Look at the pattern! Double the voltage, and the current doubles too. They change together in the same proportion. | 8.6 s |
+| 6.9 s | Visual | points (0.20, 1.0) and (0.40, 2.0) highlight (`graph.highlight 0 1`) |  |
+| 15.8 s | VO | `S11_L04` For this conductor that is the nichrome wire, while its temperature remains constant...the potential difference across it is directly proportional to the current flowing through it. | 10.3 s |
+| 15.8 s | Visual | the table steps aside: the graph and the law fill the panel (`panel Table 0`) |  |
+| 26.3 s | Visual | V ∝ I glows in the panel | 1.0 s |
+| 27.3 s | VO | `S11_L05` But there's still one clue we haven't explained. | 3.5 s |
+| 31.1 s | Visual | handoff — the data stays for Scene 12 |  |
+| 31.4 s | Hand-off | Scene11Complete → next scene |  |
 
-**Scene total:** 32.3 s of Timeline, plus time spent at 0 interaction gate(s).
+**Scene total:** 32.5 s of Timeline, plus time spent at 1 interaction gate(s).
 
 ## Scene12 — Discover Resistance
 
@@ -217,42 +222,43 @@ Generated 2026-10-06 16:07 from the scene Timelines. Scene 4 is the polished bui
 | 0.3 s | VO | `S12_L03` But if voltage pushes charge...why doesn't charge move through every conductor equally easily? | 6.2 s |
 | 6.8 s | Camera | Wire Study |  |
 | 6.8 s | Visual | The camera pulls back to the test wire; it highlights | 1.0 s |
-| 7.8 s | VO | `S12_N01` Keep the voltage the same, but change the wire material. This one allows more current. The other opposes the flow more. | 9.5 s |
+| 7.8 s | Interaction | `S12_SwapWire` — copper shows alone; the learner swaps in nichrome: same voltage, less current | waits |
 | 7.8 s | Visual | the graph steps aside for the comparison (`panel Graph 0`) |  |
 | 7.8 s | Visual | the magnified comparison opens in the panel: copper above, nichrome below, same voltage (`inset 1`) |  |
-| 17.5 s | VO | `S12_L05` That opposition to the flow of electric current is called electrical resistance. | 5.7 s |
-| 23.6 s | Visual | The comparison holds a moment | 1.2 s |
-| 24.8 s | Camera | Bench Study |  |
-| 24.8 s | VO | `S12_L06` And the best part? | 1.9 s |
-| 26.8 s | VO | `S12_L07` You've already measured it. | 2.2 s |
-| 29.3 s | Visual | the learner's table returns, on its own (`panel Table 1`) |  |
-| 29.3 s | Visual | a new column V / I appears (`table.ratio 1`) |  |
-| 29.3 s | Visual | V / I column appears | 0.6 s |
-| 29.9 s | Visual | 1.0 ÷ 0.20 = 5 (`table.work 0`) |  |
-| 30.8 s | Visual | 2.0 ÷ 0.40 = 5 (`table.work 1`) |  |
-| 31.7 s | Visual | 3.0 ÷ 0.60 = 5 (`table.work 2`) |  |
-| 32.6 s | Visual | 5 (`table.result 3`) |  |
-| 32.6 s | Visual | the last two fill | 0.7 s |
-| 32.9 s | Visual | 5 (`table.result 4`) |  |
-| 33.3 s | VO | `S12_L08` The value of V/I is the same every time. | 4.3 s |
-| 33.3 s | Visual | the whole V/I column glows (`table.glow 2 1`) |  |
-| 37.8 s | VO | `S12_L09` This constant tells us how strongly the conductor opposes current. | 4.7 s |
-| 42.7 s | VO | `S12_L10` We call that constant value resistance of the nichrome wire XY. | 5.4 s |
-| 48.4 s | Visual | The reasoning, one line at a time | 0.8 s |
-| 49.2 s | VO | `S12_L11` And remember the straight line you made in the graph? | 3.3 s |
-| 49.2 s | Visual | the graph takes the table's place for the slope (`panel Graph 1`) |  |
-| 52.9 s | VO | `S12_L12` Every straight line has a slope. | 2.8 s |
-| 52.9 s | Visual | rise and run between (0.20, 1.0) and (0.60, 3.0): ΔV = 2.0 V, ΔI = 0.40 A (`graph.triangle 0 2`) |  |
-| 55.8 s | VO | `S12_L13` So for a V-versus-I graph, the slope tells us the resistance of the nichrome wire XY. | 6.9 s |
-| 63.0 s | VO | `S12_L14` Resistance is measured in ohms. | 2.9 s |
-| 66.3 s | VO | `S12_N02` Written with this symbol: omega. | 3.0 s |
-| 69.4 s | VO | `S12_L15` A conductor has a resistance of one ohm when a potential difference of one volt produces a current of one ampere. | 7.3 s |
-| 76.9 s | VO | `S12_N03` Our nichrome wire needs five volts for one ampere, so its resistance is five ohms. | 6.4 s |
-| 76.9 s | Visual | R and the ohm are taught: the readings show R (`readings.r 1`) |  |
-| 83.7 s | Visual | handoff |  |
-| 84.0 s | Hand-off | Scene12Complete → next scene |  |
+| 8.0 s | VO | `S12_N01` Keep the voltage the same, but change the wire material. This one allows more current. The other opposes the flow more. | 9.5 s |
+| 17.7 s | VO | `S12_L05` That opposition to the flow of electric current is called electrical resistance. | 5.7 s |
+| 23.8 s | Visual | The comparison holds a moment | 1.2 s |
+| 25.0 s | Camera | Bench Study |  |
+| 25.0 s | VO | `S12_L06` And the best part? | 1.9 s |
+| 27.0 s | VO | `S12_L07` You've already measured it. | 2.2 s |
+| 29.5 s | Visual | the learner's table returns, on its own (`panel Table 1`) |  |
+| 29.5 s | Visual | a new column V / I appears (`table.ratio 1`) |  |
+| 29.5 s | Visual | V / I column appears | 0.6 s |
+| 30.1 s | Visual | 1.0 ÷ 0.20 = 5 (`table.work 0`) |  |
+| 31.0 s | Visual | 2.0 ÷ 0.40 = 5 (`table.work 1`) |  |
+| 31.9 s | Visual | 3.0 ÷ 0.60 = 5 (`table.work 2`) |  |
+| 32.8 s | Visual | 5 (`table.result 3`) |  |
+| 32.8 s | Visual | the last two fill | 0.7 s |
+| 33.1 s | Visual | 5 (`table.result 4`) |  |
+| 33.5 s | VO | `S12_L08` The value of V/I is the same every time. | 4.3 s |
+| 33.5 s | Visual | the whole V/I column glows (`table.glow 2 1`) |  |
+| 38.0 s | VO | `S12_L09` This constant tells us how strongly the conductor opposes current. | 4.7 s |
+| 42.9 s | VO | `S12_L10` We call that constant value resistance of the nichrome wire XY. | 5.4 s |
+| 48.6 s | Visual | The reasoning, one line at a time | 0.8 s |
+| 49.4 s | VO | `S12_L11` And remember the straight line you made in the graph? | 3.3 s |
+| 49.4 s | Visual | the graph takes the table's place for the slope (`panel Graph 1`) |  |
+| 53.1 s | VO | `S12_L12` Every straight line has a slope. | 2.8 s |
+| 53.1 s | Visual | rise and run between (0.20, 1.0) and (0.60, 3.0): ΔV = 2.0 V, ΔI = 0.40 A (`graph.triangle 0 2`) |  |
+| 56.0 s | VO | `S12_L13` So for a V-versus-I graph, the slope tells us the resistance of the nichrome wire XY. | 6.9 s |
+| 63.2 s | VO | `S12_L14` Resistance is measured in ohms. | 2.9 s |
+| 66.5 s | VO | `S12_N02` Written with this symbol: omega. | 3.0 s |
+| 69.6 s | VO | `S12_L15` A conductor has a resistance of one ohm when a potential difference of one volt produces a current of one ampere. | 7.3 s |
+| 77.1 s | VO | `S12_N03` Our nichrome wire needs five volts for one ampere, so its resistance is five ohms. | 6.4 s |
+| 77.1 s | Visual | R and the ohm are taught: the readings show R (`readings.r 1`) |  |
+| 83.9 s | Visual | handoff |  |
+| 84.2 s | Hand-off | Scene12Complete → next scene |  |
 
-**Scene total:** 85.1 s of Timeline, plus time spent at 0 interaction gate(s).
+**Scene total:** 85.3 s of Timeline, plus time spent at 1 interaction gate(s).
 
 ## Scene13 — Ohm's Law
 
@@ -264,30 +270,31 @@ Generated 2026-10-06 16:07 from the scene Timelines. Scene 4 is the polished bui
 | 5.8 s | VO | `S13_L03` The flow. | 1.9 s |
 | 7.9 s | VO | `S13_L04` And the opposition. | 2.0 s |
 | 10.2 s | VO | `S13_L05` And the relationship connecting them... | 2.8 s |
-| 13.3 s | Visual | The three pieces resolve into V = IR | 1.2 s |
-| 14.5 s | VO | `S13_L06` And today... we call it OHM'S LAW. | 3.3 s |
-| 17.8 s | Camera | Finale |  |
-| 17.8 s | Visual | Georg Ohm reappears behind the bench, presenting (`appear 0.9 Georg Ohm`) |  |
-| 17.8 s | Visual | The lab warms; Ohm reappears and presents; Wattson comes forward | 1.6 s |
-| 19.4 s | VO | `S13_N01` You've followed the charges, measured the current, and discovered the pattern. Voltage, current, and resistance are connected by one relationship: V equals I times R. That's Ohm's law! | 13.9 s |
-| 33.6 s | Visual | The completed composition holds: bench, meters, graph and V = IR | 2.5 s |
-| 36.1 s | Visual | the panel offers replay and exit; the module holds here (`end`) |  |
+| 13.3 s | Interaction | `S13_BuildLaw` — the learner taps V, then I, then R: V = I × R builds in the panel | waits |
+| 13.5 s | Visual | The three pieces resolve into V = IR | 1.2 s |
+| 14.7 s | VO | `S13_L06` And today... we call it OHM'S LAW. | 3.3 s |
+| 15.7 s | Camera | Finale |  |
+| 16.5 s | Visual | Georg Ohm reappears behind the bench, presenting (`appear 0.9 Georg Ohm`) |  |
+| 18.0 s | Visual | The lab warms; Ohm presents; Wattson greets the learner | 0.8 s |
+| 18.8 s | VO | `S13_N01` You've followed the charges, measured the current, and discovered the pattern. Voltage, current, and resistance are connected by one relationship: V equals I times R. That's Ohm's law! | 13.9 s |
+| 33.0 s | Visual | The completed composition holds: bench, meters, graph and V = IR | 2.5 s |
+| 35.5 s | Visual | the panel offers replay and exit; the module holds here (`end`) |  |
 
-**Scene total:** 37.1 s of Timeline, plus time spent at 0 interaction gate(s).
+**Scene total:** 36.5 s of Timeline, plus time spent at 1 interaction gate(s).
 
 ## Totals
 
 | Scene | Timeline length | Lines | Interactions |
 |---|---:|---:|---:|
-| Scene05 | 85.1 s | 12 | 0 |
+| Scene05 | 85.3 s | 12 | 1 |
 | Scene06 | 23.8 s | 3 | 1 |
 | Scene07 | 35.1 s | 6 | 0 |
 | Scene08 | 35.6 s | 4 | 0 |
 | Scene09 | 59.7 s | 12 | 3 |
 | Scene10 | 25.9 s | 6 | 6 |
-| Scene11 | 32.3 s | 4 | 0 |
-| Scene12 | 85.1 s | 15 | 0 |
-| Scene13 | 37.1 s | 7 | 0 |
+| Scene11 | 32.5 s | 4 | 1 |
+| Scene12 | 85.3 s | 15 | 1 |
+| Scene13 | 36.5 s | 7 | 1 |
 
 **Module Timeline total (Scenes 5-13):** 419.6 s ≈ 7.0 min, before interaction wait times. Scene 4 adds about 50 s.
 

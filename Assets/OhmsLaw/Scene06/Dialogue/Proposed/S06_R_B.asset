@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
   id: S06_R_B
   speaker: WATTSON
-  text: A surprising theory. Every good detective tests a theory.
-  ttsText: A surprising theory. Every good detective tests a theory.
+  text: Less current, you say.
+  ttsText: Less current, you say.
   vo: {fileID: 8300000, guid: 28f398412009a1740a91e68cb3d7e9c7, type: 3}
-  fallbackDuration: 3.4
+  fallbackDuration: 1.8

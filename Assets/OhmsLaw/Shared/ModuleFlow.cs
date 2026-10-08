@@ -56,12 +56,15 @@ namespace OhmsLaw
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.5f;
+            gameObject.AddComponent<HudScale>();   // never below 75 % (and Larger text)
+            gameObject.AddComponent<HudKeys>();
             gameObject.AddComponent<GraphicRaycaster>();
 
             var safe = UI.Stretch("SafeArea", transform).gameObject;
             safe.AddComponent<AdaptiveOhmsLaw.SafeAreaLayout>();
             Agent = gameObject.AddComponent<WattsonAgent>();
             Panel = LessonPanel.Create(safe.transform);   // first: the captions and the conversation build inside it
+            Panel.Root.gameObject.AddComponent<ChapterBanner>();
             safe.AddComponent<SubtitleUI>();
             safe.AddComponent<AskWattsonUI>();
             safe.AddComponent<FlowOverlay>();
@@ -91,6 +94,11 @@ namespace OhmsLaw
             if (cam && !cam.GetComponent<PanelFraming>()) cam.gameObject.AddComponent<PanelFraming>();
             var sceneDirector = Director ? Director.GetComponent<SceneDirector>() : null;
             if (Panel) Panel.ResetForScene("", sceneDirector ? sceneDirector.DockWidth : 0f);
+            int chapter = ChapterIndex;
+            if (chapter >= 0) Reached = Mathf.Max(Reached, chapter + 1);
+            if (ChapterBanner.Instance) ChapterBanner.Instance.Enter(chapter);
+            if (PauseMenu.IsOpen) PauseMenu.Close();
+            TitleScreen.MaybeOpen(scene.name);
 
             // Medium tier for tablets: half the particles, no point-light shadows.
             if (Application.isMobilePlatform)
@@ -150,12 +158,54 @@ namespace OhmsLaw
         // Match-cut: the next scene starts on the same frame, with no white in between.
         public void Cut() => StartCoroutine(Load(NextScene(), false));
 
-        public void JumpToScene(string scene) => StartCoroutine(Load(scene, true));
+        public void JumpToScene(string scene) { returnTo = null; StartCoroutine(Load(scene, true)); }
+
+        // The chapter (0-based index in `scenes`) the active scene is, or -1 outside the module (the player scene).
+        public int ChapterIndex => scenes == null ? -1 : Array.IndexOf(scenes, SceneManager.GetActiveScene().name);
+
+        // How far this learner has got (chapters reached, 1-based; every chapter after the finale). The title screen's
+        // Continue and the pause menu's chapter list read it.
+        public static int Reached
+        {
+            get => PlayerPrefs.GetInt("ohm.reached", 0);
+            set { PlayerPrefs.SetInt("ohm.reached", value); PlayerPrefs.Save(); }
+        }
+
+        // The finale has been reached once: no Continue on the title after that (Reached alone cannot tell a learner who
+        // left during the last chapter from one who finished it).
+        public static bool Finished
+        {
+            get => PlayerPrefs.GetInt("ohm.finished", 0) == 1;
+            set { PlayerPrefs.SetInt("ohm.finished", value ? 1 : 0); PlayerPrefs.Save(); }
+        }
+
+        // Replaying a finished chapter from the pause menu: once it ends, the learner comes back to the chapter they left.
+        string returnTo;
+        public void ReplayChapter(int index)
+        {
+            int now = ChapterIndex;
+            if (index < 0 || index >= scenes.Length) return;
+            returnTo = now > index ? scenes[now] : null;
+            StartCoroutine(Load(scenes[index], true));
+        }
 
         string NextScene()
         {
-            int index = Array.IndexOf(scenes, SceneManager.GetActiveScene().name);
+            string active = SceneManager.GetActiveScene().name;
+            if (!string.IsNullOrEmpty(returnTo) && returnTo != active) { var back = returnTo; returnTo = null; return back; }
+            int index = Array.IndexOf(scenes, active);
             return index >= 0 && index + 1 < scenes.Length ? scenes[index + 1] : null;
+        }
+
+        public static void Exit()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#elif UNITY_WEBGL || UNITY_IOS
+            TitleScreen.Again();   // a browser tab (or an iPad app) is not closed by the page: back to the title screen
+#else
+            Application.Quit();
+#endif
         }
 
         // The finale (Scene 13's "end" cue): the composition holds, the panel offers replay and exit, and the optional
@@ -164,7 +214,10 @@ namespace OhmsLaw
         {
             if (Ended) return;
             Ended = true;
+            Reached = scenes != null ? scenes.Length : Reached;   // the finale opens every chapter
+            Finished = true;
             UnitySectionComplete?.Invoke();
+            if (ChapterBanner.Instance) ChapterBanner.Instance.Complete();
             if (Panel) Panel.End(true);
             if (string.IsNullOrEmpty(scene14Video) || !Camera.main) return;
             var video = Camera.main.gameObject.AddComponent<VideoPlayer>();

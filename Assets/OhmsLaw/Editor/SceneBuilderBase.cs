@@ -103,10 +103,11 @@ namespace OhmsLaw.Editor
         protected void Formula(string text, double offset = 0) => Cue("formula " + text, "", offset);
         protected void Reveal(string big, string small, double offset = 0) => Cue("reveal " + big + "|" + small, "", offset);
 
-        protected void Shot(string camName, bool cut = false) => beats.Add(new Beat { kind = Kind.Camera, at = clock, id = camName, cut = cut });
+        // offset (seconds from the clock) lands a cut or a gesture on a word inside the next line, like Cue's offset.
+        protected void Shot(string camName, bool cut = false, double offset = 0) => beats.Add(new Beat { kind = Kind.Camera, at = clock + offset, id = camName, cut = cut });
 
-        protected void Gesture(WattsonController.Gesture gesture, string look = "Main Camera", string point = null, string moveTo = null, bool gadget = false) =>
-            beats.Add(new Beat { kind = Kind.Wattson, at = clock, gesture = gesture, look = look, point = point, moveTo = moveTo, gadget = gadget });
+        protected void Gesture(WattsonController.Gesture gesture, string look = "Main Camera", string point = null, string moveTo = null, bool gadget = false, double offset = 0) =>
+            beats.Add(new Beat { kind = Kind.Wattson, at = clock + offset, gesture = gesture, look = look, point = point, moveTo = moveTo, gadget = gadget });
 
         // The gate pauses the Timeline here; the next beat sits a little later so it never starts on the gate's frame.
         protected void Gate(string id, string description, params string[] lineIds)
@@ -545,7 +546,9 @@ namespace OhmsLaw.Editor
             playable.playOnAwake = true;
             playable.extrapolationMode = DirectorWrapMode.Hold;
 
-            // Cameras: one clip per shot, held until the next shot.
+            // Cameras: one clip per shot, held until the next shot. The last one runs past the Timeline's end (clock + 1):
+            // Hold parks the playhead exactly on the end, where a clip ending there is no longer live, and the brain fell
+            // back to the entry camera under Scene 13's end card.
             var cameraTrack = timeline.CreateTrack<CinemachineTrack>(null, "Cameras");
             playable.SetGenericBinding(cameraTrack, camera.GetComponent<CinemachineBrain>());
             var shots = beats.Where(b => b.kind == Kind.Camera).OrderBy(b => b.at).ToList();
@@ -556,7 +559,7 @@ namespace OhmsLaw.Editor
                 var clip = cameraTrack.CreateClip<CinemachineShot>();
                 clip.displayName = shots[i].id;
                 clip.start = shots[i].at;
-                double next = i + 1 < shots.Count ? shots[i + 1].at : clock + 1;
+                double next = i + 1 < shots.Count ? shots[i + 1].at : clock + 2;
                 // Blended shots overlap the next one by a second; a cut ends exactly where the next begins.
                 double overlap = i + 1 < shots.Count && !shots[i + 1].cut ? Math.Min(1.0, next - shots[i].at) : 0;
                 clip.duration = next - shots[i].at + overlap;

@@ -1,7 +1,9 @@
 # Hand-off — Ohm's Law Unity module (Scenes 4–13)
 
-Last updated 2026-10-06 (after the redesign and the cinematic HUD). Repository `github.com/chandan-meta/adaptive-ohms-law`,
-branch `main`, last commit `e6389d5`. Unity 6000.3.0f1, URP, Cinemachine 3, Timeline, TextMeshPro, new Input System;
+Last updated 2026-10-07 (HUD v3 "Case File": `Docs/Polish/V3_REPORT.md` and `Docs/Polish/HUD_DESIGN.md` supersede the HUD
+parts below; new: title screen, chapter banner, pause menu with chapters, turn / clue / case-closed cards, four new gates
+S05_ApplyVoltage, S11_DrawLine, S12_SwapWire, S13_BuildLaw). Repository `github.com/chandan-meta/adaptive-ohms-law`,
+branch `main`; the HUD v3 work is committed on 2026-10-08 (`git log -1`). Unity 6000.3.0f1, URP, Cinemachine 3, Timeline, TextMeshPro, new Input System;
 mouse + touch; no XR. `Environment.fbx` is in Git LFS: `git lfs install` before cloning, `git lfs pull` after.
 
 ## 1. What the module is now

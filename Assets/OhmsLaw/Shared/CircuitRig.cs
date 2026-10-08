@@ -80,6 +80,7 @@ namespace OhmsLaw
 
         public event Action<string> Placed;
         public event Action<string> Selected;
+        public event Action<string> WrongPart; // a tap on the meter that is not the one wanted now (still in the tray)
         public event Action KeyClosed;
 
         float shownVolts, shownAmps, shownKnob;
@@ -331,9 +332,9 @@ namespace OhmsLaw
             sourceBody.SetPropertyBlock(block, lampMaterialIndex);
         }
 
-        // Select the part with a tap (it lifts and its slot glows), then tap the slot to place it, or drag it there.
-        // Tap the key to close the circuit. Mouse and touch. Nothing while the learner has pressed PAUSE (a part
-        // mid-drag waits where it is).
+        // Select the part with a tap (it lifts), then tap the glowing slot to place it, or drag it there; a tap on the slot
+        // alone places it too. Tap the key to close the circuit. Mouse and touch. Nothing while the learner has pressed
+        // PAUSE (a part mid-drag waits where it is).
         void Pointing()
         {
             var pointer = Pointer.current;
@@ -345,16 +346,23 @@ namespace OhmsLaw
 
             if (pointer.press.wasPressedThisFrame && !(EventSystem.current && EventSystem.current.IsPointerOverGameObject()))
             {
-                if (!Physics.Raycast(cam.ScreenPointToRay(screen), out var hit, 50f)) return;
-                if (keyArmed && hit.transform.IsChildOf(key)) { CloseKey(); return; }
-                if (part && hit.transform.IsChildOf(part))
+                // Everything under the pointer, nearest first: the part to take wins over the key's lever in front of it.
+                var hits = Physics.RaycastAll(cam.ScreenPointToRay(screen), 50f);
+                if (hits.Length == 0) return;
+                Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+                bool Under(Transform t) { if (t) foreach (var h in hits) if (h.transform.IsChildOf(t)) return true; return false; }
+                if (keyArmed && Under(key)) { CloseKey(); return; }
+                if (part && Under(part))
                 {
                     if (SelectedPart != draggable) { SelectedPart = draggable; selectedHome = part.position; Selected?.Invoke(draggable); }
                     dragging = part; dragHome = selectedHome; pressAt = screen; moving = false;
                     return;
                 }
-                // The highlighted position: tapping the slot (or its glow) places the selected part.
-                if (part && slot && SelectedPart == draggable && (hit.transform.IsChildOf(slot) || hit.transform == bench) && SlotHit(cam, screen, slot))
+                string other = draggable == "ammeter" ? "voltmeter" : "ammeter";
+                if (part && !IsPlaced(other) && Under(Part(other))) { WrongPart?.Invoke(other); return; }
+                // The highlighted position: tapping the slot (or its glow) places the part, selected or not.
+                var first = hits[0].transform;
+                if (part && slot && (first.IsChildOf(slot) || first == bench) && SlotHit(cam, screen, slot))
                     StartCoroutine(Fly(part, slot, draggable));
             }
             if (!dragging) return;

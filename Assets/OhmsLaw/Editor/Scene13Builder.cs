@@ -1,3 +1,5 @@
+using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 namespace OhmsLaw.Editor
@@ -58,9 +60,14 @@ namespace OhmsLaw.Editor
             ohm.SetActive(false);
             Ref(ohm);
             FinaleGlow();
+
+            // The module's own theme (Scene 4's bgm.mp3) returns under the finale: "music bgm" crossfades the lab pad into it.
+            var theme = AssetDatabase.LoadAssetAtPath<AudioClip>(Shared + "/Art/bgm.mp3");
+            if (theme) director.sounds = director.sounds.Append(theme).ToArray();
         }
 
         // Warm sparks rising from the bench as the law gets its name (a one-shot the fx cue plays; thinned under reduced motion).
+        // A slow lift and a long life, so they hang around the bench and Ohm through the hold instead of racing to the ceiling.
         void FinaleGlow()
         {
             var fx = Emitter("Finale Glow", null, DeskTopC + Vector3.up * 0.1f, Glow("Glow_Finale", Hdr(new Color(1f, 0.85f, 0.5f), 3.5f)), ps =>
@@ -68,10 +75,10 @@ namespace OhmsLaw.Editor
                 var main = ps.main;
                 main.loop = false;
                 main.duration = 1.5f;
-                main.startLifetime = new ParticleSystem.MinMaxCurve(1.2f, 2.4f);
-                main.startSpeed = new ParticleSystem.MinMaxCurve(0.15f, 0.5f);
+                main.startLifetime = new ParticleSystem.MinMaxCurve(2.0f, 3.5f);
+                main.startSpeed = new ParticleSystem.MinMaxCurve(0.05f, 0.25f);
                 main.startSize = new ParticleSystem.MinMaxCurve(0.012f, 0.04f);
-                main.gravityModifier = -0.08f;
+                main.gravityModifier = -0.02f;
                 main.maxParticles = 320;
                 var emission = ps.emission;
                 emission.rateOverTime = 0;
@@ -91,7 +98,7 @@ namespace OhmsLaw.Editor
             Ambience("RoomTone");
             Music("PadLab");
             Cue("readings.r 1"); Cue("readings 1"); // the finale keeps only the three readings and the law: no table, no graph
-            Formula("V = I R");
+            Formula("V = I × R");
             Gesture(WattsonController.Gesture.Talking);
             Line("S13_L01");
 
@@ -106,22 +113,29 @@ namespace OhmsLaw.Editor
             Line("S13_L04");
             Gesture(WattsonController.Gesture.Talking);
             Line("S13_L05", 0.2);
+            Gate("S13_BuildLaw", "the learner taps V, then I, then R: V = I × R builds in the panel");
             Cue("formula.clear");
-            Reveal("V = I R", "");
+            Reveal("V = I × R", "");   // the same form the learner just built with the tiles
             Visual("The three pieces resolve into V = IR", 1.2);
-            Line("S13_L06", 0.1);
-            Reveal("OHM'S LAW", "", -1.0);
-            Sfx("Finale", -1.0);
 
             // The finale composition: the lab warms, Georg Ohm returns to take a bow, Wattson celebrates; the whole
-            // investigation is in one frame: the bench and its meters, the data and the law in the panel.
-            Shot("Finale");
-            Cue("fx Finale Glow");
-            Cue("appear 0.9 Georg Ohm", "Georg Ohm reappears behind the bench, presenting");
-            Cue("ohm.pose Present", "", 0.2);
-            Cue("ohm.look Main Camera", "", 0.2);
-            Gesture(WattsonController.Gesture.Greet, moveTo: "Front Point");
-            Visual("The lab warms; Ohm reappears and presents; Wattson comes forward", 1.6);
+            // investigation is in one frame: the bench and its meters, the data and the law in the panel. Timed inside
+            // S13_L06 ("And today... we call it OHM'S LAW."): the camera pulls back on "we call it" (1.0 s) while Wattson
+            // comes forward, and the name, the sting, the sparks, Ohm and the module's theme land on "OHM'S LAW" (1.8 s).
+            // The meter plates go with Ohm's entrance: the readings stay in the panel, and Ohm stands behind the meters.
+            Shot("Finale", offset: 1.0);
+            Gesture(WattsonController.Gesture.Talking, moveTo: "Front Point", offset: 1.0);
+            Reveal("OHM'S LAW", "", 1.8);
+            Sfx("Finale", 1.8);
+            Music("bgm", 1.8);
+            Cue("rig.readouts 0", "", 1.8);
+            Cue("fx Finale Glow", "", 1.8);
+            Cue("appear 0.9 Georg Ohm", "Georg Ohm reappears behind the bench, presenting", 1.8);
+            Cue("ohm.pose Present", "", 2.0);
+            Cue("ohm.look Main Camera", "", 2.0);
+            Gesture(WattsonController.Gesture.Greet, offset: 1.8);
+            Line("S13_L06", 0.1);
+            Visual("The lab warms; Ohm presents; Wattson greets the learner", 0.8);
             Line("S13_N01", 0.3);
             Gesture(WattsonController.Gesture.Idle);
             Visual("The completed composition holds: bench, meters, graph and V = IR", 2.5);

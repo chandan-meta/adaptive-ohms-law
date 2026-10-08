@@ -18,9 +18,11 @@ namespace OhmsLaw.Editor
             L("S06_L01", "Detective test.", 1.5f);
             L("S06_L02", "If we increase the potential difference while everything else stays the same, what do you predict will happen to the current?", 6.5f);
             L("S06_L03", "Interesting. Remember your answer. Let's see if Ohm's experiment agrees with you.", 5.0f);
-            L("S06_R_A", "A bold prediction, detective. Hold on to it.", 2.8f, proposed: true);
-            L("S06_R_B", "A surprising theory. Every good detective tests a theory.", 3.4f, proposed: true);
-            L("S06_R_C", "A careful guess. Let's put it to the test.", 2.8f, proposed: true);
+            // The reaction only says the answer back, without judging it: S06_L03 right after it asks the learner to
+            // remember it and promises the test.
+            L("S06_R_A", "More current, you say.", 1.8f, proposed: true);
+            L("S06_R_B", "Less current, you say.", 1.8f, proposed: true);
+            L("S06_R_C", "No change, you say.", 1.8f, proposed: true);
         }
 
         protected override SceneAgentContext Agent() => Context(
@@ -101,13 +103,14 @@ namespace OhmsLaw.Editor
             Handoff("Scene06Complete", cut: false, afterSeconds: 0.7);
         }
 
-        // The + terminal's own readout: a slim level gauge on the block's front, its blue fill rising from 30 % to 80 %
-        // over 1.4 s when it is shown (a legacy Animation clip, so the show cue restarts it), marked "V" above its slot.
+        // The + terminal's own readout: a slim level gauge on the floor just left of the block's front, its blue fill rising
+        // from 30 % to 80 % over 1.4 s when it is shown (a legacy Animation clip, so the show cue restarts it), marked "V"
+        // above its slot. It stands clear of the "+ positive" label (on the block's corner it hid the "+").
         void BatteryReadout()
         {
             const float width = 0.44f, height = 1.5f, depth = 0.3f, face = -0.05f;
             const float slotWidth = 0.2f, slotHeight = 1.1f, slotY = -0.12f, edge = 0.012f;
-            Vector3 corner = PlusBlock + new Vector3(-0.8f, 0, -0.8f);
+            Vector3 corner = PlusBlock + new Vector3(-1.4f, 0, -0.8f);
             var gauge = Node("Battery Readout", null, new Vector3(corner.x, SpaceFloorY + height / 2, corner.z));
             gauge.transform.rotation = Quaternion.Euler(0, 45, 0);
             var pop = gauge.AddComponent<PopIn>();

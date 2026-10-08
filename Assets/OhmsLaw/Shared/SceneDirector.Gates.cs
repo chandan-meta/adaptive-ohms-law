@@ -47,6 +47,11 @@ namespace OhmsLaw
                 case "S10_Set3V": yield return SetVoltage(gate, 3); break;
                 case "S10_Set4V": yield return SetVoltage(gate, 4); break;
                 case "S10_Set5V": yield return SetVoltage(gate, 5); break;
+                // v3: the four chapters that used to be watched only now each ask for one meaningful action.
+                case "S05_ApplyVoltage": yield return ApplyVoltage(); break;
+                case "S11_DrawLine": yield return DrawLine(); break;
+                case "S12_SwapWire": yield return SwapWire(); break;
+                case "S13_BuildLaw": yield return BuildLaw(); break;
                 default:
                     if (IsSayGate(gate)) yield return SayGate(gate);
                     else Debug.LogWarning($"{sceneId}: no handler for gate '{gate.gateId}'", this);
@@ -112,45 +117,62 @@ namespace OhmsLaw
         // Scene 6: the prediction is stored, never judged here. Each option gets its own reaction.
         IEnumerator Prediction(InteractionGate gate)
         {
-            Instruction("Tap your prediction.");
+            Turn("Make your prediction.", null, "Tap an answer or press 1, 2 or 3. The experiment will decide.");
             var panel = new MCQPanel("If we increase the potential difference while everything else stays the same, what will happen to the current?",
                 new[] { "A. Increase", "B. Decrease", "C. Stay the same" });
             yield return panel.WaitForPick(0);
             Play("Select");
             LearnerSession.prediction = LearnerSession.Letter(panel.Picked);
-            panel.Mark(panel.Picked, UI.AccentFill);
-            yield return Wait(0.5f);
+            panel.Select(panel.Picked);
+            panel.Hint("Your answer is saved for later.");
+            if (Panel) Panel.Done("Prediction locked in.");
+            yield return Wait(1.2f);
             panel.Close();
-            Instruction("");
             yield return Say(Line(gate, "S06_R_" + LearnerSession.prediction));
         }
 
-        // Scene 9: select the instrument, then tap the highlighted position (or drag it there). The instruction names each
-        // step; AutoPlace and autoAnswer fly it in.
+        // The current turn in the panel: what to do, the step ("1 OF 3"), a hint. SceneDirector.Instruction keeps the
+        // plain one-line form for cues.
+        void Turn(string text, string step, string hint) { if (Panel) Panel.Turn(text, step, hint); }
+
+        // Scene 9: select the instrument, then tap the highlighted position (or drag it there). The turn names each
+        // step and the hand points at the meter, then at its slot; AutoPlace, autoAnswer and Enter fly it in.
         IEnumerator PlacePart(InteractionGate gate, string part)
         {
             if (rig.IsPlaced(part)) yield break;
-            string title = part == "ammeter" ? "ammeter" : "voltmeter";
+            string title = part == "ammeter" ? "ammeter" : "voltmeter", step = part == "ammeter" ? "Step 1 of 3" : "Step 2 of 3";
+            string select = $"Select the {title}.", selectHint = part == "ammeter" ? "Tap the meter marked A on the bench." : "Tap the meter marked V on the bench.";
+            string place = "Place it in the glowing slot.", placeHint = part == "ammeter" ? "In series: in line with the wire." : "In parallel: across the wire, X to Y.";
             bool auto = buildMode == BuildMode.AutoPlace || ReviewMode.autoAnswer;
             rig.draggable = part; // its slot glows in auto runs too, until the part lands (CircuitRig clears it)
-            Instruction($"Select the {title}.");
+            Turn(select, step, selectHint);
             bool selectedShown = false;
             void OnSelected(string which) { if (which == part && !selectedShown) { selectedShown = true; Play("Select"); } }
+            // The two meters look alike but for the letter on the dial: a tap on the other one says which it was.
+            void OnWrong(string which) { if (Panel) Panel.ShowHint(which == "voltmeter" ? "That's the voltmeter: find the A." : "That's the ammeter: find the V."); }
+            IEnumerator Hints()
+            {
+                yield return TapHint(part == "ammeter" ? rig.ammeter : rig.voltmeter, () => rig.SelectedPart == part || rig.IsPlaced(part), Vector2.down);
+                if (!rig.IsPlaced(part)) yield return TapHint(part == "ammeter" ? rig.ammeterSlot : rig.voltmeterSlot, () => rig.IsPlaced(part), Vector2.down);
+            }
             rig.Selected += OnSelected;
+            rig.WrongPart += OnWrong;
+            StartCoroutine(Hints());
             if (auto) { yield return Wait(buildMode != BuildMode.AutoPlace ? ReviewMode.autoDelay : 1f); rig.Place(part); }
             float waited = 0;
             while (!rig.IsPlaced(part))
             {
                 if (!AskWattsonUI.IsOpen) waited += Dt;
-                if (rig.SelectedPart == part && CurrentInstruction != "Click the highlighted position to place it.") Instruction("Click the highlighted position to place it.");
-                else if (rig.SelectedPart != part && CurrentInstruction != $"Select the {title}.") Instruction($"Select the {title}.");
+                if (rig.SelectedPart == part) Turn(place, step, placeHint); else Turn(select, step, selectHint);
+                if (HudKeys.ConsumeAct()) rig.Place(part);
                 if (ReviewMode.autoAnswer && waited > ReviewMode.autoDelay + 2f) rig.PlaceNow(part);
                 yield return null;
             }
             rig.Selected -= OnSelected;
+            rig.WrongPart -= OnWrong;
             rig.draggable = "";
             Play("Place");
-            Instruction("");
+            if (Panel) Panel.Done(part == "ammeter" ? "Ammeter placed, in series." : "Voltmeter placed, in parallel.");
             React(Grade.Correct); // the part snapped in (gesture only, no line)
         }
 
@@ -158,21 +180,125 @@ namespace OhmsLaw
         {
             if (rig.state.keyClosed) yield break;
             rig.keyArmed = true;
-            Instruction("Close the switch to complete the circuit.");
-            // The fingertip on the lever's grip, not the base, so the hand points at what the learner taps.
+            Turn("Close the switch.", "Step 3 of 3", "Tap the key to complete the circuit.");
+            // The fingertip at the lever's grip, not the base, from below-right: the lever stays in view.
             var grip = rig.keyLever ? rig.keyLever.Find("Handle") : null;
-            StartCoroutine(TapHint(grip ? grip : rig.key, () => rig.state.keyClosed, new Vector2(0, -FingerTip)));
+            StartCoroutine(TapHint(grip ? grip : rig.key, () => rig.state.keyClosed));
             float waited = 0;
             while (!rig.state.keyClosed)
             {
                 if (!AskWattsonUI.IsOpen) waited += Dt;
-                if (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay) rig.CloseKey();
+                if (HudKeys.ConsumeAct() || (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay)) rig.CloseKey();
                 yield return null;
             }
             Play("Switch");
-            Instruction("");
+            if (Panel) Panel.Done("Circuit complete.");
             React(Grade.Correct);
             // CircuitRig.CloseKey applies the small default voltage (0.5 V) so the needles move; Scene 10 starts from it.
+        }
+
+        // ------------------------------------------------------------------ v3 actions (Scenes 5, 11, 12, 13)
+
+        // A click or tap this frame on (or right next to) a world object: a collider under it, else within ~110 px of its
+        // renderers' centre on screen (no collider needed). Never through the HUD.
+        bool Tapped(GameObject target)
+        {
+            if (!target || !HudKeys.Tapped || !Camera.main) return false;
+            if (UnityEngine.EventSystems.EventSystem.current && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()) return false;
+            Vector2 pointer = UnityEngine.InputSystem.Pointer.current != null ? UnityEngine.InputSystem.Pointer.current.position.ReadValue() : Vector2.zero;
+            var ray = Camera.main.ScreenPointToRay(pointer);
+            foreach (var hit in Physics.RaycastAll(ray, 500f)) if (hit.transform.IsChildOf(target.transform)) return true;
+            var renderers = target.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) return false;
+            var bounds = renderers[0].bounds;
+            foreach (var r in renderers) bounds.Encapsulate(r.bounds);
+            var onScreen = Camera.main.WorldToScreenPoint(bounds.center);
+            var canvas = Flow ? Flow.GetComponent<Canvas>() : null;
+            return onScreen.z > 0 && Vector2.Distance(onScreen, pointer) < 110f * (canvas ? canvas.scaleFactor : 1f);
+        }
+
+        // Scene 5: the learner applies the voltage: a tap on the + terminal, and the field goes up (the drift follows).
+        IEnumerator ApplyVoltage()
+        {
+            if (wire && wire.fieldOn) yield break;
+            var plus = Ref("Card Terminal +");
+            Turn("Apply the voltage.", null, "Tap the + terminal to connect the push.");
+            bool done = false;
+            if (plus) StartCoroutine(TapHint(plus.transform, () => done, Vector2.right)); // from the right: its "+ positive" label is below
+            float waited = 0;
+            while (!done)
+            {
+                if (!Held) waited += Dt;
+                if (Tapped(plus) || HudKeys.ConsumeAct() || (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay)) done = true;
+                yield return null;
+            }
+            Play("Switch");
+            if (Panel) Panel.Done("Voltage applied.");
+            React(Grade.Correct);
+        }
+
+        // Scene 11: the learner draws the line: a tap on the graph card (the line cue right after the gate sweeps it in).
+        IEnumerator DrawLine()
+        {
+            Turn("Draw the line.", null, "Tap the graph to run a line through your five points.");
+            bool done = false;
+            var block = Panel ? Panel.Block("Graph") : null;
+            UnityEngine.UI.Button hit = null;
+            if (block && block.gameObject.activeInHierarchy)
+            {
+                if (!block.TryGetComponent(out hit)) hit = block.gameObject.AddComponent<UnityEngine.UI.Button>();
+                hit.transition = UnityEngine.UI.Selectable.Transition.None;
+                hit.onClick.AddListener(() => done = true);
+                Panel.Attention("Graph", true);
+            }
+            float waited = 0;
+            while (!done)
+            {
+                if (!Held) waited += Dt;
+                if (HudKeys.ConsumeAct() || (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay)) done = true;
+                yield return null;
+            }
+            if (hit) Destroy(hit);
+            if (Panel) { Panel.Attention("Graph", false); Panel.Done("Line drawn."); }
+        }
+
+        // Scene 12: the learner swaps the wire: copper shows alone, a tap brings nichrome in beside it.
+        IEnumerator SwapWire()
+        {
+            if (!inset) yield break;
+            inset.ShowNichrome(false);
+            Turn("Change the wire material.", null, "Same voltage, same length: tap Swap in nichrome.");
+            bool done = false;
+            var swap = inset.OfferSwap(() => done = true);
+            float waited = 0;
+            while (!done)
+            {
+                if (!Held) waited += Dt;
+                if (HudKeys.ConsumeAct() || (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay)) done = true;
+                yield return null;
+            }
+            if (swap) Destroy(swap.gameObject); // however the swap came (tap, Enter, autoAnswer), its button goes
+            inset.ShowNichrome(true);
+            Play("Reveal");
+            if (Panel) Panel.Done("Nichrome in: less current.");
+        }
+
+        // Scene 13: the learner builds the law: V, then I, then R.
+        IEnumerator BuildLaw()
+        {
+            Turn("Build the law.", null, "Tap V, then I, then R.");
+            var tiles = LawTiles.Create();
+            float waited = 0;
+            while (!tiles.Complete)
+            {
+                if (!Held) waited += Dt;
+                if (HudKeys.ConsumeAct() || (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay)) { tiles.Advance(); waited = ReviewMode.autoDelay - 0.6f; }
+                yield return null;
+            }
+            Play("Reveal");
+            if (Panel) Panel.Done("That's the law.");
+            yield return Wait(0.9f);
+            if (Panel) Panel.Clear("MCQ");
         }
     }
 }

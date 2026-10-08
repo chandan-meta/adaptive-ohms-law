@@ -90,10 +90,12 @@ namespace OhmsLaw
             else if (!on && schematic) { Panel.Clear("Schematic"); schematic = null; }
         }
 
+        // The comparison is two magnified strips, not the bench: the live readings step aside while it shows, so the
+        // nichrome bench's numbers never sit beside the copper strip.
         void Inset(bool on)
         {
-            if (on && !inset && Panel) inset = ResistanceInset.Create();
-            else if (!on && inset) { Panel.Clear("Inset"); inset = null; Panel.Expand(Panel.HasViews); }
+            if (on && !inset && Panel) { inset = ResistanceInset.Create(); if (readings) Panel.Show("Readings", false); }
+            else if (!on && inset) { Panel.Clear("Inset"); inset = null; Panel.Expand(Panel.HasViews); if (readings) Panel.Show("Readings", true); }
         }
 
         static string Volts(float v) => v.ToString("0.#", Inv) + " V";
@@ -107,28 +109,31 @@ namespace OhmsLaw
             capPushed = false;
             ControlsMax = volts;
             Volts(true);
-            yield return Say(Line(gate, gate.gateId + "_GO"));
-            Instruction($"Set the voltage to {Volts(volts)}.");
+            // The turn and the open controls come with Wattson's "Now N volts": the learner may act while he speaks.
+            Turn($"Set the battery to {Volts(volts)}.", $"{volts:0} of 5", "Tap the button, then watch the meters.");
             rig.controlsOpen = true;
-            float waited = 0, held = 0, last = rig.state.voltage;
-            bool hinted = false;
+            var go = Line(gate, gate.gateId + "_GO");
+            if (go) StartCoroutine(Say(go));
+            float waited = 0, held = 0, last = rig.state.voltage, start = last;
             while (true)
             {
-                if (!AskWattsonUI.IsOpen) waited += Dt; // autoAnswer never acts behind the Ask panel or under PAUSE
+                if (!AskWattsonUI.IsOpen && !(go && Speaking == go)) waited += Dt; // autoAnswer lets the line finish, never acts behind the Ask panel or under PAUSE
                 float v = rig.state.voltage;
                 if (!Mathf.Approximately(v, last)) { last = v; held = 0; } else held += Dt;
                 if (Mathf.Approximately(v, volts) && held >= SettleSeconds) break;
-                if (held >= SettleSeconds * 4 && !Mathf.Approximately(v, volts) && !hinted && !Mathf.Approximately(v, CircuitRig.KeyClosedDefaultVolts))
+                // A wrong setting the learner chose (the last step's value is not one: idling is the nudge's job).
+                if (held >= SettleSeconds * 4 && !Mathf.Approximately(v, volts) && !Mathf.Approximately(v, start) && !hintSaid && !Mathf.Approximately(v, CircuitRig.KeyClosedDefaultVolts))
                 {
-                    hinted = true;
+                    hintSaid = true;
                     yield return Say(Line(gate, gate.gateId + "_H"));
                 }
-                if (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay) rig.SetVoltage(volts);
+                if (HudKeys.ConsumeAct() || (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay)) rig.SetVoltage(volts);
                 yield return null;
             }
             rig.controlsOpen = false;
+            while (go && Speaking == go) yield return null; // he finishes his sentence before the reading
             // Observe, then record: the meters' own values go into the row and the point lands on the graph.
-            Instruction("Observe the current reading.");
+            Turn("Watch the ammeter.", $"{volts:0} of 5", "The current settles, then your row records itself.");
             yield return Wait(1.6f);
             Table.Record(row, rig.Volts, rig.Amps);
             LearnerSession.tableRows = Mathf.Max(LearnerSession.tableRows, row + 1);
@@ -139,9 +144,9 @@ namespace OhmsLaw
             Graph.Plot(row + 1);
             Play("Plot", 1f + 0.08f * row);
             React(LearnerSession.Grade.Correct);
+            if (Panel) Panel.Done($"Row {row + 1} recorded: {rig.Volts.ToString("0.0", Inv)} V, {rig.Amps.ToString("0.00", Inv)} A.");
             yield return Wait(0.9f);
             Table.Highlight(row, false);
-            Instruction("");
         }
     }
 }

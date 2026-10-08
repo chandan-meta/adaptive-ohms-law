@@ -55,8 +55,9 @@ namespace OhmsLaw.Editor
             director.rig.showPath = false;
             Wattson(Scene10Builder.SourceSide, Scene10Builder.StudyCamC);
             Vcam("Bench Study", Scene10Builder.StudyCamC, Scene10Builder.StudyLookC, Scene10Builder.StudyFov, refs["Bench Point"].transform, lensMedium);
-            // The pull-back to the physical test wire: a little wider and lower, the wire XY centred in the free frame.
-            Vcam("Wire Study", new Vector3(0f, 1.15f, -2.2f), new Vector3(0f, 0.85f, -0.1f), 36f, refs["NICHROME WIRE — XY"].transform, lensMedium);
+            // The pull-back to the physical test wire: a little wider and lower, the wire XY centred in the free frame, the
+            // whole circuit from the source to the key inside it even with the wide dock of the comparison.
+            Vcam("Wire Study", new Vector3(0f, 1.15f, -2.2f), new Vector3(0f, 0.85f, -0.1f), 40f, refs["NICHROME WIRE — XY"].transform, lensMedium);
             Note("resistance", "Resistance (R)", "How much a conductor opposes the flow of current. Same voltage, less current = more resistance. The charges are not lost: they just get through more slowly.");
         }
 
@@ -73,15 +74,19 @@ namespace OhmsLaw.Editor
             Wait(0.3);
             Line("S12_L03");
 
-            // The magnified comparison, opened beside the physical wire.
+            // The magnified comparison, opened beside the physical wire. Wattson points from beside the voltmeter, clear of
+            // the meters; their plates step aside while copper and nichrome are compared (the readings card keeps V and I,
+            // and a fixed 1.00 A in the room would argue with "copper: MORE current").
             Shot("Wire Study");
-            Gesture(WattsonController.Gesture.Point, point: "NICHROME WIRE — XY", moveTo: "Wire Point");
+            Cue("rig.readouts 0");
+            Gesture(WattsonController.Gesture.Point, point: "NICHROME WIRE — XY", moveTo: "Voltmeter Point");
             Show("Wire Highlight");
             Sfx("Highlight");
             Visual("The camera pulls back to the test wire; it highlights", 1.0);
             Cue("formula.clear");
             Cue("panel Graph 0", "the graph steps aside for the comparison");
             Cue("inset 1", "the magnified comparison opens in the panel: copper above, nichrome below, same voltage");
+            Gate("S12_SwapWire", "copper shows alone; the learner swaps in nichrome: same voltage, less current");
             Line("S12_N01");
             Cue("callout show resistance");
             Line("S12_L05");
@@ -92,6 +97,7 @@ namespace OhmsLaw.Editor
 
             // Back to the learner's own data: the V / I column.
             Shot("Bench Study");
+            Cue("rig.readouts 1");
             Gesture(WattsonController.Gesture.Point, point: "Panel Point", moveTo: "Tray Point");
             Line("S12_L06", 0.2);
             Line("S12_L07");
@@ -111,7 +117,7 @@ namespace OhmsLaw.Editor
             Line("S12_L09", 0.2);
             Formula("k = R   (the resistance)");
             Line("S12_L10");
-            Formula("V = I R");
+            Formula("V = I × R");
             Visual("The reasoning, one line at a time", 0.8);
 
             // The same answer from the graph: rise over run between two of the learner's points.
@@ -132,7 +138,7 @@ namespace OhmsLaw.Editor
             Line("S12_N02", 0.2);
             Formula("1 Ω = 1 V ÷ 1 A");
             Line("S12_L15", 0.2);
-            Formula("this wire:  5.0 V ÷ 1.00 A = 5 Ω");
+            Formula("this wire:  5.0 V ÷ 1.00 A = 5.0 Ω");
             Cue("readings.r 1", "R and the ohm are taught: the readings show R");
             Line("S12_N03", 0.3);
             Cue("handoff");

@@ -115,7 +115,7 @@ namespace OhmsLaw
             momentGate = SceneDirector.Gate;
             if (running == null || runningIsAction) return;
             Stop();
-            Note = "The lesson moved on, so I stopped that answer. Ask again if you still want it.";
+            Note = "The lesson moved on, so I stopped that answer.";
         }
 
         // The Ask panel opened or closed: Wattson turns to the student, or goes back to the cinematic.
@@ -183,7 +183,7 @@ namespace OhmsLaw
                 if (error.Message == "rate_limited" || error.Message == "busy")
                 {
                     restUntil = Time.realtimeSinceStartup + (error.Message == "busy" ? BusyRestSeconds : Proxy.RetryAfterSeconds);
-                    Note = "My radio needs a short rest: lots of questions just now. Saved answers still work.";
+                    Note = "My radio needs a short rest. Saved answers still work.";
                 }
                 else Offline = true;
                 try { await Fallback(question, cancel); } catch (OperationCanceledException) { return; }
@@ -212,13 +212,22 @@ namespace OhmsLaw
             finally { if (clip) Destroy(clip); }
         }
 
-        // No live answer: the saved FAQ answer when the question matches one, otherwise the offline line plus the app's
-        // guidance from the real bench state. Both are labelled "Offline answer". During an activity there is no saved
-        // answer, and the offline line ("Try one of these clues!") gives way to a note that the puzzle is the learner's.
+        // No live answer: the saved FAQ answer when the question matches one, then his case notes on the core words,
+        // otherwise the offline line plus the app's guidance from the real bench state. All are labelled "Offline answer".
+        // During an activity there is no saved answer or note, and the offline line ("Try one of these clues!") gives
+        // way to a note that the puzzle is the learner's.
         async Awaitable Fallback(string question, CancellationToken cancel)
         {
             var saved = Saved(question);
             if (saved) { await SayOffline(saved, cancel); return; }
+            string note = CaseNote(question);
+            if (note != null)
+            {
+                Add(Speaker.Offline, note);
+                SetState(State.Talking);
+                await Voice(note, null, ReadingSeconds(note), cancel);
+                return;
+            }
             var line = Config ? Config.offlineLine : null;
             string guidance = WattsonActions.Guidance();
             if (InActivity)
@@ -236,6 +245,26 @@ namespace OhmsLaw
         {
             var saved = Context && Context.faq ? Context.faq.Find(question) : null;
             return Offered(question, saved) ? saved : null;
+        }
+
+        // His case notes: each core word from the scene that teaches it (a scene's own FAQ only knows that scene), under
+        // the saved-answer rules (none during an activity, no ohm before it is taught). The meters come first, so "what
+        // does an ammeter measure?" gets the ammeter, not current.
+        static readonly (Regex words, int from, string note)[] CaseNotes =
+        {
+            (new Regex(@"\bammeter", RegexOptions.IgnoreCase), 8, "An ammeter measures current, in amperes (A). It goes in series, so the same current flows through it and the wire."),
+            (new Regex(@"\bvoltmeter", RegexOptions.IgnoreCase), 8, "A voltmeter measures potential difference, in volts (V). It goes in parallel, across the wire it measures."),
+            (new Regex(@"\bresist", RegexOptions.IgnoreCase), 12, "Resistance is how strongly a conductor opposes the current: with the same push, more resistance means less current."),
+            (new Regex(@"\b(potential difference|voltage|volts?)\b", RegexOptions.IgnoreCase), 5, "Potential difference, or voltage, is the push that drives charge through a conductor. It is measured in volts (V)."),
+            (new Regex(@"\bcurrent\b", RegexOptions.IgnoreCase), 5, "Current is the flow of electric charge: free electrons drifting through the wire. It is measured in amperes (A)."),
+        };
+
+        static string CaseNote(string question)
+        {
+            foreach (var (words, from, note) in CaseNotes)
+                if (words.IsMatch(question) && Live.Scene >= from && WattsonActions.SavedAnswerAllowed(Live, InActivity, question, note))
+                    return "From my case notes: " + note;
+            return null;
         }
 
         async Awaitable SayOffline(DialogueLine line, CancellationToken cancel)
@@ -382,9 +411,10 @@ namespace OhmsLaw
             var options = new List<string>();
             foreach (Transform child in panel)
             {
-                var label = child.GetComponentInChildren<TMP_Text>();
+                var named = child.Find("Text");   // an option row's own words (its letter badge comes first)
+                var label = named ? named.GetComponent<TMP_Text>() : child.GetComponentInChildren<TMP_Text>();
                 if (!label || string.IsNullOrWhiteSpace(label.text)) continue;
-                string text = label.text.Trim();
+                string text = System.Text.RegularExpressions.Regex.Replace(label.text, "<.*?>", "").Trim();
                 if (child.name.StartsWith("Option ")) options.Add(child.name.Substring(7) + ". " + text);
                 else if (child.name == "Hint" || (child.name == "Label" && question.Length > 0)) hint = text;
                 else if (child.name == "Label") question = text;

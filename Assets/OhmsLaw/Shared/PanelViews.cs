@@ -75,8 +75,10 @@ namespace OhmsLaw
 
     // ------------------------------------------------------------------ voltage buttons
 
-    // Five labelled buttons, 1 V to 5 V, in the Volt block. The director wires them to the rig; buttons above the
-    // current cap dim; the selected one wears the accent.
+    // Five equal steps, 1 V to 5 V, in the Volt block. The director wires them to the rig. Each reads its state: done (a
+    // check over its left edge, muted: its row is recorded), now (paper and ink at full alpha in every state: the source is
+    // there), next (spark outline, pulsing: the one to tap), later (36 %: above the cap, or not the learner's turn; a tap
+    // says why). The step count ("3 OF 5") is the turn card's.
     public class VoltageButtons : MonoBehaviour
     {
         public System.Func<float, float> set;   // request -> applied
@@ -84,33 +86,38 @@ namespace OhmsLaw
         public System.Func<float> current, max;
 
         readonly Button[] buttons = new Button[5];
-        readonly Image[] faces = new Image[5];
+        readonly HudButton[] huds = new HudButton[5];
+        readonly TextMeshProUGUI[] words = new TextMeshProUGUI[5];
+        readonly Image[] checks = new Image[5];
 
         public static VoltageButtons Create()
         {
             var lesson = LessonPanel.Instance;
-            var block = lesson.Fresh("Volt", null, 6f, panel: false);
+            var block = lesson.Fresh("Volt", null, 12f);
             var view = block.gameObject.AddComponent<VoltageButtons>();
-            var row = UI.Rect("Row", block, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(0, LessonPanel.ButtonHeight));
-            LessonPanel.Fixed(row, LessonPanel.ButtonHeight);
-            var caption = UI.Label(block, "BATTERY VOLTAGE", 13f, LessonPanel.Muted, TextAlignmentOptions.MidlineLeft);
-            caption.characterSpacing = 4f;
-            caption.fontStyle = FontStyles.Bold;
-            LessonPanel.Fixed(caption.rectTransform, 18f);
-            caption.transform.SetAsFirstSibling();
-            var layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.spacing = 8f;
-            layout.childControlWidth = layout.childControlHeight = true;
-            layout.childForceExpandWidth = layout.childForceExpandHeight = true;
+            LessonPanel.Eyebrow(block, "Set the battery");
+            var row = LessonPanel.Row("Row", block, 8f);
+            row.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = true;
+            LessonPanel.Fixed(row, 62f);
             for (int i = 0; i < 5; i++)
             {
                 float volts = i + 1;
-                var button = UI.Button(volts + " V", row, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, new Vector2(80, LessonPanel.ButtonHeight), volts.ToString("0") + " V", () => { UiSounds.Play("click"); if (view.set != null && (view.open == null || view.open())) view.set(volts); }, 22f);
+                var button = LessonPanel.Pill(volts + " V", row, volts.ToString("0") + " V", () => { if (view.set != null && (view.open == null || view.open())) view.set(volts); }, LessonPanel.Kind.Raised, null, 62f, 21f);
+                var size = button.GetComponent<LayoutElement>();
+                size.flexibleWidth = 1f;
+                size.preferredWidth = 0f; // the row shares its width equally, whatever the label
+                var line = button.GetComponent<HorizontalLayoutGroup>();
+                line.childAlignment = TextAnchor.MiddleCenter;
+                line.padding = new RectOffset(6, 6, 0, 0);
+                line.spacing = 6f;
+                view.checks[i] = LessonPanel.Icon(button.transform, "check", 16f, LessonPanel.Spark);
+                view.checks[i].GetComponent<LayoutElement>().ignoreLayout = true; // over the left edge: the label stays centred
+                view.checks[i].rectTransform.anchoredPosition = new Vector2(16f, 0f);
                 view.buttons[i] = button;
-                view.faces[i] = button.GetComponent<Image>();
-                view.faces[i].color = UI.RaisedColor;
-                var hud = button.gameObject.AddComponent<HudButton>();
-                hud.fillColor = UI.RaisedColor;
+                view.huds[i] = button.GetComponent<HudButton>();
+                view.huds[i].activeOutline = LessonPanel.Paper;
+                view.huds[i].disabledTap = () => lesson.ShowHint(view.open != null && view.open() ? "One step at a time." : "Wait for your turn.");
+                view.words[i] = button.GetComponentInChildren<TextMeshProUGUI>();
             }
             lesson.Show("Volt", true);
             return view;
@@ -120,14 +127,18 @@ namespace OhmsLaw
         {
             float now = current != null ? current() : 0f, cap = max != null ? max() : 5f;
             bool enabled = open != null && open() && !ModuleFlow.UserPaused;
+            float pulse = ReducedMotion.On ? 1f : 0.55f + 0.45f * Mathf.Sin(Time.unscaledTime * 4f);
             for (int i = 0; i < 5; i++)
             {
                 float volts = i + 1;
                 bool selected = Mathf.Approximately(now, volts), above = volts > cap + 0.001f;
-                buttons[i].interactable = enabled && !above;
-                var hud = buttons[i].GetComponent<HudButton>();
-                if (hud) { hud.active = selected; hud.fillColor = above ? UI.Alpha(UI.RaisedColor, 0.35f) : UI.RaisedColor; }
-                else faces[i].color = selected ? UI.AccentFill : above ? UI.Alpha(UI.RaisedColor, 0.35f) : UI.RaisedColor;
+                bool recorded = !selected && LearnerSession.tableRows >= volts;
+                bool next = enabled && !selected && !above && Mathf.Approximately(volts, cap);
+                buttons[i].interactable = (enabled && !above) || selected; // the source's own value never dims
+                huds[i].active = selected;
+                huds[i].outlineColor = next ? UI.Alpha(LessonPanel.Spark, pulse) : LessonPanel.ControlLine;
+                words[i].color = selected ? LessonPanel.Ink : recorded ? LessonPanel.Muted : LessonPanel.Paper;
+                if (checks[i].gameObject.activeSelf != recorded) checks[i].gameObject.SetActive(recorded);
             }
         }
     }
@@ -148,14 +159,11 @@ namespace OhmsLaw
         public static WireCounterView Create(WireInterior wire)
         {
             var lesson = LessonPanel.Instance;
-            var block = lesson.Fresh("Counter", new RectOffset(16, 16, 12, 12), 4f);
+            var block = lesson.Fresh("Counter", null, 6f);
             var view = block.gameObject.AddComponent<WireCounterView>();
             view.wire = wire;
 
-            var heading = UI.Label(block, "CHARGE THROUGH THE SECTION", 18f, new Color(1, 1, 1, 0.6f), TextAlignmentOptions.MidlineLeft);
-            heading.characterSpacing = 3f;
-            heading.fontStyle = FontStyles.Bold;
-            LessonPanel.Fixed(heading.rectTransform, 24f);
+            LessonPanel.Eyebrow(block, "Charge through the section");
 
             var row = UI.Rect("Row", block, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(0, 110));
             LessonPanel.Fixed(row, 110f);
@@ -182,11 +190,12 @@ namespace OhmsLaw
             view.perSecond = UI.Label(text, "", 24f, Color.white, TextAlignmentOptions.MidlineLeft);
             view.perSecond.rectTransform.offsetMax = new Vector2(0, -2);
             view.perSecond.rectTransform.offsetMin = new Vector2(0, 42);
-            view.meaning = UI.Label(text, "charge ÷ time = current (I)", 22f, UI.Theme ? UI.Theme.current : Color.yellow, TextAlignmentOptions.MidlineLeft);
+            view.meaning = UI.Label(text, LessonPanel.Quantities("charge ÷ time = current (I)"), 22f, LessonPanel.Paper, TextAlignmentOptions.MidlineLeft);
+            view.meaning.fontStyle = FontStyles.Bold;
             view.meaning.rectTransform.offsetMax = new Vector2(0, -56);
             view.meaning.rectTransform.offsetMin = new Vector2(0, 0);
 
-            var note = UI.Label(block, "Simplified: a few representative electrons, slowed down so you can count them. The real wire carries billions per second.", 18f, new Color(1, 1, 1, 0.55f), TextAlignmentOptions.TopLeft);
+            UI.Label(block, "Simplified: a few representative electrons, slowed down so you can count them. The real wire carries billions per second.", 17f, LessonPanel.Muted, TextAlignmentOptions.TopLeft);
             lesson.Show("Counter", true);
             return view;
         }
@@ -261,9 +270,9 @@ namespace OhmsLaw
             L(new Vector2(SourceX, cellPlus), new Vector2(SourceX, wireY)); // + plate up to the top wire
             Draw.Bar(area, new Vector2(SourceX - 22, cellPlus), new Vector2(SourceX + 22, cellPlus), 5, chalk);   // long plate: +
             Draw.Bar(area, new Vector2(SourceX - 11, cellMinus), new Vector2(SourceX + 11, cellMinus), 8, chalk); // short plate: −
-            Draw.Label(area, "+", new Vector2(SourceX - 36, cellPlus - 6), 22, chalk, new Vector2(30, 30));
-            Draw.Label(area, UI.Glyph("−", "-"), new Vector2(SourceX - 36, cellMinus + 6), 22, chalk, new Vector2(30, 30));
-            Draw.Label(area, "source", new Vector2(SourceX + 56, Top + 34), 22, new Color(1, 1, 1, 0.7f), new Vector2(90, 28));
+            Draw.Label(area, "+", new Vector2(SourceX - 36, cellPlus - 6), 26, chalk, new Vector2(30, 30));
+            Draw.Label(area, UI.Glyph("−", "-"), new Vector2(SourceX - 36, cellMinus + 6), 26, chalk, new Vector2(30, 30));
+            Draw.Label(area, "source", new Vector2(SourceX + 56, Top + 34), 26, new Color(1, 1, 1, 0.7f), new Vector2(90, 28));
             L(new Vector2(SourceX, wireY), new Vector2(AmmeterX - 24, wireY));
             // Ammeter in series on the top wire.
             ammeterRing = Draw.Disc(area, new Vector2(AmmeterX, wireY), 48, dim, 0.78f);
@@ -273,9 +282,9 @@ namespace OhmsLaw
             Draw.Bar(area, new Vector2(X, wireY), new Vector2(Y, wireY), 10, new Color(0.78f, 0.72f, 0.58f));
             Draw.Disc(area, new Vector2(X, wireY), 14, chalk);
             Draw.Disc(area, new Vector2(Y, wireY), 14, chalk);
-            Draw.Label(area, "X", new Vector2(X - 26, wireY - 24), 24, amber, new Vector2(30, 28));
-            Draw.Label(area, "Y", new Vector2(Y + 26, wireY - 24), 24, amber, new Vector2(30, 28));
-            Draw.Label(area, "nichrome wire", new Vector2((X + Y) / 2, wireY - 24), 22, new Color(1, 1, 1, 0.7f), new Vector2(220, 28));
+            Draw.Label(area, "X", new Vector2(X - 26, wireY - 24), 26, chalk, new Vector2(30, 28));
+            Draw.Label(area, "Y", new Vector2(Y + 26, wireY - 24), 26, chalk, new Vector2(30, 28));
+            Draw.Label(area, "nichrome wire", new Vector2((X + Y) / 2, wireY - 24), 26, new Color(1, 1, 1, 0.7f), new Vector2(220, 28));
             L(new Vector2(Y, wireY), new Vector2(KeyX, wireY));
             // Key on the right side: a gap whose lever swings shut.
             L(new Vector2(KeyX, wireY), new Vector2(KeyX, 95));
@@ -283,7 +292,7 @@ namespace OhmsLaw
             Draw.Disc(area, new Vector2(KeyX, 150), 12, chalk);
             lever = Draw.Bar(area, new Vector2(KeyX, 150), new Vector2(KeyX + 30, 102), Loop, chalk);
             L(new Vector2(KeyX, 150), B);
-            Draw.Label(area, "key", new Vector2(KeyX + 40, 128), 22, new Color(1, 1, 1, 0.7f), new Vector2(70, 28));
+            Draw.Label(area, "key", new Vector2(KeyX + 40, 128), 26, new Color(1, 1, 1, 0.7f), new Vector2(70, 28));
             L(B, A);
             // Voltmeter in parallel across XY, under the wire (between the wire and the return).
             voltLeadX = Draw.Bar(area, new Vector2(X, wireY), new Vector2(X, Top), Thin, dim);
@@ -338,7 +347,7 @@ namespace OhmsLaw
 
         class Strip
         {
-            public RectTransform area;
+            public RectTransform group, area;
             public Image[] dots;
             public float[] x, y, vy;
             public float speed, scatter;
@@ -347,17 +356,19 @@ namespace OhmsLaw
         }
 
         Strip copper, nichrome;
+        RectTransform home;
         float clock;
         System.Random random = new System.Random(7);
 
         public static ResistanceInset Create()
         {
             var lesson = LessonPanel.Instance;
-            var block = lesson.Fresh("Inset", new RectOffset(12, 12, 8, 10));
+            var block = lesson.Fresh("Inset", null, 10f);
             lesson.Expand(true);
-            float scale = (LessonPanel.Inner(true) - 24f) / Size.x;
+            float scale = (LessonPanel.Inner(true) - 4f) / Size.x;
             var area = Draw.Box(block, Size, scale);
             var view = area.gameObject.AddComponent<ResistanceInset>();
+            view.home = block;
             view.Build(area);
             lesson.Show("Inset", true);
             return view;
@@ -366,15 +377,34 @@ namespace OhmsLaw
         void Build(RectTransform area)
         {
             var dim = new Color(1, 1, 1, 0.7f);
-            Draw.Label(area, "MAGNIFIED · same voltage · same length · same thickness · same temperature", new Vector2(Size.x / 2, 22), 23, dim, new Vector2(810, 30)).characterSpacing = 1f;
+            Draw.Label(area, "MAGNIFIED, NOT TO SCALE · same voltage, length, thickness and temperature", new Vector2(Size.x / 2, 22), 23, dim, new Vector2(810, 30)).characterSpacing = 1f;
             copper = BuildStrip(area, "Copper", new Color(0.86f, 0.5f, 0.3f), CopperY, speed: 150f, scatter: 0.25f, ions: 0, "MORE current", 1.0f);
             nichrome = BuildStrip(area, "Nichrome", new Color(0.58f, 0.6f, 0.52f), NichromeY, speed: 60f, scatter: 1f, ions: Ions, "LESS current", 0.42f);
-            Draw.Label(area, "More opposition = more resistance. The charges still get through, just more slowly.", new Vector2(Size.x / 2, 302), 23, dim, new Vector2(810, 30));
+            Draw.Label(nichrome.group, "More opposition = more resistance. The charges still get through, just more slowly.", new Vector2(Size.x / 2, 302), 23, dim, new Vector2(810, 30));
+        }
+
+        // Scene 12's swap: copper alone first, then the learner brings nichrome in beside it (same voltage, less current).
+        public void ShowNichrome(bool on)
+        {
+            nichrome.group.gameObject.SetActive(on);
+            if (on) LessonPanel.Pop(nichrome.group);
+        }
+
+        // The swap button under the comparison: the turn's one action, so primary. The caller removes it once the swap is
+        // done, however it came (a tap, Enter, autoAnswer).
+        public Button OfferSwap(System.Action swapped)
+        {
+            var button = LessonPanel.Pill("Swap", home, "Swap in nichrome", () => swapped(), LessonPanel.Kind.Primary, null, 56f, 20f);
+            button.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
+            return button;
         }
 
         Strip BuildStrip(RectTransform area, string name, Color tint, float y, float speed, float scatter, int ions, string verdict, float share)
         {
             var strip = new Strip { speed = speed, scatter = scatter };
+            // Everything of one strip under one group, so the swap shows or hides it whole (same coordinates as the area).
+            strip.group = UI.Stretch(name + " Group", area);
+            area = strip.group;
             Draw.Label(area, name, new Vector2(78, y), 30, Color.white, new Vector2(150, 36)).fontStyle = FontStyles.Bold;
             var body = UI.Rect(name + " Strip", area, new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(StripX, -y), new Vector2(StripW, StripH));
             UI.Panel(body, UI.Alpha(tint, 0.22f), true, StripH / 2).raycastTarget = false;
@@ -442,6 +472,85 @@ namespace OhmsLaw
                 if (strip.x[i] > StripW) strip.x[i] -= StripW;
                 strip.dots[i].rectTransform.anchoredPosition = new Vector2(strip.x[i], -strip.y[i]);
             }
+        }
+    }
+
+    // ------------------------------------------------------------------ build the law (Scene 13)
+
+    // Three tiles, R · V · I (shuffled on screen), and the law building above them: the learner taps V, then I, then R and
+    // "V = I × R" fills in, each symbol in its colour. A wrong tile says which one comes next; nothing is marked wrong.
+    public class LawTiles : MonoBehaviour
+    {
+        static readonly string[] Sequence = { "V", "I", "R" };
+        static readonly string[] Next = { "Start with V, the push.", "Next comes I, the flow.", "Last: R, the opposition." };
+
+        readonly System.Collections.Generic.Dictionary<string, Button> tiles = new System.Collections.Generic.Dictionary<string, Button>();
+        TextMeshProUGUI line, hint;
+        int placed;
+
+        public bool Complete => placed >= Sequence.Length;
+
+        public static LawTiles Create()
+        {
+            var lesson = LessonPanel.Instance;
+            var block = lesson.Fresh("MCQ", null, 12f);
+            var view = block.gameObject.AddComponent<LawTiles>();
+            LessonPanel.Eyebrow(block, "Build the law");
+            view.line = LessonPanel.Text(block, "", 56f, LessonPanel.Paper, TextAlignmentOptions.Center);
+            LessonPanel.OneLine(view.line, 56f);
+            var row = LessonPanel.Row("Tiles", block, 10f);
+            row.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = true;
+            LessonPanel.Fixed(row, 88f);
+            foreach (var symbol in new[] { "R", "V", "I" })
+            {
+                string s = symbol;
+                var color = s == "V" ? LessonPanel.VoltColor : s == "I" ? LessonPanel.AmpColor : LessonPanel.OhmColor;
+                var tile = LessonPanel.Pill(s, row, s, () => view.Tap(s), LessonPanel.Kind.Raised, null, 88f, 48f);
+                tile.GetComponent<LayoutElement>().flexibleWidth = 1f;
+                tile.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
+                tile.GetComponentInChildren<TextMeshProUGUI>().color = color;
+                view.tiles[s] = tile;
+            }
+            view.hint = LessonPanel.Text(block, Next[0], 17f, LessonPanel.Spark);
+            view.Refresh();
+            lesson.Show("MCQ", true);
+            return view;
+        }
+
+        public void Tap(string symbol)
+        {
+            if (Complete) return;
+            if (symbol == Sequence[placed])
+            {
+                tiles[symbol].interactable = false;
+                placed++;
+                UiSounds.Play("done");
+                hint.text = Complete ? "That's the law." : Next[placed];
+                LessonPanel.Pop(line.rectTransform);
+            }
+            else
+            {
+                hint.text = Next[placed];
+                UiSounds.Play("hint");
+            }
+            Refresh();
+        }
+
+        // The next correct tile, for autoAnswer and the Enter key.
+        public void Advance() { if (!Complete) Tap(Sequence[placed]); }
+
+        void Refresh()
+        {
+            string Coloured(string s, Color c) => $"<color=#{ColorUtility.ToHtmlStringRGB(c)}>{s}</color>";
+            string v = Coloured("V", LessonPanel.VoltColor), i = Coloured("I", LessonPanel.AmpColor), r = Coloured("R", LessonPanel.OhmColor);
+            const string dim = "<alpha=#38>";
+            line.text = placed switch
+            {
+                0 => dim + "V = I × R",
+                1 => v + dim + " = I × R",
+                2 => v + " = " + i + dim + " × R",
+                _ => v + " = " + i + " × " + r,
+            };
         }
     }
 }

@@ -8,14 +8,15 @@ namespace OhmsLaw
     // V-I graph in the lesson panel (a Canvas-sized rect scaled into the Graph block): V on the vertical axis, I on the
     // horizontal axis, points from ExperimentData, the straight line through the origin (drawn with a sweep), two
     // highlighted points, the ΔV/ΔI rise-and-run marker (drawn leg by leg) and the live point that follows the rig.
-    // Layout in canvas px: at the panel's 0.5 scale the 40 px ticks read 20 px, the titles 24.
-    // Point labels sit up-left of their point (the line runs up-right), so nothing crosses the line.
+    // Layout in canvas px: at the panel's 0.48 scale the 45 px ticks read 21.6 px, still 15 px when a crowded dock
+    // shrinks the view to LessonPanel.YieldShare. Point labels sit up-left of their point (the line runs up-right), so
+    // nothing crosses the line; one that would cross the V axis sits right of its point, under the line.
     public class GraphUI : MonoBehaviour
     {
         public static readonly Vector2 Canvas = new Vector2(1000, 665);
         public const float Width = 740f, Height = 500f, MaxI = 1.2f, MaxV = 6f;   // plot area inside the canvas
         public const float MarginLeft = 150f, MarginBottom = 125f;
-        public const float TickFont = 40f, PointFont = 40f, AxisTitleFont = 48f, TagFont = 48f;
+        public const float TickFont = 45f, PointFont = 45f, AxisTitleFont = 48f, TagFont = 48f;
         const float PointSize = 34f, PointHighlight = 50f;
         static readonly Vector2 TextRect = new Vector2(320, 60);
 
@@ -24,7 +25,7 @@ namespace OhmsLaw
         Coroutine drawing;
         GameObject axes;
         RectTransform[] points;
-        TextMeshProUGUI[] tags;
+        TextMeshProUGUI[] tags, labels;
         RectTransform pulseTarget;
         float pulse = -1;
         // The live point: an amber ring labelled "now" at (rig.Amps, rig.Volts), easing like the meter needles; the faint
@@ -36,12 +37,10 @@ namespace OhmsLaw
         static ExperimentData Data => ExperimentData.Main;
         static Color Voltage => UI.Theme ? UI.Theme.voltage : Color.cyan;
         static Color Current => UI.Theme ? UI.Theme.current : Color.yellow;
-        static Color Resistance => UI.Theme ? UI.Theme.resistance : Color.red;
 
         void Awake()
         {
-            var back = UI.Stretch("Back", transform);
-            UI.Panel(back, UI.Alpha(Color.Lerp(UI.PanelColor, Color.black, 0.3f), 1f), true, 24f).raycastTarget = false;
+            // v3: the dock card is the surface (no board of its own).
             plot = UI.Rect("Plot", transform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(MarginLeft, MarginBottom), new Vector2(Width, Height));
             axes = plot.gameObject;
             var grid = new Color(1, 1, 1, 0.1f);
@@ -50,12 +49,12 @@ namespace OhmsLaw
                 Segment(plot, At(i * 0.2f, 0), At(i * 0.2f, MaxV), grid, 2);
                 Segment(plot, At(0, i), At(MaxI, i), grid, 2);
             }
-            Segment(plot, Vector2.zero, new Vector2(Width + 20, 0), Color.white, 6);
-            Segment(plot, Vector2.zero, new Vector2(0, Height + 20), Color.white, 6);
+            Segment(plot, Vector2.zero, new Vector2(Width + 20, 0), new Color(1, 1, 1, 0.55f), 4);
+            Segment(plot, Vector2.zero, new Vector2(0, Height + 20), new Color(1, 1, 1, 0.55f), 4);
             for (int i = 1; i <= 6; i++)
             {
-                Text(plot, (i * 0.2f).ToString("0.0"), At(i * 0.2f, 0) + new Vector2(0, -50), TickFont, Color.white);
-                Text(plot, i.ToString("0"), At(0, i) + new Vector2(-80, 0), TickFont, Color.white);
+                Text(plot, (i * 0.2f).ToString("0.0"), At(i * 0.2f, 0) + new Vector2(0, -50), TickFont, LessonPanel.Muted);
+                Text(plot, i.ToString("0"), At(0, i) + new Vector2(-80, 0), TickFont, LessonPanel.Muted);
             }
             var iLabel = Text(plot, "Current, I (A)", new Vector2(Width / 2, -100), AxisTitleFont, Current, new Vector2(640, 60));
             var vLabel = Text(plot, "Potential Difference, V (V)", new Vector2(-135, Height / 2), AxisTitleFont, Voltage, new Vector2(640, 60));
@@ -69,15 +68,21 @@ namespace OhmsLaw
 
             points = new RectTransform[Data.Count];
             tags = new TextMeshProUGUI[Data.Count];
+            labels = new TextMeshProUGUI[Data.Count];
             for (int i = 0; i < Data.Count; i++)
             {
-                var dot = UI.Rect("Point " + (i + 1), plot, Vector2.zero, new Vector2(0.5f, 0.5f), At(Data.currents[i], Data.voltages[i]), Vector2.one * PointSize);
+                var p = At(Data.currents[i], Data.voltages[i]);
+                var dot = UI.Rect("Point " + (i + 1), plot, Vector2.zero, new Vector2(0.5f, 0.5f), p, Vector2.one * PointSize);
                 var image = dot.gameObject.AddComponent<Image>();
                 image.sprite = UI.Theme ? UI.Theme.circle : null;
                 image.color = Color.white;
                 image.raycastTarget = false;
-                // Labels sit up-left of their point; the first point is only ~110 px from the V axis, so its label slides right until it clears the line.
-                Text(dot, $"({Data.currents[i]:0.00}, {Data.voltages[i]:0.0})", new Vector2(Mathf.Max(-60f, 110f - At(Data.currents[i], Data.voltages[i]).x), 70), PointFont, Color.white);
+                // Up-left of the point, unless that crosses the V axis (8 px clear): then right of it, under the line. The
+                // offsets are from the point's centre (the label is anchored to the dot's corner).
+                labels[i] = Text(dot, $"({Data.currents[i]:0.00}, {Data.voltages[i]:0.0})", Vector2.zero, PointFont, Color.white);
+                float half = labels[i].GetPreferredValues().x / 2f;
+                var offset = p.x - 77f - half >= 8f ? new Vector2(-77f, 53f) : new Vector2(PointSize / 2f + 8f + half, -5f);
+                ((RectTransform)labels[i].transform.parent).anchoredPosition = offset + Vector2.one * PointSize / 2f;
                 tags[i] = Text(dot, "", new Vector2(170, -70), TagFont, Current, new Vector2(320, 140));
                 points[i] = dot;
                 dot.gameObject.SetActive(false);
@@ -105,13 +110,16 @@ namespace OhmsLaw
 
         public void Axes(bool on) => axes.SetActive(on);
 
-        // Points up to `count`; a point that is new pops in.
+        // Points up to `count`; a point that is new pops in. Several at once (a later scene restoring the graph on its
+        // first frame) just appear: the pop scales each label with its dot.
         public void Plot(int count)
         {
+            int fresh = 0;
+            for (int i = 0; i < points.Length && i < count; i++) if (!points[i].gameObject.activeSelf) fresh++;
             for (int i = 0; i < points.Length; i++)
             {
                 bool show = i < count;
-                if (show && !points[i].gameObject.activeSelf) { points[i].gameObject.SetActive(true); StartCoroutine(PopIn(points[i])); }
+                if (show && !points[i].gameObject.activeSelf) { points[i].gameObject.SetActive(true); if (fresh == 1) StartCoroutine(PopIn(points[i])); }
                 else points[i].gameObject.SetActive(show);
             }
         }
@@ -156,19 +164,23 @@ namespace OhmsLaw
             tags[row].text = on ? tag : "";
         }
 
-        // Rise-and-run marker between two points: the run (ΔI) along the bottom, then the rise (ΔV) up the side, each
-        // drawn in turn with its value. ΔI reads below its leg (point labels are above the points), ΔV right of the rise.
+        // Rise-and-run marker between two points: the run (ΔI, amber) along the bottom, then the rise (ΔV, blue) up the
+        // side, each drawn in turn with its value (red stays for the slope's result, R). ΔI reads under its leg, starting
+        // right of the first point (the line runs down-left from it), ΔV right of the rise; the point labels step aside
+        // while the marker shows.
         public void Triangle(int a, int b)
         {
             if (triangle) Destroy(triangle.gameObject);
+            foreach (var label in labels) label.gameObject.SetActive(a < 0);
             if (a < 0) return;
             triangle = UI.Rect("Triangle", plot, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
             Vector2 pa = At(Data.currents[a], Data.voltages[a]), pb = At(Data.currents[b], Data.voltages[b]), corner = new Vector2(pb.x, pa.y);
-            var run = Segment(triangle, pa, corner, Resistance, 6);
-            var rise = Segment(triangle, corner, pb, Resistance, 6);
+            var run = Segment(triangle, pa, corner, Current, 6);
+            var rise = Segment(triangle, corner, pb, Voltage, 6);
             float dI = Data.currents[b] - Data.currents[a], dV = Data.voltages[b] - Data.voltages[a];
-            var runLabel = Text(triangle, $"run: ΔI = {dI:0.00} A", (pa + corner) / 2 + new Vector2(0, -50), TagFont, Resistance, new Vector2(420, 60));
-            var riseLabel = Text(triangle, $"rise: ΔV = {dV:0.0} V", (corner + pb) / 2 + new Vector2(200, 0), TagFont, Resistance, new Vector2(420, 60));
+            var runLabel = Text(triangle, $"run: ΔI = {dI:0.00} A", pa + new Vector2(12f + 210f, -42f), TagFont, Current, new Vector2(420, 60));
+            var riseLabel = Text(triangle, $"rise: ΔV = {dV:0.0} V", new Vector2(corner.x + 14f + 210f, (corner.y + pb.y) / 2), TagFont, Voltage, new Vector2(420, 60));
+            runLabel.alignment = riseLabel.alignment = TextAlignmentOptions.MidlineLeft;
             StartCoroutine(DrawMarker(run, rise, runLabel, riseLabel));
         }
 

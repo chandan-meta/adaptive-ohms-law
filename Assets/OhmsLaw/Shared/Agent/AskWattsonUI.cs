@@ -17,10 +17,8 @@ namespace OhmsLaw
     {
         public static bool IsOpen { get; private set; }
 
-        const float Pad = 4f, Gap = 8f, StatusHeight = 48f, InputHeight = 80f, ButtonWidth = 118f;
+        const float Pad = 18f, Gap = 10f, HeaderHeight = 76f, InputHeight = 60f, AskLabel = 24f, Actions = 250f;   // Actions: History + Close
         const int MaxViews = 40;
-        static readonly Color MicIdle = new Color(0.16f, 0.36f, 0.6f), MicLive = new Color(0.85f, 0.28f, 0.22f), MicDim = new Color(0.3f, 0.33f, 0.38f);
-        static readonly Color OfflineTint = new Color(1f, 0.72f, 0.3f), ControlsTint = new Color(0.5f, 0.88f, 0.58f);
 
         class View
         {
@@ -34,8 +32,11 @@ namespace OhmsLaw
         RectTransform home, content, suggestions;
         ScrollRect scroll;
         TMP_InputField input;
-        TextMeshProUGUI status, mode, historyLabel, micLabel, sendLabel;
-        Image micImage, stateDot;
+        TextMeshProUGUI status, historyLabel, micLabel, sendLabel;
+        GameObject sendIcon;
+        const float MicWidth = 192f;
+        HudButton micHud;
+        Image stateDot;
         readonly List<View> views = new List<View>();
         bool expanded, scrollToEnd, spaceTalk;   // spaceTalk: the Space bar (not the mic button) started the current hold
         int dirtyFrames, scene;   // scene bumps on every load: the collapsed view shows only this scene's latest exchange
@@ -56,41 +57,68 @@ namespace OhmsLaw
             Instance.Send(question);
         }
 
+        public void Toggle() { if (IsOpen) Close(); else Open(); }
+
         void Awake()
         {
             Instance = this;
             agent = Flow.Agent;
             home = Panel.Conversation;
             Build();
-            Panel.AskButton.onClick.AddListener(() => { if (IsOpen) Close(); else Open(); });
+            Panel.AskButton.onClick.AddListener(Toggle);
             agent.MessageAdded += OnAdded;
             agent.MessageChanged += OnChanged;
             SceneManager.sceneLoaded += (_, _) => { resumeTime = -1; scene++; if (IsOpen) Close(); dirtyFrames = 2; };
         }
 
+        // Design v3: a header (his face, his name, what he is doing in plain words, HISTORY, Close), the conversation,
+        // the suggested questions as outlined chips, and a labelled input row (Hold to talk, the field, Ask). Every
+        // button carries a word.
         void Build()
         {
-            var accent = UI.Theme ? UI.Theme.wattsonAccent : Color.cyan;
+            var spark = LessonPanel.Spark;
 
-            // Status strip at the top: a state dot, the status text, the connection mode, HISTORY.
-            var top = Band("Status", Pad, StatusHeight, true);
-            stateDot = UI.Rect("State", top, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(8, 0), new Vector2(18, 18)).gameObject.AddComponent<Image>();
+            var top = Band("Header", Pad, HeaderHeight, true);
+            var face = UI.Rect("Face", top, new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(48, 48));
+            var ringImage = face.gameObject.AddComponent<Image>();
+            ringImage.sprite = UI.Circle();
+            ringImage.color = spark;
+            ringImage.raycastTarget = false;
+            var disc = UI.Rect("Disc", face, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(42, 42));
+            var discImage = disc.gameObject.AddComponent<Image>();
+            discImage.sprite = UI.Circle();
+            discImage.color = LessonPanel.Ink;
+            discImage.raycastTarget = false;
+            disc.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+            if (UI.Theme && UI.Theme.wattsonFace) { var raw = UI.Stretch("Face", disc).gameObject.AddComponent<RawImage>(); raw.texture = UI.Theme.wattsonFace; raw.raycastTarget = false; }
+            // His name, and under it the status: up to two lines at 16 px in the width History and Close leave.
+            var name = UI.Rect("Name", top, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(62, 20), new Vector2(0, 28));
+            name.anchorMax = new Vector2(1, 0.5f);
+            name.sizeDelta = new Vector2(-62 - Actions, 28);
+            LessonPanel.Text(name, "Wattson", 22f, LessonPanel.Paper, TextAlignmentOptions.MidlineLeft);
+            var statusRow = UI.Rect("Status", top, new Vector2(0, 0.5f), new Vector2(0, 1), new Vector2(62, 4), new Vector2(0, 42));
+            statusRow.anchorMax = new Vector2(1, 0.5f);
+            statusRow.sizeDelta = new Vector2(-62 - Actions, 42);
+            stateDot = UI.Rect("State", statusRow, new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(0, -11), new Vector2(10, 10)).gameObject.AddComponent<Image>();
             stateDot.sprite = UI.Circle();
-            stateDot.color = accent;
+            stateDot.color = spark;
             stateDot.raycastTarget = false;
-            var statusRect = UI.Rect("Text", top, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(34, 0), new Vector2(0, StatusHeight));
-            statusRect.anchorMax = new Vector2(1, 0.5f);
-            statusRect.sizeDelta = new Vector2(-34 - 150, StatusHeight);
-            status = Fit(UI.Label(statusRect, "", 20, new Color(1, 1, 1, 0.9f), TextAlignmentOptions.MidlineLeft));
-            historyLabel = Fit(UI.Button("History", top, new Vector2(1, 0.5f), new Vector2(1, 0.5f), Vector2.zero, new Vector2(140, StatusHeight), "HISTORY", ToggleHistory, 20)
-                .GetComponentInChildren<TextMeshProUGUI>());
-            mode = Fit(UI.Label(Band("Mode", Pad + StatusHeight, 26, true), "", 16, OfflineTint, TextAlignmentOptions.MidlineLeft));
-            mode.fontStyle = FontStyles.Bold;
+            var statusText = UI.Stretch("Text", statusRow);
+            statusText.offsetMin = new Vector2(18, 0);
+            status = LessonPanel.Text(statusText, "", 16f, LessonPanel.Muted, TextAlignmentOptions.TopLeft, false);
+            status.lineSpacing = -8f;
+            var actions = LessonPanel.Row("Actions", top, 8f, TextAnchor.MiddleRight);
+            actions.anchorMin = actions.anchorMax = new Vector2(1, 0.5f);
+            actions.pivot = new Vector2(1, 0.5f);
+            actions.anchoredPosition = Vector2.zero;
+            actions.sizeDelta = new Vector2(Actions, 48);
+            historyLabel = LessonPanel.Pill("History", actions, "History", ToggleHistory, LessonPanel.Kind.Ghost, null, 48f, 16f).GetComponentInChildren<TextMeshProUGUI>();
+            LessonPanel.Pill("Close", actions, "Close", Close, LessonPanel.Kind.Secondary, "x", 48f, 17f);
 
-            // Conversation: a scrolling column of labelled messages, then the suggested questions.
+            // Conversation: a scrolling column of messages, then the suggested questions.
             var view = UI.Stretch("Conversation", home);
-            view.offsetMin = new Vector2(Pad, Pad + InputHeight + Gap);
-            view.offsetMax = new Vector2(-Pad, -(Pad + StatusHeight + 26 + Gap));
+            view.offsetMin = new Vector2(Pad, Pad + InputHeight + AskLabel + Gap);
+            view.offsetMax = new Vector2(-Pad, -(Pad + HeaderHeight + Gap));
             view.gameObject.AddComponent<Image>().color = Color.clear; // catches drags and the mouse wheel
             view.gameObject.AddComponent<RectMask2D>();
             scroll = view.gameObject.AddComponent<ScrollRect>();
@@ -107,27 +135,38 @@ namespace OhmsLaw
             scroll.content = content;
             suggestions = Column("Suggestions", content, 8);
 
-            // Input: hold-to-talk, the text field, and SEND (STOP while Wattson is busy and nothing is typed).
+            // Input: its label, then hold-to-talk, the text field, and ASK (STOP while Wattson is busy and nothing is typed).
+            var label = Band("Ask Label", Pad + InputHeight + 4, AskLabel, false);
+            LessonPanel.Eyebrow(label, "Or ask your own");
             var row = Band("Input", Pad, InputHeight, false);
-            var mic = UI.Button("Mic", row, new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(ButtonWidth, InputHeight), "HOLD\nTO TALK", null, 20);
-            micImage = mic.GetComponent<Image>();
-            micImage.color = MicIdle;
-            micLabel = Fit(mic.GetComponentInChildren<TextMeshProUGUI>());
+            var mic = LessonPanel.Pill("Mic", row, "Hold to talk", null, LessonPanel.Kind.Secondary, "mic", InputHeight, 18f);
+            var micRect = (RectTransform)mic.transform;
+            micRect.anchorMin = micRect.anchorMax = new Vector2(0, 0.5f);
+            micRect.pivot = new Vector2(0, 0.5f);
+            micRect.anchoredPosition = Vector2.zero;
+            micRect.sizeDelta = new Vector2(MicWidth, InputHeight);
+            mic.GetComponent<HorizontalLayoutGroup>().padding = new RectOffset(16, 16, 0, 0);   // "Let go to send" fits
+            micHud = mic.GetComponent<HudButton>();
+            micHud.fillColor = UI.Alpha(spark, 0.14f);
+            micHud.activeFill = spark;
+            micHud.outlineColor = micHud.activeOutline = UI.Alpha(spark, 0.5f);
+            micLabel = mic.GetComponentInChildren<TextMeshProUGUI>();
             var hold = mic.gameObject.AddComponent<EventTrigger>();
             LessonPanel.On(hold, EventTriggerType.PointerDown, agent.StartListening);
             LessonPanel.On(hold, EventTriggerType.PointerUp, agent.StopListening);
 
-            var field = UI.Rect("Question", row, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(ButtonWidth + Gap, 0), new Vector2(0, InputHeight - 4));
+            var field = UI.Rect("Question", row, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(MicWidth + Gap, 0), new Vector2(0, InputHeight));
             field.anchorMax = new Vector2(1, 0.5f);
-            field.sizeDelta = new Vector2(-2 * (ButtonWidth + Gap), InputHeight - 4);
-            UI.Panel(field, new Color(1, 1, 1, 0.12f));
+            field.sizeDelta = new Vector2(-(MicWidth + Gap) - (120 + Gap), InputHeight);
+            UI.Panel(field, LessonPanel.Raised, true, InputHeight / 2f);
+            UI.Outline(UI.Stretch("Edge", field), LessonPanel.ControlLine, InputHeight / 2f, 1.5f);
             input = field.gameObject.AddComponent<TMP_InputField>();
             var area = UI.Stretch("Text Area", field);
-            area.offsetMin = new Vector2(14, 8);
-            area.offsetMax = new Vector2(-14, -8);
+            area.offsetMin = new Vector2(22, 8);
+            area.offsetMax = new Vector2(-18, -8);
             area.gameObject.AddComponent<RectMask2D>();
-            var placeholder = UI.Label(area, "Type a question...", 22, new Color(1, 1, 1, 0.45f), TextAlignmentOptions.MidlineLeft);
-            var text = UI.Label(area, "", 22, Color.white, TextAlignmentOptions.MidlineLeft);
+            var placeholder = UI.Label(area, "Type a question", 20, LessonPanel.Muted, TextAlignmentOptions.MidlineLeft);
+            var text = UI.Label(area, "", 20, LessonPanel.Paper, TextAlignmentOptions.MidlineLeft);
             placeholder.textWrappingMode = text.textWrappingMode = TextWrappingModes.NoWrap;
             input.textViewport = area;
             input.textComponent = text;
@@ -135,8 +174,14 @@ namespace OhmsLaw
             input.characterLimit = 300;
             input.lineType = TMP_InputField.LineType.SingleLine;
             input.onSubmit.AddListener(Send);
-            sendLabel = Fit(UI.Button("Send", row, new Vector2(1, 0.5f), new Vector2(1, 0.5f), Vector2.zero, new Vector2(ButtonWidth, InputHeight), "SEND", SendOrStop, 22)
-                .GetComponentInChildren<TextMeshProUGUI>());
+            var send = LessonPanel.Pill("Send", row, "Ask", SendOrStop, LessonPanel.Kind.Primary, "send", InputHeight, 19f);
+            var sendRect = (RectTransform)send.transform;
+            sendRect.anchorMin = sendRect.anchorMax = new Vector2(1, 0.5f);
+            sendRect.pivot = new Vector2(1, 0.5f);
+            sendRect.anchoredPosition = Vector2.zero;
+            sendRect.sizeDelta = new Vector2(120, InputHeight);
+            sendLabel = send.GetComponentInChildren<TextMeshProUGUI>();
+            sendIcon = send.transform.Find("Icon send").gameObject;
         }
 
         // A full-width strip at a fixed distance from the conversation area's top or bottom edge.
@@ -150,15 +195,6 @@ namespace OhmsLaw
             rect.sizeDelta = new Vector2(-2 * Pad, height);
             rect.anchoredPosition = new Vector2(0, fromTop ? -distance : distance);
             return rect;
-        }
-
-        // Small labels shrink (down to 14 px) rather than spill out of their buttons or strip.
-        static TextMeshProUGUI Fit(TextMeshProUGUI label)
-        {
-            label.enableAutoSizing = true;
-            label.fontSizeMin = 14f;
-            label.fontSizeMax = label.fontSize;
-            return label;
         }
 
         static RectTransform Column(string name, Transform parent, float spacing)
@@ -225,39 +261,44 @@ namespace OhmsLaw
                     if (entry != null && !string.IsNullOrEmpty(entry.question) && questions.Count < 3 && WattsonAgent.Offered(entry.question, entry.answer))
                         questions.Add(entry.question);
             if (questions.Count == 0) return;
-            var heading = UI.Label(suggestions, "TRY ASKING", 17, new Color(1, 1, 1, 0.6f), TextAlignmentOptions.MidlineLeft);
-            heading.fontStyle = FontStyles.Bold;
-            heading.characterSpacing = 3;
+            LessonPanel.Eyebrow(suggestions, "Try asking");
             foreach (var question in questions)
             {
-                var chip = UI.Button("Chip", suggestions, new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(0, UI.MinTarget), question, () => agent.Ask(question), 22);
-                chip.GetComponent<Image>().color = new Color(1, 1, 1, 0.12f);
-                chip.GetComponentInChildren<TextMeshProUGUI>().alignment = TextAlignmentOptions.MidlineLeft;
-                var size = chip.gameObject.AddComponent<LayoutElement>();
-                size.minHeight = size.preferredHeight = UI.MinTarget;
+                var chip = LessonPanel.Pill("Chip", suggestions, question, () => agent.Ask(question), LessonPanel.Kind.Secondary, null, 52f, 18f);
+                var words = chip.GetComponentInChildren<TextMeshProUGUI>();
+                words.textWrappingMode = TextWrappingModes.Normal;
+                words.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+                var line = chip.GetComponent<HorizontalLayoutGroup>();
+                line.childAlignment = TextAnchor.MiddleLeft;
+                line.padding = new RectOffset(20, 20, 8, 8);
+                var size = chip.GetComponent<LayoutElement>();
+                size.minHeight = 52f;
+                size.preferredHeight = -1f;   // two-line questions grow the chip
+                chip.GetComponent<HudButton>().fillColor = Color.clear;
             }
         }
 
         void OnAdded(WattsonAgent.Message message)
         {
             bool you = message.FromLearner;
-            Color tint = you ? UI.AccentColor :
-                         message.speaker == WattsonAgent.Speaker.Offline ? OfflineTint :
-                         message.speaker == WattsonAgent.Speaker.LabControls ? ControlsTint :
-                         UI.Theme ? UI.Theme.wattsonAccent : Color.cyan;
             var bubble = new GameObject(you ? "You" : "Wattson", typeof(RectTransform)).GetComponent<RectTransform>();
             bubble.SetParent(content, false);
-            UI.Panel(bubble, new Color(tint.r, tint.g, tint.b, you ? 0.24f : 0.14f), true, 16f).raycastTarget = false;
+            UI.Panel(bubble, you ? new Color(1f, 1f, 1f, 0.13f) : LessonPanel.Raised, true, 18f).raycastTarget = false;
+            if (!you) UI.Outline(UI.Stretch("Edge", bubble), LessonPanel.CardLine, 18f, 1.5f).gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
             var layout = bubble.gameObject.AddComponent<VerticalLayoutGroup>();
-            layout.padding = new RectOffset(16, 16, 10, 12);
-            layout.spacing = 2;
+            layout.padding = new RectOffset(18, 18, 14, 14);
+            layout.spacing = 6;
             layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandHeight = false;
             var align = you ? TextAlignmentOptions.TopRight : TextAlignmentOptions.TopLeft;
-            var who = UI.Label(bubble, Label(message.speaker), 17, you ? new Color(1, 1, 1, 0.8f) : tint, align);
-            who.fontStyle = FontStyles.Bold;
-            who.characterSpacing = 3;
-            var text = UI.Label(bubble, message.text, 24, Color.white, align);
+            if (!you)
+            {
+                var who = UI.Label(bubble, Label(message.speaker), 14, LessonPanel.Spark, align);
+                who.fontStyle = FontStyles.Bold;
+                who.characterSpacing = 6;
+            }
+            var text = UI.Label(bubble, message.text, 20, LessonPanel.Paper, align);
+            text.fontStyle = FontStyles.Bold;
             views.Add(new View { message = message, root = bubble.gameObject, text = text, scene = scene });
             if (views.Count > MaxViews) { views[0].root.SetActive(false); Destroy(views[0].root); views.RemoveAt(0); }
             suggestions.SetAsLastSibling();
@@ -270,59 +311,46 @@ namespace OhmsLaw
                 if (view.message == message) { view.text.text = message.text; dirtyFrames = 2; return; }
         }
 
-        static string Label(WattsonAgent.Speaker speaker)
-        {
-            string dot = " " + UI.Glyph("·", "-") + " ";
-            switch (speaker)
-            {
-                case WattsonAgent.Speaker.You: return "YOU";
-                case WattsonAgent.Speaker.YouHeard: return "YOU (SPOKEN, AS HEARD)";
-                case WattsonAgent.Speaker.Wattson: return "WATTSON" + dot + "LIVE AI";
-                case WattsonAgent.Speaker.Offline: return "WATTSON" + dot + "OFFLINE ANSWER";
-                default: return "WATTSON" + dot + "LAB CONTROLS";
-            }
-        }
+        static string Label(WattsonAgent.Speaker speaker) =>
+            speaker == WattsonAgent.Speaker.LabControls ? "WATTSON " + UI.Glyph("·", "-") + " LAB CONTROLS" : "WATTSON";
 
+        // What Wattson is doing, in plain words (the technical detail lives in the F1 review overlay).
         string StatusText()
         {
             switch (agent.Current)
             {
-                case WattsonAgent.State.Listening: return "LISTENING: speak now, then let go to send.";
-                case WattsonAgent.State.Thinking: return "THINKING: working on it...";
-                case WattsonAgent.State.Talking: return "SPEAKING: tap STOP, or ask something new.";
-                case WattsonAgent.State.Error: return "ERROR: " + agent.Problem;
+                case WattsonAgent.State.Listening: return "Listening · let go to send";
+                case WattsonAgent.State.Thinking: return "Thinking...";
+                case WattsonAgent.State.Talking: return "Speaking · tap Stop to cut in";
+                case WattsonAgent.State.Error: return "His radio is fuzzy. Try a suggested question.";
             }
             if (agent.Note.Length > 0) return agent.Note;
+            if (agent.Offline || !agent.LiveAnswered) return "Answering from his case notes";
+            if (agent.Resting) return "Resting a moment: too many questions";
             var rig = CircuitRig.Active;
-            return rig && rig.controlsOpen ? "Ask anything, or tell me a voltage to set." : "HOLD TO TALK (or Space) and speak, or type a question.";
+            return rig && rig.controlsOpen ? "Ask anything, or tell me a voltage to set." : "Ask about this chapter";
         }
 
         void Update()
         {
             var context = Context;
-            if (Panel && Panel.AskRoot) Panel.AskRoot.gameObject.SetActive(context && context.askWattsonEnabled || IsOpen);
+            if (Panel && Panel.AskRoot) Panel.AskRoot.gameObject.SetActive((context && context.askWattsonEnabled || IsOpen) && !TitleScreen.IsOpen);
             if (!IsOpen) return;
 
             status.text = StatusText();
-            // What is true: unreachable is OFFLINE, a rate limit is RESTING (the server is up; saved answers meanwhile).
-            string chat = agent.Offline ? "OFFLINE MODE: saved answers only (the Wattson server needs its API keys)"
-                : agent.Resting ? "RESTING: too many questions"
-                : agent.LiveAnswered ? "LIVE AI"
-                : "NOT CONNECTED YET: saved answers until the Wattson server answers (it needs its API keys)";
-            string voice = agent.VoiceInputDown ? " · VOICE INPUT OFF" : "";
-            mode.text = chat + voice;
-            mode.color = agent.Offline || agent.Resting || !agent.LiveAnswered ? OfflineTint : ControlsTint;
             bool listening = agent.Current == WattsonAgent.State.Listening;
-            micLabel.text = listening ? "LET GO\nTO SEND" : "HOLD\nTO TALK";
-            micImage.color = listening ? MicLive : agent.VoiceInputDown ? MicDim : MicIdle;
-            sendLabel.text = Busy && string.IsNullOrWhiteSpace(input.text) ? "STOP" : "SEND";
-            historyLabel.text = expanded ? "LATEST ONLY" : "HISTORY";
-            // The state dot: steady while idle, breathing while he listens, thinks or speaks.
+            micLabel.text = listening ? "Let go to send" : "Hold to talk";
+            micHud.active = listening;
+            micLabel.color = listening ? LessonPanel.Ink : agent.VoiceInputDown ? LessonPanel.Muted : LessonPanel.Spark;
+            bool stop = Busy && string.IsNullOrWhiteSpace(input.text);
+            sendLabel.text = stop ? "Stop" : "Ask";
+            sendIcon.SetActive(!stop);   // the arrow means send; Stop reads alone
+            historyLabel.text = expanded ? "Latest" : "History";
+            // The state dot: steady while idle, breathing while he listens, thinks or speaks; muted on an error.
             float breathe = ReducedMotion.On ? 1f : 0.7f + 0.3f * Mathf.Sin(Time.unscaledTime * (agent.Current == WattsonAgent.State.Thinking ? 8f : 4f));
-            stateDot.color = agent.Current == WattsonAgent.State.Listening ? UI.Alpha(MicLive, breathe)
-                : agent.Current == WattsonAgent.State.Error ? OfflineTint
-                : agent.Current == WattsonAgent.State.Idle ? UI.Alpha(UI.Theme ? UI.Theme.wattsonAccent : Color.cyan, 0.6f)
-                : UI.Alpha(UI.Theme ? UI.Theme.wattsonAccent : Color.cyan, breathe);
+            stateDot.color = agent.Current == WattsonAgent.State.Error ? LessonPanel.Muted
+                : agent.Current == WattsonAgent.State.Idle ? UI.Alpha(LessonPanel.Spark, 0.6f)
+                : UI.Alpha(LessonPanel.Spark, breathe);
 
             // Spacebar is push-to-talk on PC, unless the student is typing. Letting go always ends a hold Space started,
             // even if the text field took focus meanwhile (otherwise he stays Listening with the mic running).

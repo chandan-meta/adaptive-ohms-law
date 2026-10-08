@@ -54,6 +54,7 @@ namespace OhmsLaw.Editor
             Formula("V × 2   →   I × 2");
             Gesture(WattsonController.Gesture.Point, point: "Panel Point");
             Wait(0.4);
+            Gate("S11_DrawLine", "the learner taps the graph: the line sweeps out through the five points");
             Cue("table.clear", "the table hands its highlights to the graph");
             Cue("formula.clear");
             Cue("graph.line 1", "the line sweeps out from the origin through every point, with the musical rise");

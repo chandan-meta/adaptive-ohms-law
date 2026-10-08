@@ -9,6 +9,7 @@ namespace OhmsLaw
     public class Scene04Director : MonoBehaviour
     {
         public const string TapInstruction = "Click or tap the highlighted wire to explore what happens inside.";
+        public const string TapGate = "S04_TapWire"; // the hold's gate id (SceneDirector.Gate): Enter, Ask Wattson and the play test see it
 
         [Tooltip("Wait for the student to tap the wire before the dive.")] public bool tapToEnter = true;
         [Tooltip("Dive anyway after this many seconds in a hands-free review run (ReviewMode.autoAnswer). 0 waits for the tap.")] public float autoAdvance = 4f;
@@ -19,7 +20,7 @@ namespace OhmsLaw
 
         RectTransform tapIcon;
         Vector3 wordsHome;
-        float holdStarted = -1;
+        float holdStarted = -1, idle;
         bool drifting;
 
         void Start()
@@ -39,14 +40,18 @@ namespace OhmsLaw
             wattson.motionScale = niscope.timeScale = 1f;
         }
 
-        // The hold: the instruction goes into the panel and stays until the wire is tapped; a large tap target follows
-        // the wire (the highlighted outline shows which wire). Only a hands-free review run advances by itself.
+        // The hold: the instruction goes into the panel and stays until the wire is tapped (or Enter is pressed, as at every
+        // gate); a large tap target follows the wire (the highlighted outline shows which wire). Only a hands-free review
+        // run advances by itself.
         public void WaitForTap()
         {
             if (!tapToEnter || holdStarted >= 0) return;
             ModuleFlow.Instance.SetPaused(ModuleFlow.PauseReason.Hold, true);
+            SceneDirector.Gate = TapGate;
+            HudKeys.ConsumeAct(); // an Enter pressed before the hold does not answer it
             holdStarted = Time.unscaledTime;
-            if (LessonPanel.Instance) LessonPanel.Instance.Instruction(TapInstruction);
+            idle = 0f;
+            if (LessonPanel.Instance) LessonPanel.Instance.Turn("Tap the glowing wire.", null, "Find out what happens inside it.");
 
             // A tap-hand over the wire: pulsing ring, finger and palm; the ring itself is the target (220 px, easy to hit).
             tapIcon = UI.Rect("Tap Wire", ModuleFlow.Instance.transform, Vector2.zero, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(220, 220));
@@ -69,8 +74,9 @@ namespace OhmsLaw
         {
             if (holdStarted < 0) return;
             holdStarted = -1;
+            SceneDirector.Gate = null;
             if (tapIcon) Destroy(tapIcon.gameObject);
-            if (LessonPanel.Instance) LessonPanel.Instance.Instruction("");
+            if (LessonPanel.Instance) LessonPanel.Instance.Done("Into the wire.");
             ModuleFlow.Instance.SetPaused(ModuleFlow.PauseReason.Hold, false);
         }
 
@@ -88,11 +94,24 @@ namespace OhmsLaw
                 tapIcon.anchoredPosition = cam.WorldToScreenPoint(wire.position) / canvas.scaleFactor;
                 tapIcon.localScale = Vector3.one * (1 + 0.1f * Mathf.Sin(Time.unscaledTime * 5f));
             }
+            if (HudKeys.ConsumeAct()) { Dive(); return; }
+            // An idle learner is nudged as at every gate: the turn card pulses with the hint sound.
+            idle = HudKeys.Tapped || AskWattsonUI.IsOpen || ModuleFlow.UserPaused ? 0f : idle + Time.unscaledDeltaTime;
+            if (idle >= SceneDirector.IdleSeconds && LessonPanel.Instance)
+            {
+                idle = 0f;
+                LessonPanel.Pop(LessonPanel.Instance.Block("Instruction"));
+                UiSounds.Play("hint");
+            }
             // The Ask panel pauses the countdown, so a question never gets cut off by the dive.
             if (AskWattsonUI.IsOpen) holdStarted += Time.unscaledDeltaTime;
             else if (ReviewMode.autoAnswer && autoAdvance > 0 && Time.unscaledTime - holdStarted > autoAdvance) Dive();
         }
 
-        void OnDestroy() { if (tapIcon) Destroy(tapIcon.gameObject); }
+        void OnDestroy()
+        {
+            if (tapIcon) Destroy(tapIcon.gameObject);
+            if (holdStarted >= 0 && SceneDirector.Gate == TapGate) SceneDirector.Gate = null; // left mid-hold (SKIP, a chapter jump)
+        }
     }
 }

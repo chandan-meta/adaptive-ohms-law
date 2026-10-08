@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
   id: S06_R_C
   speaker: WATTSON
-  text: A careful guess. Let's put it to the test.
-  ttsText: A careful guess. Let's put it to the test.
+  text: No change, you say.
+  ttsText: No change, you say.
   vo: {fileID: 8300000, guid: 3b49d173fa52f5a4990f14e700687786, type: 3}
-  fallbackDuration: 2.8
+  fallbackDuration: 1.8

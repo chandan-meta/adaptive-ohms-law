@@ -64,13 +64,14 @@ namespace OhmsLaw.Editor
             Vcam("Bench Study", Scene10Builder.StudyCamC, Scene10Builder.StudyLookC, Scene10Builder.StudyFov, refs["Bench Point"].transform, lensMedium);
         }
 
-        // "Points X and Y pulse" while the voltmeter waits: a breathing amber halo with slow rings in front of each badge.
+        // "Points X and Y pulse" while the voltmeter waits: a breathing amber halo with slow rings behind each badge. The
+        // badge masks the middle, so the glow rims it and the letter stays readable (in front, bloom turned it into a blob).
         void BadgePulse()
         {
             var root = Node("[VFX] X and Y pulse");
             var glow = PulseGlow();
             foreach (var letter in new[] { "X", "Y" })
-                Halo(root.transform, letter, refs["Card " + letter].transform.position + Vector3.back * 0.045f, 0.16f, 0.05f, glow);
+                Halo(root.transform, letter, refs["Card " + letter].transform.position + Vector3.forward * 0.045f, 0.16f, 0.05f, glow);
             Calm(root);
             root.SetActive(false);
             Ref(root);
@@ -153,6 +154,7 @@ namespace OhmsLaw.Editor
             Visual("The ammeter snaps in: the series path lights, the X → Y pulse starts", 0.8);
             Gesture(WattsonController.Gesture.Point, point: "AMMETER");
             Line("S09_L06");
+            Show("[VFX] Pulse travels from X to Y"); // the twist gets its picture: conventional current runs X (+ side) to Y
             Line("S09_Conventional");
 
             // The voltmeter, across XY.
@@ -164,6 +166,7 @@ namespace OhmsLaw.Editor
             Gate("S09_PlaceVoltmeter", "Panel: 'Select the voltmeter.' then 'Click the highlighted position to place it.' Its leads reach X and Y; the schematic's V and its parallel leads light.");
             Hide("[VFX] X and Y pulse");
             Cue("callout hideall");
+            Cue("retract 0.5 Parts Tray", "the empty tray folds away, so the last frame matches Scene 10's bench");
             Gesture(WattsonController.Gesture.Point, point: "NICHROME WIRE — XY");
             Line("S09_L08");
 

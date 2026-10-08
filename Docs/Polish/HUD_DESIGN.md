@@ -1,94 +1,93 @@
-# HUD design system (2026-10-06, cinematic layout)
+# HUD design system — v3 "Case File" (approved 2026-10-07)
 
-One interface for every scene and state, built once in code by `Shared/LessonPanel.cs` (with `HudKit.cs`,
-`SubtitleUI.cs`, `PanelViews.cs`, `MCQPanel.cs`, `LiveReadingsPanel.cs`, `Agent/AskWattsonUI.cs`) under the persistent
-`ModuleFlow` canvas. The 3D scene owns the screen; the interface sits around it. Reference layout: the screenshot the
-brief supplied (top-right controls, bottom subtitle bar, Ask Wattson bottom-right).
+Source of truth for the module's interface. Approved board: https://claude.ai/artifact/3SU84Wr1ayCNskyzFGZmTK (revision 2,
+checked rule by rule against UI UX Pro). Figma: https://www.figma.com/design/s0BWWs7zT8csU6vhuCVSr2 (page *Design system*:
+variables, text styles, icons, components with states; page *Screens*: user flow, layout zones, screens A–J).
+Built in code on the persistent module canvas: `Shared/LessonPanel.cs` (controls, captions host, Ask avatar, dock, turn /
+clue / case-closed cards), `Shared/HudScreens.cs` (chapter banner and chip, pause menu, title screen, `HudScale`, `HudKeys`),
+`Shared/SubtitleUI.cs`, `Shared/HudKit.cs` (icons, `HudButton`, `UiSounds`), `Shared/PanelViews.cs`, `Shared/MCQPanel.cs`,
+`Shared/Agent/AskWattsonUI.cs`.
 
-## Canvas
+## Principles
 
-Screen Space Overlay · Canvas Scaler *Scale With Screen Size* · reference 1920 × 1080 · match 0.5 · everything under a
-`SafeAreaLayout` rect. All numbers below are reference px; nothing is placed in absolute screen coordinates.
+1. The 3D scene is the hero: HUD pieces live at the edges; the hero area (faces, apparatus, results) stays clear.
+2. Colour means something. The chrome is ink and paper; Wattson's **spark** marks guidance and "done"; **blue, amber and
+   red only ever mean V, I and R** (voltage blue was also the UI accent before v3).
+3. Every action is said once in the card and once in the world (the target glows), and confirmed when it lands.
+4. Nothing blocks: cards never steal input, a tap sends the chapter title away, animations never delay a control.
 
-## Pieces and anchors
+## Layout (1920 × 1080 reference px)
 
-| GameObject | Anchor | Position / size | Holds |
-|---|---|---|---|
-| `UI_TopControls` | top-right | 32 px from the right, 28 px from the top, 46 px tall, content-sized | `UI_ControlButton` × 5: PAUSE · REPLAY · CC · VOLUME · SKIP |
-| `UI_VolumePopup` | top-right, under the bar | 340 px wide, 10 px below the controls | Wattson / Effects / Music sliders, MOTION toggle; a transparent catcher closes it on any click outside |
-| `UI_SubtitlePanel` | bottom-stretch | left 120, right 300, bottom 32, content-sized (≈ 110) | speaker (20 px cyan caps) + line (32 px warm white, two lines per page) |
-| `UI_AskWattson` | bottom-right | 40 px from the right, 26 px from the bottom, 180 × 156 | round avatar (92 px) in a cyan ring with glow, "ASK / WATTSON" label |
-| `UI_Dock` | right, between the controls and the subtitle zone | 480 px wide (580 with the table/graph/inset), top 88, bottom 196 | compact cards in a fixed order; no background of its own |
-| `UI_Conversation` | right, same bounds as the dock (580 wide) | shown while Ask Wattson is open | status strip, mode line, messages, suggestions, mic / field / send |
+| Piece | Where | Size / behaviour |
+|---|---|---|
+| Chapter title (`UI_ChapterTitle`) | top-left, 56 / 50 px in, over a corner vignette | "CHAPTER n OF 10", title 54, purpose 23, 10-step rail; fades in 0.6 s, holds ~3.5 s, out 0.4 s; a tap sends it away |
+| Chapter chip (`UI_ChapterChip`) | top-left, 32 / 28 px | 56 tall capsule: "n / 10", small rail, chapters icon; tap → pause menu |
+| Controls (`UI_TopControls`) | top-right, 32 / 28 px | one 56 px capsule: PAUSE · REPLAY · CC · VOLUME · SKIP, 44 px items, 9 px between hit areas; idle in a cinematic chapter (3 s without input) → icons only, full contrast |
+| Hint (`UI_Hint`) | under the controls | "Finish this step first" / "Close Ask Wattson first" for 2.5 s when a disabled control is tapped |
+| Dock (`UI_Dock`) | right, top 104, bottom 196 | 480 wide, 580 with table / graph / inset / case closed; cards only while their beat runs |
+| Captions (`UI_SubtitlePanel`) | bottom 40 px, centred in the free frame | hugs the line, max 1080 (and clear of the avatar when there is no dock), two lines then pages |
+| Ask Wattson (`UI_AskWattson`) | bottom-right | 92 px face in a spark ring; idle / listening / thinking / speaking / error |
+| Conversation (`UI_Conversation`) | dock bounds, 580 wide | header (face, name, plain status, History, Close), messages, chips, Hold to talk · field · Ask |
+| Pause menu (`UI_PauseMenu`) | centre, over a 66 % scrim | 1140 wide card: where you are, Resume, Restart chapter, chapter list (10), unlock line, keys; settings column |
+| Title screen (`UI_TitleScreen`) | full frame, left vignette, block low-left over the floor | kicker, "Ohm's Law" 132, lead 28, Start the case (primary), Continue · Chapter n, meta line |
 
-Dock card order (top to bottom): heading (scene title, activity screens only) · Instruction · Info (concept card) ·
-Volt (battery buttons) · Readings · Counter · Schematic · Inset · Table · Graph · Formula · MCQ · End. A card exists
-only while a beat needs it; the data views (table, graph) shrink before any text can overlap (`CanvasFit`, min 70 %).
+Back to front: world labels · title screen · dock · captions · Ask · chapter banner · controls · popup · hint · pause menu ·
+white fade. `HudScale`: the canvas never scales below 75 % (1366 × 768 and 1280 × 720 laptops get a larger canvas, not
+smaller text); "Larger text" adds 15 %. Landscape only.
 
-A scene declares how much of the frame the dock may reserve (`SceneDirector.dockWidth`, set by its builder; −1, the
-default for scenes built before the field existed, decides from the scene: a circuit rig or an electron wire reserves
-the dock, a cinematic scene does not): cinematic scenes (4, 7, 8) reserve nothing and get the full frame; activity
-scenes (5, 6, 9–13) reserve 480 px, 580 while the table and graph are up, and `PanelFraming` on the camera composes the
-shot into the rest of the frame. On screens narrower than 16:9 (4:3 tablets) `PanelFraming` also keeps the shots' 16:9
-horizontal field of view, so compositions authored for 16:9 keep their edges.
-
-## Colours
+## Colour tokens
 
 | Token | Value | Use |
 |---|---|---|
-| card fill | rgba(8, 13, 23, 0.74) | every card, the control pills (0.92 for the popup, 0.9 for the conversation, 0.70 for the subtitle bar) |
-| card line | accent at 22 % | 1.5 px outline on cards and pills |
-| accent | palette *voltage* blue `#3FA9FF` | outlines, active states, the instruction heading, reveals |
-| Wattson accent | palette `#BFF6FF` | speaker name, avatar ring |
-| text | `#FAF7F0` / white | subtitle line, card text |
-| muted | `#A9BDDB` | dock heading, slider names, secondary labels |
-| note | `#FFB830` | concept-card titles, error ring |
-| success / warning | the palette's current amber `#FFB830` and resistance red `#FF5A5F` | readings, the ohm |
+| Ink | `#0A1120` | cards 94 %, caption 80 %, control bar 86 % (72 % folded), pause scrim (navy-black) 66 % |
+| Raised | `#141D30` | option rows, steps, tiles, the text field; hover `#1D2944` |
+| Paper | `#F7F5EF` | text, primary buttons, a chosen option (17.3:1 on ink) |
+| Body | `#D3DAE6` | clue text |
+| Muted | `#A9B6CC` | secondary text, eyebrows (9.2:1) |
+| Spark | palette `wattsonAccent` `#BFF6FF` | Wattson, guidance, "done", the turn card, focus, progress done (16.0:1) |
+| V / I / R | palette voltage `#3FA9FF`, current `#FFB830`, resistance `#FF5A5F` | the quantities only |
+| Lines | white 10 % (cards), 38–40 % (interactive borders: 3:1) | |
 
-No gradients, one glow (the avatar's, 10–18 % alpha), no neon.
+## Type (Nunito Sans Bold, the module's TextMeshPro font; headings use TMP bold)
 
-## Type (TextMeshPro, the palette's Nunito)
+Display 132 · chapter 54 · caption 32 · turn 28 · question 26 · card title 24 · option 22 · card body 21 · hint 20 ·
+button 20 · chip 18 · reading 46 · labels 15–16 caps, tracked. Nothing below 15 px at 1080p.
 
-| Role | Size | Style |
-|---|---|---|
-| control label | 18 | bold caps, +2 tracking |
-| speaker | 20 | bold caps, +4 tracking |
-| subtitle line | 32 | regular, warm white, two lines per page |
-| instruction | 22 | bold; heading "YOUR TURN" 15 bold caps accent |
-| concept card | 20 title / 19 body | |
-| dock heading | 15 | bold caps muted, +5 tracking |
-| formula lines | 34 (reveal 64, sub 22) | bold, one line each, auto-shrink to fit |
-| buttons in cards | 20 | bold |
+## Components and states
 
-## Button states (`HudButton`)
+- **Control** (`LessonPanel.Control`): normal (bare), hover (+8 % white), pressed (0.97), on (white 14 %: CC on, PAUSE while
+  paused, VOLUME while open), disabled (36 %).
+- **Pill** (`LessonPanel.Pill`): Primary (paper / ink text, one per view), Secondary (white 10 %, 3:1 border), Ghost
+  (muted text), Raised (option rows). Icon optional; the word is always there.
+- **Turn card** (`LessonPanel.Turn(text, step, hint)` / `Done(text)`): waiting (spark-tinted badge with a target, spark
+  edge, "YOUR TURN · STEP n OF m", pulses once on arrival) → done (spark badge with a check, "DONE", ~0.9 s, chime).
+- **Clue card** (`LessonPanel.Info`): lens + "CLUE" (or "YOUR PREDICTION"), title 24, body 21 with quantity words coloured.
+- **Choice** (`MCQPanel`): Raised row, letter badge; `Select(i)` → paper row / ink text, others 45 %; never marked.
+- **Voltage step** (`VoltageButtons`): done (check, muted), now (paper, full contrast even while the controls are closed),
+  next (spark outline, pulsing, live while Wattson asks for it), later (36 %; a tap says why). The count lives on the turn card.
+- **Readings card** (`LiveReadingsPanel`): steps aside while the data table is up.
+- **Data cards** (`ObservationTableUI`, `GraphUI`): card surface, hairline rules, paper values, coloured column heads and axis
+  titles, neutral row highlight; table text 44 canvas px (≥ 15 px on screen); the two-column table centres in its card; slope
+  triangle rise blue (ΔV), run amber (ΔI). A crowded dock never squeezes the turn card: the readings, then the formula, step aside.
+- **Law tiles** (`LawTiles`, Chapter 10): R · V · I tiles; tap V, I, R to build V = I × R.
+- **Case closed** (`LessonPanel.End`): tilted stamp, what you found (V / I / R tiles), V = I × R, the learner's numbers,
+  Replay (primary), Chapters, Exit.
+- **Rail** (`Rail`): done spark, now paper and longer (shape, not colour alone), ahead white 24 %.
 
-Normal → hover: fill +7 % white, outline to accent 75 %, scale 1.03 → pressed: scale 0.97, fill +12 % → active
-(CC ON, PAUSE while paused, VOLUME while its popup is open, the chosen voltage): fill pulled 28 % toward the accent,
-outline accent 80 % → disabled (REPLAY / SKIP during an interaction or while Ask Wattson is open): 45 % alpha.
-All eased on unscaled time (works while paused); no scale change under reduced motion. Cards scale in (0.96 → 1,
-0.28 s) when they appear; the subtitle bar fades 0.25 s.
+## Motion
 
-## Behaviour of the controls
+Press 90 ms (0.97) · hover 150 ms · card enter 280 ms decelerating (fade) + 0.96 → 1 pop · exit instant or 180 ms ·
+one continuous pulse per screen (the world target; the turn card pulses once) · everything on unscaled time · reduced
+motion: fades only, no pulse, no scale.
 
-- **PAUSE / RESUME** freezes the scene's Timeline (speed 0: cinematic, VO, animation, cues) and the gates read it;
-  RESUME continues from the same frame.
-- **REPLAY** jumps to the start of the line being spoken (`SubtitleTrack.LastLineStart`): the VO, caption and cues
-  replay once, nothing doubles.
-- **CC ON / OFF** shows or hides the subtitle bar; VO is untouched.
-- **VOLUME** opens the popup (three buses, the motion toggle); it closes on any click elsewhere.
-- **SKIP** jumps to the start of the next spoken line of this scene, or into the next interaction gate if that comes
-  first (a required action is never skipped), or hands the scene off past its last line. Cues between are retroactive,
-  so the state is as if it had played.
-- **Ask Wattson** opens the conversation in place of the dock, pauses the lesson, and resumes it (restarting an
-  interrupted line) on close. Avatar states: idle (cyan ring, a slow breath while he can be asked), listening
-  (expanding ring), thinking (three dots), speaking (ring pulse), error (amber ring).
+## Input
 
-## Sounds
+Targets ≥ 44 px (controls 44, options 64, steps 62, chips 52, avatar 108 hit area, slider rows 48, switch rows 48).
+Keyboard (`HudKeys`): Space pause menu (Start on the title; push-to-talk while Ask is open), Esc menu (closes the popup or
+Ask first), R replay line, C captions, Enter acts on the current turn (taps its target) or starts / resumes, 1 / 2 / 3 pick a
+prediction, Tab / Shift+Tab move focus through what is in front (spark focus ring; sliders have none). A focused text field
+keeps its keys. Idle 8 s in a turn: the card pulses once with the hint sound (and the step's recorded hint line, once).
 
-`UiSounds`: hover tick, click, open, close, synthesised at runtime, on the effects bus at 35 % gain, under the voice.
+## Sounds (`UiSounds`, synthesised)
 
-## Checking a resolution
-
-`echo "Scene09 2x @1366x768" > Logs/ohm-play.req` sets the Game view to that size for the run (the report notes
-`SIZE` when the view took it and `RES WxH (captured frames)` from the first frame's header) and restores 1920×1080
-afterwards; frames land in `Logs/Blockout/shots/`. `Scene05 2x hud` presses every top control and checks the result.
+hover tick, click, open, close, done (rising fifth), hint, stamp (soft thud) — effects bus, 35 %.

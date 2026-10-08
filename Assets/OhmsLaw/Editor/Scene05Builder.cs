@@ -65,6 +65,10 @@ namespace OhmsLaw.Editor
             director.wire = wire;
             WireDriftArrow();
             WireBracket();
+            // v3 cinematic pass: a medium on the conduit for the drift (the push-in lands as the field goes up). Cause and
+            // effect share the free frame: the drift arrow from its tail, the + terminal it drifts toward and its
+            // "+ positive" label all sit left of the dock (the old, tighter lens put them under it).
+            Vcam("Wire Drift", WireOrigin + new Vector3(-1.4f, -0.45f, -7.2f), WireOrigin + new Vector3(1.8f, -0.3f, 0f), 56f, refs["Electrons Point"].transform, lensMedium); // focus on the stream (Wattson is beside and behind this lens)
             Wattson(PlatformPoint + new Vector3(-3.5f, 0.3f, 0.6f), WireCamPos); // glides to Platform Point: lower-left, on the floor
 
             // The panel's notes for this scene (the cues name them).
@@ -157,6 +161,8 @@ namespace OhmsLaw.Editor
             Show("Bracket");
             Cue("callout show voltage");
             Line("S05_N02", 0.1);
+            Gate("S05_ApplyVoltage", "the learner taps the + terminal: the voltage is applied, and the field goes up");
+            Shot("Wire Drift");
             Gesture(WattsonController.Gesture.RaiseGadget, gadget: true);
             Show("[VFX] field wave sweeps whole tunnel");
             Sfx("Highlight");
@@ -169,7 +175,9 @@ namespace OhmsLaw.Editor
             Cue("callout show drift");
             Visual("The electrons keep jiggling and now all drift together; the arrow under the conduit says electron drift, − → +", 2.4);
 
-            // C: current, counted at the section in the panel: one, two, three ... and the completed second.
+            // C: current, counted at the section in the panel: one, two, three ... and the completed second (wide again:
+            // Wattson points at the ring).
+            Shot("Wire Inside");
             Gesture(WattsonController.Gesture.Point, point: "Cross Section");
             Show("Cross Section");
             Hide("Drift Arrow");

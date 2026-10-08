@@ -8,19 +8,20 @@ namespace OhmsLaw
 {
     // Observation table in the lesson panel (a Canvas-sized rect scaled into the Table block). Values come from
     // ExperimentData; rows fill one by one (a recorded row shows what the meters read then), a V/I column can be added,
-    // rows and cells can be highlighted and tapped. Layout in canvas px: at the panel's 0.58 scale the 44 px cells read
-    // ~26 px tall. The frame sizes itself to the visible columns.
+    // rows and cells can be highlighted and tapped. Layout in canvas px: at the panel's 0.49 scale the 44 px heads and
+    // cells read 21.6 px, still 15 px when a crowded dock shrinks the view to LessonPanel.YieldShare. The frame sizes
+    // itself to the visible columns.
     public class ObservationTableUI : MonoBehaviour
     {
-        public static readonly Vector2 Canvas = new Vector2(1080, 516);   // HeaderRow + 5 rows + the board margins: the frame never overruns its block
-        public const float ColumnWidth = 360f, RowHeight = 76f, HeaderRow = 92f, TagWidth = 280f, TagGap = 20f;
-        public const float HeaderFont = 34f, CellFont = 44f, TagFont = 40f;
+        public static readonly Vector2 Canvas = new Vector2(1080, 540);   // HeaderRow + 5 rows + the board margins: the frame never overruns its block
+        public const float ColumnWidth = 360f, RowHeight = 76f, HeaderRow = 116f, TagWidth = 280f, TagGap = 20f;
+        public const float HeaderFont = 44f, CellFont = 44f, TagFont = 44f;
         // The board-panel look the classroom kit's BoardPanel gives the graph, in canvas px at BoardCanvasScale 0.00135:
         // margins 0.015 x 0.02 board UV around the content, a 0.012 m chalk line, Classroom_BoardPanel's green.
         public const float BoardMarginX = 36f, BoardMarginY = 22f, ChalkLine = 9f;
         public static readonly Color BoardTint = new Color(0.05f, 0.07f, 0.1f, 0.9f), ChalkColor = new Color(0.93f, 0.93f, 0.87f, 0.75f);
-        // Per-column widths summing to 3 x ColumnWidth: V holds "Potential Difference", V/I holds "1.0 ÷ 0.20 = 5".
-        static readonly float[] Columns = { 380f, 280f, 420f };
+        // Per-column widths summing to 3 x ColumnWidth: V holds "Potential Difference" at 44 px, V/I holds "1.0 ÷ 0.20 = 5".
+        static readonly float[] Columns = { 450f, 250f, 380f };
 
         public string[] headers = { "Potential Difference\nV (V)", "Current\nI (A)", "V / I" };
         [Tooltip("Cells read \"1.0 V | 0.20 A\" (Scene 12) instead of \"1 | 0.2\" (Scenes 10-11).")] public bool units;
@@ -43,11 +44,10 @@ namespace OhmsLaw
         static Color Rest => Color.clear;
         // Column colours follow the concept palette: V blue, I amber, V/I coral.
         static Color Column(int c) => UI.Theme ? (c == 0 ? UI.Theme.voltage : c == 1 ? UI.Theme.current : UI.Theme.resistance) : Color.white;
-        static Color CellText(int c) => Color.Lerp(Column(c), Color.white, 0.55f);
-        // Highlight backs are the palette colours darkened to sit under white text.
-        static Color RowHighlight => Shade(UI.Theme ? UI.Theme.current : Color.yellow, 0.45f);
-        static Color ColumnGlow => Shade(UI.Theme ? UI.Theme.resistance : Color.red, 0.55f);
-        static Color Shade(Color c, float k) => new Color(c.r * k, c.g * k, c.b * k, 0.95f);
+        static Color CellText(int c) => LessonPanel.Paper;   // values in paper; the column heads carry the V / I / R colours
+        // Highlights are neutral: amber means current only, and a red block reads as an error (the V / I head keeps the red).
+        static Color RowHighlight => new Color(1f, 1f, 1f, 0.12f);
+        static Color ColumnGlow => RowHighlight;
         static float X(int column) { float x = 0; for (int c = 0; c < column; c++) x += Columns[c]; return x; }
 
         // Record / ShowRows may run before Awake (a builder keeps the table inactive until its shot): the record keeps, and
@@ -76,11 +76,8 @@ namespace OhmsLaw
             // Frame first, so the cells draw over it: board tint, chalk outline, a firm header rule, faint row rules and
             // column rules from outline to outline (the V / I one only with its column).
             frame = UI.Rect("Frame", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(-BoardMarginX, BoardMarginY), Vector2.zero);
-            UI.Panel(frame, BoardTint, false).raycastTarget = false;
-            Chalk("Top", new Vector2(0, 1), new Vector2(1, 1), Vector2.zero, new Vector2(ChalkLine, ChalkLine), 1f);
-            Chalk("Bottom", Vector2.zero, new Vector2(1, 0), Vector2.zero, new Vector2(ChalkLine, ChalkLine), 1f);
-            Chalk("Left", Vector2.zero, new Vector2(0, 1), Vector2.zero, new Vector2(ChalkLine, -ChalkLine), 1f);
-            Chalk("Right", new Vector2(1, 0), Vector2.one, Vector2.zero, new Vector2(ChalkLine, -ChalkLine), 1f);
+            // v3: the dock card is the surface; the table keeps only hairline rules (no board fill, no outer frame).
+            UI.Panel(frame, Color.clear, false).raycastTarget = false;
             for (int r = 0; r < n; r++)
                 Chalk("Row Rule", new Vector2(0, 1), Vector2.one, new Vector2(0, -(BoardMarginY + HeaderRow + r * RowHeight)), new Vector2(-ChalkLine, r == 0 ? 4f : 2f), r == 0 ? 0.85f : 0.35f);
             Chalk("Column Rule", Vector2.zero, new Vector2(0, 1), new Vector2(BoardMarginX + X(1), 0), new Vector2(3f, -ChalkLine), 0.55f);
@@ -89,10 +86,8 @@ namespace OhmsLaw
             for (int c = 0; c < 3; c++)
             {
                 var head = Cell(root, c, 0, HeaderRow, headers[c], HeaderFont, Column(c));
-                // Two-line headers must stay two lines: shrink a little rather than wrap "Difference" to a third.
-                head.enableAutoSizing = true;
-                head.fontSizeMax = HeaderFont;
-                head.fontSizeMin = HeaderFont * 0.8f;
+                // Two lines at full size (the V column fits "Potential Difference" at 44 px), a little tighter than body text.
+                head.lineSpacing = -10f;
                 if (c == 2) ratioHeader = head.transform.parent.gameObject;
             }
             for (int r = 0; r < n; r++)
@@ -120,7 +115,7 @@ namespace OhmsLaw
         {
             var rect = UI.Rect(name, frame, anchorMin, new Vector2(0.5f, 0.5f), position, size);
             rect.anchorMax = anchorMax;
-            var image = UI.Panel(rect, UI.Alpha(ChalkColor, ChalkColor.a * alpha), false);
+            var image = UI.Panel(rect, new Color(1f, 1f, 1f, 0.28f * alpha), false);
             image.raycastTarget = false;
             return image;
         }
@@ -168,6 +163,17 @@ namespace OhmsLaw
             if (row < 0 || row >= Data.Count || cellBack == null) return; // no cells before Awake
             for (int c = 0; c < 3; c++) cellBack[row, c].color = on ? RowHighlight : Rest;
             tags[row].text = on ? tag : "";
+            Centre();
+        }
+
+        // In the dock (no Canvas of its own, unlike a board's world-space table) the visible columns sit centred in their
+        // card; a row note beside the table needs the room on the right, so the table moves back left while one shows.
+        void Centre()
+        {
+            if (GetComponent<Canvas>() || tags == null) return;
+            var rect = (RectTransform)transform;
+            bool noted = System.Array.Exists(tags, t => t && t.text.Length > 0);
+            rect.pivot = new Vector2(noted ? 0.5f : X(ratio ? 3 : 2) / 2f / rect.rect.width, 1f);
         }
 
         // "1 V → 0.2 A", in the same short form as the table.
@@ -209,6 +215,7 @@ namespace OhmsLaw
                 // Tags stand on their row just outside the frame, like a chalk note beside the table.
                 ((RectTransform)tags[r].transform.parent).anchoredPosition = new Vector2(width + BoardMarginX + ChalkLine / 2 + TagGap, 0);
             }
+            Centre();
         }
     }
 }

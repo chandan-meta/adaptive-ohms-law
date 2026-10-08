@@ -50,7 +50,7 @@ namespace OhmsLaw
             {
                 var cell = panel.cells[c] = UI.Rect(((Cell)c).ToString(), root, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
                 panel.values[c] = Text(cell, ValueFont, BaseColor(c), 0f, ValueRow);
-                panel.notes[c] = Text(cell, NoteFont, UI.Alpha(Color.white, 0.8f), -(ValueRow), NoteRow);
+                panel.notes[c] = Text(cell, NoteFont, LessonPanel.Muted, -(ValueRow), NoteRow);
             }
             lesson.Show("Readings", true);
             return panel;
@@ -77,9 +77,13 @@ namespace OhmsLaw
             var block = (RectTransform)transform.parent;
             if (!block.TryGetComponent(out LayoutElement element)) element = block.gameObject.AddComponent<LayoutElement>();
             if (!block.TryGetComponent(out CanvasGroup group)) group = block.gameObject.AddComponent<CanvasGroup>();
-            element.ignoreLayout = !rig.readoutsShown;
-            group.alpha = rig.readoutsShown ? 1f : 0f;
-            if (!rig.readoutsShown) return;
+            // v3: while the data card is up the meters' own readouts and the highlighted row already say it, so the card
+            // steps aside (and the dock fits a 720p screen); so it does when the dock is too crowded for the graph.
+            var lesson = LessonPanel.Instance;
+            bool visible = rig.readoutsShown && !(lesson && (lesson.Showing("Table") || lesson.SteppedAside("Readings")));
+            element.ignoreLayout = !visible;
+            group.alpha = visible ? 1f : 0f;
+            if (!visible) return;
             float v = rig.Volts, i = rig.Amps;
             if (float.IsNaN(volts)) { volts = v; amps = i; }
             else if (!Mathf.Approximately(v, volts) || !Mathf.Approximately(i, amps))

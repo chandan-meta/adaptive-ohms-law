@@ -77,10 +77,11 @@ namespace OhmsLaw.Editor
             Prim(PrimitiveType.Cylinder, "Nichrome Rod", wire.transform, Vector3.zero, new Vector3(WireRadius * 2, WireHalf, WireRadius * 2), nichrome, new Vector3(0, 0, 90));
             Post("X", wire.transform);
             Post("Y", wire.transform);
-            // "It highlights" without the rod glowing: a soft cyan band on the bench just in front of XY, alpha-blended
-            // (additive vanishes on the light top), so the dull rod stays visibly a plain wire above it.
-            var highlight = Prim(PrimitiveType.Quad, "Wire Highlight", bench, new Vector3(0, 0.003f, WireZ - 0.05f), new Vector3(2 * WireHalf + 0.06f, 0.07f, 1),
-                Decal("WireHighlight", new Color(0.15f, 0.7f, 0.9f, 0.55f), RigTexture(RigTextures + "RigShadow.png")), new Vector3(90, 0, 0));
+            // "It highlights" without the rod glowing: a soft cyan band standing just behind XY (behind the badges too),
+            // alpha-blended (additive vanishes on the light top), so the dull rod reads as a dark line across it. Lying flat
+            // on the top it was a 3 px sliver at the bench cameras' grazing angle.
+            var highlight = Prim(PrimitiveType.Quad, "Wire Highlight", bench, new Vector3(0, WireHeight, WireZ + 0.05f), new Vector3(2 * WireHalf, 0.08f, 1),
+                Decal("WireHighlight", new Color(0.15f, 0.7f, 0.9f, 0.55f), RigTexture(RigTextures + "RigShadow.png")));
             highlight.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
             highlight.SetActive(false);
             rig.wireHighlight = Ref(highlight);

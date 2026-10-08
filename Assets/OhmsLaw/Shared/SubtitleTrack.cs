@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Playables;
+using UnityEngine.SceneManagement;
 using UnityEngine.Timeline;
 
 namespace OhmsLaw
@@ -16,6 +17,18 @@ namespace OhmsLaw
         // Every scripted line as it starts, from the Timeline or from an interaction branch. Used by reviews and tests.
         public static event Action<DialogueLine> LineStarted;
         internal static void Started(DialogueLine line) => LineStarted?.Invoke(line);
+
+        // Every scene load (a new chapter, or the same one restarted) starts with no line to replay: the last start belongs
+        // to the Timeline just left, and REPLAY early in a chapter would jump into the middle of it, past its gates.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void Hook()
+        {
+            Forget(default, default);
+            SceneManager.sceneLoaded -= Forget;
+            SceneManager.sceneLoaded += Forget;
+        }
+
+        static void Forget(Scene scene, LoadSceneMode mode) { CurrentLine = null; LastLineStart = -1; }
     }
 
 

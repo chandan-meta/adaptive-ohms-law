@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
   id: S06_R_A
   speaker: WATTSON
-  text: A bold prediction, detective. Hold on to it.
-  ttsText: A bold prediction, detective. Hold on to it.
+  text: More current, you say.
+  ttsText: More current, you say.
   vo: {fileID: 8300000, guid: d5a52612c9dc6484d9cb10f5a663762b, type: 3}
-  fallbackDuration: 2.8
+  fallbackDuration: 1.8

@@ -19,7 +19,9 @@ namespace OhmsLaw
         public enum BuildMode { LearnerPlaces, AutoPlace }
 
         public static DialogueLine Speaking { get; private set; }
-        public static string Gate { get; private set; }
+        // The gate in progress. Scene04Director sets it too for its tap-the-wire hold (Scene 4 runs no SceneDirector), so
+        // Enter, Ask Wattson and the play test treat that hold like every other gate.
+        public static string Gate { get; internal set; }
         // The highest voltage the learner and Ask Wattson may set while the controls are open (the Scene 10 steps cap it
         // at the step being taken, so the rows record in order). Hold() lifts it after every gate.
         public static float ControlsMax { get; private set; } = CircuitRig.MaxVolts;
@@ -113,13 +115,41 @@ namespace OhmsLaw
         IEnumerator Hold(InteractionGate gate)
         {
             Gate = gate.gateId;
+            hintSaid = false;
             if (Flow) Flow.SetPaused(ModuleFlow.PauseReason.Hold, true);
+            HudKeys.ConsumeAct();   // an Enter pressed before this gate does not answer it
+            var hint = Line(gate, gate.gateId + "_H");
+            var nudge = StartCoroutine(Nudge(hint));
             yield return RunGate(gate);
+            if (hint) StopSaying(nudge, hint); // a nudge cut short by the action it asked for
+            StopCoroutine(nudge);
             if (rig) { rig.controlsOpen = false; rig.targetAmps = -1f; } // whatever the gate did, cue-driven time follows
             ControlsMax = CircuitRig.MaxVolts;
             capPushed = false;
             Gate = null;
             if (Flow) Flow.SetPaused(ModuleFlow.PauseReason.Hold, false);
+        }
+
+        // An idle learner is never left in silence: after IdleSeconds with no tap and no line playing, the turn card pulses
+        // with the hint sound, and the first time Wattson also says the gate's recorded hint (<gate>_H) where it has one.
+        public const float IdleSeconds = 8f;
+        bool hintSaid; // this gate's _H line has played (the nudge and SetVoltage's wrong-value hint share it)
+
+        IEnumerator Nudge(DialogueLine hint)
+        {
+            float idle = 0;
+            while (true)
+            {
+                idle = HudKeys.Tapped || Speaking || Held ? 0f : idle + Dt;
+                if (idle >= IdleSeconds && Panel && Panel.Showing("Instruction"))
+                {
+                    idle = 0;
+                    LessonPanel.Pop(Panel.Block("Instruction"));
+                    UiSounds.Play("hint");
+                    if (hint && !hintSaid) { hintSaid = true; yield return Say(hint); }
+                }
+                yield return null;
+            }
         }
 
         // Speaks a line outside the Timeline (interaction branches): caption, voice and Wattson's talking glow. It takes its
@@ -282,7 +312,7 @@ namespace OhmsLaw
         {
             if (!Panel) return;
             string mine = showLearnerPrediction && LearnerSession.prediction != "" ? "Your prediction: " + LearnerSession.PredictionText : "";
-            Panel.Info("reminder", "If the potential difference increases, what happens to the current?", mine);
+            Panel.Info("reminder", LessonPanel.Quantities("If the potential difference increases, what happens to the current?"), mine); // coloured as in Scene 6
         }
 
         // "boost" grows the object and brightens its glow and holds both; "pulse" (settle) peaks and returns to normal.
@@ -420,15 +450,18 @@ namespace OhmsLaw
             volts.max = () => ControlsMax;
         }
 
-        // Scene 4's tap-hand following a world object on screen: faint disc, ring, finger and palm, pulsing. `offset` (canvas
-        // px) moves the ring off the target, e.g. below a meter so its reading stays visible; (0, -FingerTip) puts the
-        // fingertip on the target. Kept inside the part of the frame the panel leaves free.
-        const float TapRing = 150f, FingerTip = 54f;
+        // Scene 4's tap-hand following a world object on screen: faint disc, ring, finger and palm, pulsing (steady under
+        // reduced motion). It stands off the target on the `from` side (a screen direction, y up; default below-right),
+        // tilted so the fingertip meets the edge of the target's footprint: the target itself stays in view. Kept inside
+        // the part of the frame the panel leaves free.
+        const float TapRing = 150f, FingerTip = 54f, HandScale = 0.6f, HandGap = 10f;
 
-        IEnumerator TapHint(Transform target, System.Func<bool> until, Vector2 offset = default)
+        IEnumerator TapHint(Transform target, System.Func<bool> until, Vector2 from = default)
         {
+            from = from == Vector2.zero ? new Vector2(0.6f, -0.8f) : from.normalized;
             var ring = UI.Rect("Tap Hint", Flow.transform, Vector2.zero, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(TapRing, TapRing));
             ring.SetAsFirstSibling();
+            ring.localRotation = Quaternion.Euler(0, 0, Vector2.SignedAngle(Vector2.up, -from)); // the finger points back at the target
             var disc = ring.gameObject.AddComponent<Image>();
             disc.sprite = UI.Circle();
             disc.color = new Color(1, 1, 1, 0.08f); // a hint of a disc: the target shows through
@@ -443,19 +476,39 @@ namespace OhmsLaw
             UI.Panel(palm, Color.white, true, 14f).raycastTarget = false;
             var canvas = Flow.GetComponent<Canvas>();
             var frame = ((RectTransform)Flow.transform).rect.size;
-            float reach = TapRing * 0.56f; // half the ring at the top of its pulse, plus a few px
+            float reach = TapRing * HandScale * 0.56f; // half the ring at the top of its pulse, plus a few px
             while (!until())
             {
-                if (Camera.main && target)
+                var cam = Camera.main;
+                if (cam && target)
                 {
                     float free = frame.x - (Panel ? Panel.Cover : 0f) - reach;
-                    var p = (Vector2)Camera.main.WorldToScreenPoint(target.position) / canvas.scaleFactor + offset;
+                    var centre = (Vector2)cam.WorldToScreenPoint(target.position) / canvas.scaleFactor;
+                    var p = centre + from * (Footprint(target, cam, centre, from, canvas.scaleFactor) + HandGap + FingerTip * HandScale);
                     ring.anchoredPosition = new Vector2(Mathf.Min(p.x, free), Mathf.Max(p.y, reach + 8f));
                 }
-                ring.localScale = Vector3.one * (1 + 0.12f * Mathf.Sin(Time.unscaledTime * 5f));
+                ring.localScale = Vector3.one * HandScale * (ReducedMotion.On ? 1f : 1 + 0.12f * Mathf.Sin(Time.unscaledTime * 5f));
                 yield return null;
             }
             Destroy(ring.gameObject);
+        }
+
+        // How far the target reaches on screen from `centre` towards `dir` (canvas px): its renderers' bounds, projected,
+        // capped so one large glow never sends the hand across the frame.
+        static float Footprint(Transform target, Camera cam, Vector2 centre, Vector2 dir, float scale)
+        {
+            float reach = 0f;
+            foreach (var r in target.GetComponentsInChildren<Renderer>())
+            {
+                if (!r.enabled || r is ParticleSystemRenderer) continue;
+                var b = r.bounds;
+                for (int i = 0; i < 8; i++)
+                {
+                    var corner = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
+                    reach = Mathf.Max(reach, Vector2.Dot((Vector2)cam.WorldToScreenPoint(corner) / scale - centre, dir));
+                }
+            }
+            return Mathf.Min(reach, 120f);
         }
 
         void OnDestroy() => Shutdown();

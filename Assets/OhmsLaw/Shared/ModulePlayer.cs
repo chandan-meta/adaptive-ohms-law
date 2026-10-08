@@ -14,6 +14,11 @@ namespace OhmsLaw
 
         void Start()
         {
+#if !UNITY_EDITOR
+            // A learner's build opens on the module's title screen; this reviewers' list stays in the editor and in
+            // development builds.
+            if (!Debug.isDebugBuild && entries != null && entries.Length > 0) { ModuleFlow.Instance.JumpToScene(entries[0].scene); enabled = false; return; }
+#endif
             var root = (RectTransform)transform;
             UI.Panel(root, new Color(0.05f, 0.07f, 0.1f), false);
             var title = UI.Label(UI.Rect("Title", root, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -60), new Vector2(1600, 90)), "Ohm's Law — module player", 56, UI.Theme ? UI.Theme.wattsonAccent : Color.cyan);
