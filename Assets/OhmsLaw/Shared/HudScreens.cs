@@ -439,6 +439,14 @@ namespace OhmsLaw
 
         TextMeshProUGUI meta;
         GameObject continueButton;
+        CanvasGroup fade;
+        bool closing;
+        WattsonController bannerWattson;
+        UnityEngine.Splines.SplineContainer introPath;
+        Transform introLook, bannerAnchor;
+        Vector3 introPosition;
+        Quaternion introRotation;
+        Image curtain;
         int openedFrame, metaState = -1;
 
         // A scene was entered: the title shows before the module's first chapter, once per session.
@@ -452,10 +460,59 @@ namespace OhmsLaw
             instance.continueButton.SetActive(reached > 1 && !ModuleFlow.Finished);   // a learner who left during the last chapter too
             instance.continueButton.GetComponentInChildren<TextMeshProUGUI>().text = "Continue · Chapter " + reached;
             instance.gameObject.SetActive(true);
+            instance.closing = false;
+            instance.fade.alpha = 0;
+            instance.fade.interactable = true;
+            instance.transform.Find("Block").gameObject.SetActive(true);
+            instance.GetComponent<Image>().enabled = true;
+            instance.curtain.color = Color.clear;
             instance.transform.SetAsFirstSibling();   // under the HUD: the control bar (CC, VOLUME) stays usable
             instance.openedFrame = Time.frameCount;
             flow.SetPaused(ModuleFlow.PauseReason.User, true);
+            instance.StartCoroutine(instance.ComposeBanner());
         }
+
+        System.Collections.IEnumerator ComposeBanner()
+        {
+            // Let the original camera settle at time zero before composing over its live laboratory.
+            yield return null;
+            yield return null;
+            if (closing || !Camera.main) yield break;
+            bannerWattson = FindFirstObjectByType<WattsonController>();
+            if (!bannerWattson) yield break;
+            introPath = bannerWattson.path;
+            introLook = bannerWattson.lookTarget;
+            introPosition = bannerWattson.transform.position;
+            introRotation = bannerWattson.transform.rotation;
+            bannerAnchor = new GameObject("Title presentation anchor").transform;
+            bannerAnchor.position = Camera.main.ViewportToWorldPoint(new Vector3(0.77f, 0.40f, 2.5f));
+            bannerWattson.Warp(bannerAnchor);
+            bannerWattson.lookTarget = Camera.main.transform;
+            var light = new GameObject("Banner warm fill").AddComponent<Light>();
+            light.transform.SetParent(bannerAnchor, false);
+            light.transform.localPosition = new Vector3(0, 0.5f, -0.5f);
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.8f, 0.55f);
+            light.intensity = 0.35f;
+            light.range = 1.8f;
+            light.shadows = LightShadows.None;
+        }
+
+        void RestoreIntro()
+        {
+            if (bannerWattson && bannerAnchor)
+            {
+                bannerAnchor.position = introPosition;
+                bannerWattson.Warp(bannerAnchor);
+                bannerWattson.path = introPath;
+                bannerWattson.lookTarget = introLook;
+                bannerWattson.transform.rotation = introRotation;
+            }
+            if (bannerAnchor) Destroy(bannerAnchor.gameObject);
+            bannerWattson = null;
+        }
+
+        void OnDisable() => RestoreIntro();
 
         // Exit in a browser (a page cannot close its tab): the title screen comes back over the first chapter.
         public static void Again()
@@ -468,26 +525,49 @@ namespace OhmsLaw
 
         public static void StartCase()
         {
-            if (!IsOpen) return;
-            started = true;
-            instance.gameObject.SetActive(false);
+            if (!IsOpen || instance.closing) return;
+            instance.StartCoroutine(instance.Begin(-1));
+        }
+
+        System.Collections.IEnumerator Begin(int chapter)
+        {
+            closing = true;
+            fade.interactable = false;
             UiSounds.Play("open");
+            for (float t = 0; t < 1; t += Time.unscaledDeltaTime / 0.2f)
+            {
+                curtain.color = new Color(0.018f, 0.028f, 0.048f, Mathf.SmoothStep(0, 1, t));
+                yield return null;
+            }
+            curtain.color = new Color(0.018f, 0.028f, 0.048f, 1);
+            RestoreIntro();
+            transform.Find("Block").gameObject.SetActive(false);
+            GetComponent<Image>().enabled = false;
+            for (float t = 0; t < 1; t += Time.unscaledDeltaTime / 0.3f)
+            {
+                curtain.color = new Color(0.018f, 0.028f, 0.048f, 1 - Mathf.SmoothStep(0, 1, t));
+                yield return null;
+            }
+            started = true;
+            gameObject.SetActive(false);
             if (ModuleFlow.Instance) ModuleFlow.Instance.SetPaused(ModuleFlow.PauseReason.User, false);
-            if (ChapterBanner.Instance) ChapterBanner.Instance.Enter(0);   // the chapter title lands as the case starts
+            if (chapter >= 0) ModuleFlow.Instance.JumpToScene(ModuleFlow.Instance.scenes[chapter]);
+            else if (ChapterBanner.Instance) ChapterBanner.Instance.Enter(0);
         }
 
         static void ContinueCase()
         {
             var flow = ModuleFlow.Instance;
-            StartCase();
             int reached = ModuleFlow.Reached;
-            if (flow && reached > 1 && reached <= flow.scenes.Length) flow.JumpToScene(flow.scenes[reached - 1]);
+            if (IsOpen && !instance.closing && flow && reached > 1 && reached <= flow.scenes.Length)
+                instance.StartCoroutine(instance.Begin(reached - 1));
         }
 
         static TitleScreen Build(RectTransform root)
         {
             var screen = UI.Stretch("UI_TitleScreen", root);
             var view = screen.gameObject.AddComponent<TitleScreen>();
+            view.fade = screen.gameObject.AddComponent<CanvasGroup>();
             var shade = screen.gameObject.AddComponent<Image>();
             shade.sprite = Vignettes.Left;
             shade.color = Color.white;
@@ -499,17 +579,24 @@ namespace OhmsLaw
             block.sizeDelta = new Vector2(780, 0);
             block.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             LessonPanel.Eyebrow(block, "A Wattson investigation", LessonPanel.Spark, 18f).characterSpacing = 12f;
-            var title = LessonPanel.Text(block, "Ohm's Law", 132f, LessonPanel.Paper);
+            var title = LessonPanel.Text(block, "OHM'S LAW", 110f, new Color(1f, 0.77f, 0.42f));
             title.textWrappingMode = TextWrappingModes.NoWrap;
             title.characterSpacing = -2f;
             LessonPanel.Fixed(title.rectTransform, 128f);
-            var lead = LessonPanel.Text(block, "What links the push of a battery to the flow of current? Ten short chapters, one experiment, and the law named after the man at that desk.", 28f, UI.Alpha(LessonPanel.Paper, 0.92f), TextAlignmentOptions.TopLeft, false);
+            var lead = LessonPanel.Text(block, "A Journey of Curiosity,\nCurrent and Discovery", 30f, UI.Alpha(LessonPanel.Paper, 0.96f), TextAlignmentOptions.TopLeft, false);
             lead.margin = new Vector4(0, 0, 120, 0);
             var actions = LessonPanel.Row("Actions", block, 14f);
             LessonPanel.Fixed(actions, 68f);
-            LessonPanel.Pill("Start", actions, "Start the case", StartCase, LessonPanel.Kind.Primary, "play", 68f, 22f);
+            var start = LessonPanel.Pill("Start", actions, "START JOURNEY", StartCase, LessonPanel.Kind.Secondary, "play", 68f, 25f);
+            var state = start.GetComponent<HudButton>();
+            state.fillColor = new Color(0.035f, 0.17f, 0.26f, 0.98f);
+            state.outlineColor = new Color(1f, 0.77f, 0.42f);
+            LessonPanel.Text(block, "EXPLORE   ·   EXPERIMENT   ·   DISCOVER", 18f, LessonPanel.Spark);
             view.continueButton = LessonPanel.Pill("Continue", actions, "Continue", ContinueCase, LessonPanel.Kind.Secondary, null, 68f, 22f).gameObject;
             view.meta = LessonPanel.Text(block, "", 18f, LessonPanel.Muted, TextAlignmentOptions.TopLeft, false);
+            view.curtain = UI.Stretch("Start transition", screen).gameObject.AddComponent<Image>();
+            view.curtain.color = Color.clear;
+            view.curtain.raycastTarget = false;
             screen.gameObject.SetActive(false);
             return view;
         }
@@ -518,6 +605,7 @@ namespace OhmsLaw
         {
             var flow = ModuleFlow.Instance;
             if (flow) flow.SetPaused(ModuleFlow.PauseReason.User, true);   // the Timeline may only have started this frame
+            if (!closing) fade.alpha = Mathf.MoveTowards(fade.alpha, 1, Time.unscaledDeltaTime / 0.45f);
             int state = (SubtitleUI.Enabled ? 1 : 0) + (AudioBus.Get(AudioBus.Kind.Voice) > 0.01f ? 2 : 0);
             if (state != metaState)
             {

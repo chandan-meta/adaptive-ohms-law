@@ -420,7 +420,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 14003c10ea43e974f97fe91912bf432f, type: 2}
+  - {fileID: 2100000, guid: fc7d6ca3c0fecf344abc6bdf3ce66c70, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -835,6 +835,7 @@ MonoBehaviour:
   entryCamera: {fileID: 57568176}
   buildMode: 0
   showLearnerPrediction: 1
+  dockWidth: -1
   wattson: {fileID: 2005085868}
   wire: {fileID: 0}
   rig: {fileID: 0}
@@ -1188,7 +1189,7 @@ MonoBehaviour:
   priority: 0
   blendDistance: 0
   weight: 1
-  sharedProfile: {fileID: 11400000, guid: a6217b2dfe1cefa47b7f84f5e0c6e6fd, type: 2}
+  sharedProfile: {fileID: 11400000, guid: 987123aa1f6c0d64bb331e413db0749b, type: 2}
 --- !u!1 &179967526
 GameObject:
   m_ObjectHideFlags: 0
@@ -1696,6 +1697,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 0
   gain: 1
+  bgm: {fileID: 0}
+  playOnStart: 1
+  loopBGM: 1
 --- !u!82 &221977265
 AudioSource:
   m_ObjectHideFlags: 0
@@ -3247,7 +3251,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 14003c10ea43e974f97fe91912bf432f, type: 2}
+  - {fileID: 2100000, guid: fc7d6ca3c0fecf344abc6bdf3ce66c70, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -3498,6 +3502,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 1
   gain: 1
+  bgm: {fileID: 0}
+  playOnStart: 1
+  loopBGM: 1
 --- !u!4 &468350151
 Transform:
   m_ObjectHideFlags: 0
@@ -4203,7 +4210,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: d806dc9c58490184b92b7c138a51563f, type: 2}
+  - {fileID: 2100000, guid: e20428f9a0a33fd4a8cfb9c61f57bbed, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -5959,7 +5966,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 14003c10ea43e974f97fe91912bf432f, type: 2}
+  - {fileID: 2100000, guid: fc7d6ca3c0fecf344abc6bdf3ce66c70, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -8114,6 +8121,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 2
   gain: 0.35
+  bgm: {fileID: 0}
+  playOnStart: 1
+  loopBGM: 1
 --- !u!4 &1012182659
 Transform:
   m_ObjectHideFlags: 0
@@ -13175,7 +13185,7 @@ LineRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 14003c10ea43e974f97fe91912bf432f, type: 2}
+  - {fileID: 2100000, guid: fc7d6ca3c0fecf344abc6bdf3ce66c70, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -13356,7 +13366,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 14003c10ea43e974f97fe91912bf432f, type: 2}
+  - {fileID: 2100000, guid: fc7d6ca3c0fecf344abc6bdf3ce66c70, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -14097,7 +14107,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 14003c10ea43e974f97fe91912bf432f, type: 2}
+  - {fileID: 2100000, guid: fc7d6ca3c0fecf344abc6bdf3ce66c70, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -15122,9 +15132,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 193322254}
     - target: {fileID: 8277804980423402302, guid: ece408e6b65e4f04386ac26511e43837, type: 3}
+      propertyPath: blendSpeed
+      value: 2.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 8277804980423402302, guid: ece408e6b65e4f04386ac26511e43837, type: 3}
       propertyPath: galvanometer
       value: 
       objectReference: {fileID: 2139023257}
+    - target: {fileID: 8277804980423402302, guid: ece408e6b65e4f04386ac26511e43837, type: 3}
+      propertyPath: naturalPerformance
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -15654,6 +15672,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 1
   gain: 0.5
+  bgm: {fileID: 0}
+  playOnStart: 1
+  loopBGM: 1
 --- !u!4 &1519398827
 Transform:
   m_ObjectHideFlags: 0
@@ -21087,7 +21108,7 @@ LineRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 14003c10ea43e974f97fe91912bf432f, type: 2}
+  - {fileID: 2100000, guid: fc7d6ca3c0fecf344abc6bdf3ce66c70, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -21372,7 +21393,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 14003c10ea43e974f97fe91912bf432f, type: 2}
+  - {fileID: 2100000, guid: fc7d6ca3c0fecf344abc6bdf3ce66c70, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -21552,8 +21573,8 @@ Light:
     m_Resolution: -1
     m_CustomResolution: -1
     m_Strength: 1
-    m_Bias: 0.05
-    m_NormalBias: 0.4
+    m_Bias: 0.035
+    m_NormalBias: 0.25
     m_NearPlane: 0.2
     m_CullingMatrixOverride:
       e00: 1
@@ -21892,7 +21913,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 14003c10ea43e974f97fe91912bf432f, type: 2}
+  - {fileID: 2100000, guid: fc7d6ca3c0fecf344abc6bdf3ce66c70, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -22072,7 +22093,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: e75cb81fa9d80064aa9c91e3a07996ef, type: 2}
+  - {fileID: 2100000, guid: 6c0e570764240ac479c714ae9d1ea0f8, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -23237,7 +23258,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 14003c10ea43e974f97fe91912bf432f, type: 2}
+  - {fileID: 2100000, guid: fc7d6ca3c0fecf344abc6bdf3ce66c70, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -23637,8 +23658,8 @@ Light:
     m_Resolution: -1
     m_CustomResolution: -1
     m_Strength: 1
-    m_Bias: 0.05
-    m_NormalBias: 0.4
+    m_Bias: 0.035
+    m_NormalBias: 0.25
     m_NearPlane: 0.2
     m_CullingMatrixOverride:
       e00: 1
@@ -24010,7 +24031,7 @@ LineRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 14003c10ea43e974f97fe91912bf432f, type: 2}
+  - {fileID: 2100000, guid: fc7d6ca3c0fecf344abc6bdf3ce66c70, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -24392,6 +24413,138 @@ PrefabInstance:
       propertyPath: agentContext
       value: 
       objectReference: {fileID: 11400000, guid: e3e5982b4cb7c2f4c96b0b50c0bf3d3e, type: 2}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: conversationCamera
+      value: 
+      objectReference: {fileID: 1480844806}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: furniture.Array.size
+      value: 31
+      objectReference: {fileID: 0}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[0]'
+      value: 
+      objectReference: {fileID: 7961799137450635698}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[1]'
+      value: 
+      objectReference: {fileID: 1812507528474298064}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[2]'
+      value: 
+      objectReference: {fileID: 7226733124685430574}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[3]'
+      value: 
+      objectReference: {fileID: 6553194631426863821}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[4]'
+      value: 
+      objectReference: {fileID: 6884239570590915580}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[5]'
+      value: 
+      objectReference: {fileID: 9021035981265450090}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[6]'
+      value: 
+      objectReference: {fileID: 7121991839688613309}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[7]'
+      value: 
+      objectReference: {fileID: 5916014500964314097}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[8]'
+      value: 
+      objectReference: {fileID: 9142775020185206571}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[9]'
+      value: 
+      objectReference: {fileID: 7698862412959619004}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[10]'
+      value: 
+      objectReference: {fileID: 2522986797975505381}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[11]'
+      value: 
+      objectReference: {fileID: 1855912725564985090}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[12]'
+      value: 
+      objectReference: {fileID: 6172101545707322320}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[13]'
+      value: 
+      objectReference: {fileID: 1655657153825175331}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[14]'
+      value: 
+      objectReference: {fileID: 1505110068107281921}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[15]'
+      value: 
+      objectReference: {fileID: 5470234398948605687}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[16]'
+      value: 
+      objectReference: {fileID: 194337364006615279}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[17]'
+      value: 
+      objectReference: {fileID: 7329218494535174163}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[18]'
+      value: 
+      objectReference: {fileID: 3096793337860191959}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[19]'
+      value: 
+      objectReference: {fileID: 189514529314063774}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[20]'
+      value: 
+      objectReference: {fileID: 970617654998243781}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[21]'
+      value: 
+      objectReference: {fileID: 4659471823027653758}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[22]'
+      value: 
+      objectReference: {fileID: 8471020095510239253}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[23]'
+      value: 
+      objectReference: {fileID: 3170323884240200012}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[24]'
+      value: 
+      objectReference: {fileID: 3927118516595083585}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[25]'
+      value: 
+      objectReference: {fileID: 8968331388818961632}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[26]'
+      value: 
+      objectReference: {fileID: 2540976221608839658}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[27]'
+      value: 
+      objectReference: {fileID: 4967900475709861640}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[28]'
+      value: 
+      objectReference: {fileID: 4982724720897353520}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[29]'
+      value: 
+      objectReference: {fileID: 4801170009573186682}
+    - target: {fileID: 7751800983768572281, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
+      propertyPath: 'furniture.Array.data[30]'
+      value: 
+      objectReference: {fileID: 1764448391945495659}
     - target: {fileID: 9022560863479792213, guid: 6e095e6258c4d2a4d99608e57603c120, type: 3}
       propertyPath: InitialModule.startSpeed.scalar
       value: 0.18
@@ -30542,8 +30695,8 @@ Light:
     m_Resolution: -1
     m_CustomResolution: -1
     m_Strength: 1
-    m_Bias: 0.05
-    m_NormalBias: 0.4
+    m_Bias: 0.035
+    m_NormalBias: 0.25
     m_NearPlane: 0.2
     m_CullingMatrixOverride:
       e00: 1
@@ -33287,8 +33440,8 @@ Light:
     m_Resolution: -1
     m_CustomResolution: -1
     m_Strength: 1
-    m_Bias: 0.05
-    m_NormalBias: 0.4
+    m_Bias: 0.035
+    m_NormalBias: 0.25
     m_NearPlane: 0.2
     m_CullingMatrixOverride:
       e00: 1

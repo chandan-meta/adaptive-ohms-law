@@ -40,6 +40,7 @@ namespace OhmsLaw
         PauseReason paused;
         Scene entered;
         Coroutine fading;
+        bool loading;
 
         void Awake()
         {
@@ -85,6 +86,7 @@ namespace OhmsLaw
             var scene = SceneManager.GetActiveScene();
             if (scene == entered) return;
             entered = scene;
+            loading = false;
             paused = 0;
             Ended = false;
             Director = FindFirstObjectByType<PlayableDirector>();
@@ -228,6 +230,8 @@ namespace OhmsLaw
 
         IEnumerator Load(string next, bool fadeOut)
         {
+            if (loading) yield break; // repeated Skip / chapter taps share one transition
+            loading = true;
             Leaving?.Invoke(next);
             if (fadeOut) yield return FadeTo(1);
             if (next != null && Application.CanStreamedLevelBeLoaded(next)) { yield return SceneManager.LoadSceneAsync(next); yield break; }
@@ -250,6 +254,7 @@ namespace OhmsLaw
             devNote.color = new Color(0, 0, 0, 0.7f);
             devNote.alignment = TextAlignmentOptions.Center;
             EndOfModule();
+            loading = false;
             if (!string.IsNullOrEmpty(scene14Video)) yield return FadeTo(0);
         }
 

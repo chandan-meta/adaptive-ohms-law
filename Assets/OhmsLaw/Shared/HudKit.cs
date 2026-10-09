@@ -201,6 +201,7 @@ namespace OhmsLaw
             var bus = host.AddComponent<AudioBus>();
             bus.kind = AudioBus.Kind.Sfx;
             bus.gain = 0.35f;
+            source.outputAudioMixerGroup = AudioBus.Group("UI");
         }
 
         public static void Play(string name)

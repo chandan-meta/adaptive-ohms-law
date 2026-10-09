@@ -5,7 +5,7 @@ using UnityEngine.SceneManagement;
 
 namespace OhmsLaw
 {
-    // Ducking without a mixer: while a voice speaks (VoiceChannel.Speaking) every other AudioSource drops to a fraction of
+    // Gain ducking before the mixer: while a voice speaks (VoiceChannel.Speaking) every other AudioSource drops to a fraction of
     // its volume, and comes back when the voice stops. Runs in LateUpdate, after AudioBus.Update has written the bus
     // volumes for this frame; a source without a bus keeps the volume it had, remembered here. Created by ModuleFlow.
     [DefaultExecutionOrder(1000)]

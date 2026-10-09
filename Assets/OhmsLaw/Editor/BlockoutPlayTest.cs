@@ -51,6 +51,9 @@ namespace OhmsLaw.Editor
         static TimelineAsset sceneTimeline; // the active scene's Timeline, for Verify() when no builder owns the scene (Scene 4)
         static int shotIndex;
         static bool titleShot;
+        static bool pointerTest;
+        static readonly List<float> frameMilliseconds = new List<float>();
+        static int measuredFrame, maxBatches, maxTriangles;
         static string currentScene = "", lastGate;
         static double lastTime = -1;
         static float lastProgress, started;
@@ -112,7 +115,7 @@ namespace OhmsLaw.Editor
         {
             if (!SessionState.GetBool(Key, false) || hooked) return;
             hooked = true;
-            errors = 0; probe = 0; endedAt = 0; probeAt = 0; resNoted = false; firstFrame = null; hud = 0;
+            errors = 0; probe = 0; endedAt = 0; probeAt = 0; resNoted = false; firstFrame = null; hud = 0; pointerTest = false;
             spoken.Clear();
             currentScene = "";
             lastTime = -1;
@@ -238,8 +241,10 @@ namespace OhmsLaw.Editor
                 if (currentScene != "") Verify(currentScene);
                 spoken.AddRange(early);
                 currentScene = scene;
+                frameMilliseconds.Clear(); maxBatches = maxTriangles = 0;
                 shotIndex = 0;
                 pending.Clear(); // a shot due after the cut would land in the new scene's folder
+                if (TitleScreen.IsOpen) titleShot = false; // the first title capture was queued before this scene reset
                 captures.Clear(); capturesFor = null; sceneTimeline = null; // planned again from the new scene's own Timeline
                 if (Directory.Exists($"Logs/Blockout/shots/{scene}")) Directory.Delete($"Logs/Blockout/shots/{scene}", true); // no frames left over from a longer run
                 Later("enter", 0.05f); // the scene's first frame, for the match-cut review against the previous scene's "exit"
@@ -253,9 +258,18 @@ namespace OhmsLaw.Editor
                 lastGate = SceneDirector.Gate;
                 lastProgress = Time.realtimeSinceStartup;
             }
+            if (Time.frameCount != measuredFrame && flow && flow.Director && flow.Director.time > 5)
+            {
+                measuredFrame = Time.frameCount;
+                frameMilliseconds.Add(Time.unscaledDeltaTime * 1000f);
+                maxBatches = Mathf.Max(maxBatches, UnityStats.batches);
+                maxTriangles = Mathf.Max(maxTriangles, UnityStats.triangles);
+            }
             if (flow && flow.Director && flow.Director.time != lastTime) { lastTime = flow.Director.time; lastProgress = Time.realtimeSinceStartup; }
             if (flow && flow.Director)
             {
+                if (!pointerTest && scene.StartsWith("Scene05") && flow.Director.time > 5 && SessionState.GetString(SceneKey + ".req", "").Contains("pointer"))
+                { pointerTest = true; CinematicPointerProbe.Begin(); }
                 PlanCaptures(flow.Director, scene);
                 foreach (var capture in captures.Where(c => flow.Director.time >= c.due).ToList()) { Shot(capture.what); captures.Remove(capture); }
             }
@@ -312,6 +326,11 @@ namespace OhmsLaw.Editor
         // (Scene 4) is checked against the Timeline its director was playing.
         static void Verify(string scene)
         {
+            if (frameMilliseconds.Count > 0)
+            {
+                frameMilliseconds.Sort();
+                Note($"PERF {scene}: Editor frame ms mean {frameMilliseconds.Average():0.0}, p95 {frameMilliseconds[(int)((frameMilliseconds.Count - 1) * 0.95f)]:0.0}; max batches {maxBatches}, triangles {maxTriangles}. Editor capture / shared GPU workload, not a player benchmark.");
+            }
             var builder = BlockoutAssets.Builders().FirstOrDefault(b => b.SceneName == scene);
             var timeline = builder != null
                 ? AssetDatabase.LoadAssetAtPath<TimelineAsset>(SceneBuilderBase.Root + "/" + builder.SceneId + "/Timeline/" + builder.SceneId + "_Timeline.playable")

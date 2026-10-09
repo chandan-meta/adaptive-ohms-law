@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Audio;
 
 namespace OhmsLaw
 {
@@ -40,6 +41,18 @@ namespace OhmsLaw
 
         AudioSource source;
         float level; // the gain this bus was built with: fades move gain, and a bed caught mid-fade is not carried
+        public float NominalGain => level;
+        static AudioMixer mixer;
+        static readonly Dictionary<string, AudioMixerGroup> groups = new Dictionary<string, AudioMixerGroup>();
+
+        public static AudioMixerGroup Group(string name)
+        {
+            if (groups.TryGetValue(name, out var group) && group) return group;
+            if (!mixer) mixer = Resources.Load<AudioMixer>("OhmsLawMix");
+            if (!mixer) return null;
+            var found = mixer.FindMatchingGroups(name);
+            return groups[name] = found.Length > 0 ? found[0] : null;
+        }
 
         static readonly List<AudioBus> carried = new List<AudioBus>();
 
@@ -79,6 +92,9 @@ namespace OhmsLaw
 
         void Start()
         {
+            // Existing learner sliders and narration ducking remain the gain owners. The mixer adds edit-time routing.
+            if (!source.outputAudioMixerGroup)
+                source.outputAudioMixerGroup = Group(kind == Kind.Voice ? "Voice" : kind == Kind.Music ? "Music" : name.ToLowerInvariant().Contains("ambien") || source.loop ? "Ambience" : "SFX");
             if (PlaysMusic && playOnStart) PlayBGM();
         }
 

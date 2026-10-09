@@ -221,7 +221,7 @@ namespace OhmsLaw
         IEnumerator Crossfade(AudioSource source, AudioClip to, float seconds)
         {
             var bus = source.GetComponent<AudioBus>();
-            float gain = bus ? bus.gain : 1f;
+            float gain = bus ? bus.NominalGain : 1f; // replay during a fade must not permanently lower the next bed
             if (source.isPlaying && source.clip)
             {
                 for (float t = 0; t < 1; t += Time.unscaledDeltaTime / Mathf.Max(0.05f, seconds * 0.5f))

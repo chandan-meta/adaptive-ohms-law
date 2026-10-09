@@ -43,6 +43,14 @@ namespace OhmsLaw
         [Range(0.05f, 1f)] public float motionScale = 1f;
         [Tooltip("Marker moves: seconds of the eased lead the spring follows (ease in and out).")] public float moveTime = 0.22f;
 
+        [Tooltip("Existing furniture meshes to clear during marker and Ask movements. Empty preserves introductory flight.")]
+        public Renderer[] furniture = new Renderer[0];
+        public Unity.Cinemachine.CinemachineCamera conversationCamera;
+        float footClearance, bodyRadius, conversationFov;
+        Unity.Cinemachine.CinemachineBrain conversationBrain;
+        int conversationOverride = -1;
+        float conversationPlacementAt = -1;
+
         [Header("Rig")]
         public Transform visual;
         public Transform rightShoulder, rightElbow, leftShoulder, leftElbow, gadget;
@@ -130,7 +138,7 @@ namespace OhmsLaw
         public bool PointingWithLeft => pointLeft;
 
         void OnEnable() { Active = this; }
-        void OnDisable() { if (Active == this) Active = null; }
+        void OnDisable() { EndConversationView(); if (Active == this) Active = null; }
 
         void Awake() => Init();
 
@@ -144,6 +152,12 @@ namespace OhmsLaw
             chase = lastPosition = transform.position;
             if (visual) visualHome = visual.localPosition;
             frameT = visual ? visual : transform;
+            foreach (var skin in GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                footClearance = Mathf.Max(footClearance, transform.position.y - skin.bounds.min.y);
+                bodyRadius = Mathf.Max(bodyRadius, Mathf.Min(skin.bounds.extents.x, skin.bounds.extents.z));
+            }
+            footClearance += bobHeight + 0.06f;
 
             var all = GetComponentsInChildren<Transform>(true);
             Transform Bone(string n)
@@ -281,14 +295,33 @@ namespace OhmsLaw
         {
             agentGesture = agentPose;
             agentLook = look;
-            if (agentPose == null) { askHome = null; return; }
+            if (agentPose == null) { askHome = null; EndConversationView(); return; }
             if (askHome.HasValue) return;
+            if (conversationCamera && Camera.main && Camera.main.TryGetComponent(out conversationBrain))
+            {
+                // Reuse the scene's authored wide shot during a question; moving deeper from a macro shot can hide him behind the set.
+                conversationFov = conversationCamera.Lens.FieldOfView;
+                conversationCamera.Lens.FieldOfView = Mathf.Min(75, conversationFov * 1.15f);
+                conversationOverride = conversationBrain.SetCameraOverride(-1, 10000, null, conversationCamera, 1, Time.unscaledDeltaTime);
+                askHome = transform.position;
+                conversationPlacementAt = Time.unscaledTime + 0.35f;
+                return;
+            }
             var cam = look ? look.GetComponent<Camera>() : null;
             if (!cam) cam = Camera.main;
             if (!cam) return;
             Vector3 vp = cam.WorldToViewportPoint(transform.position);
             if (vp.z <= 0) return; // behind the camera: leave him where he is
             askHome = cam.ViewportToWorldPoint(new Vector3(AskViewportX, Mathf.Clamp(vp.y, AskViewportYMin, AskViewportYMax), vp.z));
+        }
+
+        void EndConversationView()
+        {
+            conversationPlacementAt = -1;
+            if (conversationOverride < 0) return;
+            if (conversationBrain) conversationBrain.ReleaseCameraOverride(conversationOverride);
+            if (conversationCamera) conversationCamera.Lens.FieldOfView = conversationFov;
+            conversationOverride = -1;
         }
 
         // Blockout scenes fly him between markers instead of along a spline.
@@ -345,6 +378,17 @@ namespace OhmsLaw
 
         void Update()
         {
+            if (conversationOverride >= 0 && conversationBrain)
+                conversationBrain.SetCameraOverride(conversationOverride, 10000, null, conversationCamera, 1, Time.unscaledDeltaTime);
+            // Let the authored wide shot and panel framing settle before choosing a spot at his existing depth.
+            if (conversationPlacementAt >= 0 && Time.unscaledTime >= conversationPlacementAt && Camera.main)
+            {
+                var cam = Camera.main;
+                var vp = cam.WorldToViewportPoint(transform.position);
+                if (vp.z > 0)
+                    askHome = cam.ViewportToWorldPoint(new Vector3(AskViewportX, Mathf.Clamp(vp.y, AskViewportYMin, AskViewportYMax), vp.z));
+                conversationPlacementAt = -1;
+            }
             Step(Time.deltaTime);
             FunTap();
         }
@@ -402,6 +446,7 @@ namespace OhmsLaw
         void Fly(float dt)
         {
             Vector3 target = askHome ?? (path ? (Vector3)path.EvaluatePosition(pathT) : home);
+            if (!path || askHome.HasValue) target = ClearFurniture(transform.position, target);
             // Something else moved him (a director cue under a fade): he settles where he was put, no spring back.
             if (placed && (transform.position - lastPosition).sqrMagnitude > 1e-8f)
             {
@@ -412,9 +457,22 @@ namespace OhmsLaw
             if (askHome.HasValue && ReducedMotion.On) { transform.position = chase = target; velocity = chaseVelocity = Vector3.zero; } // no glide to the Ask spot (read every frame: the toggle flips mid-shot)
             else if (path && !askHome.HasValue) { chase = target; chaseVelocity = Vector3.zero; } // the Timeline's flight is already eased
             else if (dt > 0) chase = Vector3.SmoothDamp(chase, target, ref chaseVelocity, Mathf.Max(0.05f, moveTime), Mathf.Infinity, dt);
-            velocity += (chase - transform.position) * (spring * dt);
-            velocity *= Mathf.Exp(-damping * dt);
-            transform.position += velocity * dt;
+            // Substeps prevent a scene-load hitch launching the spring through furniture.
+            for (float left = furniture.Length > 0 ? Mathf.Min(dt, 0.2f) : dt; left > 0;)
+            {
+                float step = furniture.Length > 0 ? Mathf.Min(left, 1f / 90f) : left;
+                velocity += (chase - transform.position) * (spring * step);
+                velocity *= Mathf.Exp(-damping * step);
+                Vector3 next = transform.position + velocity * step;
+                if (!path || askHome.HasValue)
+                {
+                    Vector3 safe = ClearFurniture(transform.position, next);
+                    if (safe.y > next.y) velocity.y = Mathf.Max(0, velocity.y);
+                    next = safe;
+                }
+                transform.position = next;
+                left -= step;
+            }
             lastPosition = transform.position;
 
             var g = Effective;
@@ -480,6 +538,25 @@ namespace OhmsLaw
             visual.localPosition = visualHome + offset;
             visual.localRotation = Quaternion.Slerp(visual.localRotation,
                 Quaternion.Euler(bow * pose, sway, tilt * pose + barrel + idleRoll), rollTime >= 0 ? 1 : 1 - Mathf.Exp(-6f * dt));
+        }
+
+        Vector3 ClearFurniture(Vector3 from, Vector3 to)
+        {
+            foreach (var surface in furniture)
+            {
+                if (!surface || !surface.enabled || !surface.gameObject.activeInHierarchy) continue;
+                var box = surface.bounds;
+                float top = box.max.y + footClearance;
+                box.Expand(new Vector3(bodyRadius * 2f + 0.12f, 0, bodyRadius * 2f + 0.12f));
+                // Two safe markers can straddle a table: check the swept footprint too.
+                var a = new Vector3(from.x, box.center.y, from.z);
+                var b = new Vector3(to.x, box.center.y, to.z);
+                Vector3 direction = b - a;
+                bool crossing = box.Contains(a) || box.Contains(b) ||
+                    (direction.sqrMagnitude > 0.000001f && box.IntersectRay(new Ray(a, direction.normalized), out float distance) && distance <= direction.magnitude);
+                if (crossing) to.y = Mathf.Max(to.y, top);
+            }
+            return to;
         }
 
         // Transform phases: 0 -> 1 thrust over 0.16 s, fastest exactly at the action moment; 0 -> 1 settle.

@@ -32,6 +32,8 @@ namespace OhmsLaw
         public float writeSeconds = 5.5f, checkSeconds = 3.5f;
 
         public Mode mode = Mode.Work;
+        [Tooltip("Subtle asymmetric presentation and attention beats for the later chapters; original introduction stays unchanged.")]
+        public bool naturalPerformance;
         [Tooltip("Stops the clock, the goals and the blend so he holds his current pose (the 'ohm.freeze' cue). Disabling the component would leave the T-pose instead.")]
         public bool frozen;
         [Tooltip("Mode blend rate: 3 = a third of a second.")] public float blendSpeed = 3f;
@@ -184,6 +186,14 @@ namespace OhmsLaw
                 case Mode.Present: Present(dt); break;
                 default: Examine(dt); break;
             }
+            if (naturalPerformance && !ReducedMotion.On)
+            {
+                // Small, independently paced movements; no root translation or foot sliding.
+                float settle = Mathf.Sin(clock * 0.47f) * Mathf.Sin(clock * 0.19f);
+                chest.Rotate(transform.forward, settle * 0.65f, Space.World);
+                head.Rotate(transform.up, Mathf.Sin(clock * 0.73f) * 1.4f, Space.World);
+                head.Rotate(transform.right, Mathf.Sin(clock * 1.17f) * 0.65f, Space.World);
+            }
 
             float w = Mathf.SmoothStep(0f, 1f, blend);
             for (int i = 0; i < bones.Length; i++)
@@ -283,7 +293,8 @@ namespace OhmsLaw
             foreach (int side in Sides)
             {
                 Transform upper = side > 0 ? rightArm : leftArm;
-                Hand(side, hands + transform.right * (side * 0.32f), upper.position + transform.right * (side * 0.3f) - transform.forward * 0.2f - Vector3.up * 0.25f, Vector3.up, 0.18f + breath * 0.03f, dt);
+                float offer = naturalPerformance && !ReducedMotion.On ? Mathf.Pow(Mathf.Max(0, Mathf.Sin(clock * 0.85f + side * 1.8f)), 3) : 0;
+                Hand(side, hands + transform.right * (side * 0.32f) + Vector3.up * (offer * 0.045f) + transform.forward * (offer * 0.025f), upper.position + transform.right * (side * 0.3f) - transform.forward * 0.2f - Vector3.up * 0.25f, Vector3.up, 0.18f + breath * 0.03f, dt);
             }
         }
 
