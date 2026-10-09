@@ -40,8 +40,13 @@ namespace OhmsLaw.Editor
             Debug.Log("Created unity-gain Voice / Music / SFX / UI / Ambience mixer; existing volume controls and ducking preserved.");
         }
 
+        [MenuItem("Ohm's Law/Polish/Apply wire chamber (Scenes 5, 6)")]
+        public static void ApplyWire() => Apply(new[] { 5, 6 });
+
         [MenuItem("Ohm's Law/Polish/Apply later scenes")]
-        public static void Apply()
+        public static void Apply() => Apply(null);
+
+        static void Apply(int[] only)
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Stop play mode before patching scenes.");
             var setup = EditorSceneManager.GetSceneManagerSetup();
@@ -52,10 +57,11 @@ namespace OhmsLaw.Editor
             {
                 foreach (var path in Directory.GetFiles("Assets/OhmsLaw/Scenes", "Scene*.unity").OrderBy(p => p))
                 {
-                    if (!int.TryParse(Path.GetFileName(path).Substring(5, 2), out int id) || id < 5 || id > 13) continue;
+                    if (!int.TryParse(Path.GetFileName(path).Substring(5, 2), out int id) || id < 5 || id > 13 || (only != null && !only.Contains(id))) continue;
                     var scene = EditorSceneManager.OpenScene(path);
+                    var wire = scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<WireInterior>(true)).FirstOrDefault();
+                    if (wire) PolishWire(wire); // first: it rebuilds the chamber, so the list below holds no destroyed objects
                     var all = scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Transform>(true)).ToArray();
-                    var wire = all.Select(t => t.GetComponent<WireInterior>()).FirstOrDefault(w => w);
                     foreach (var renderer in all.Select(t => t.GetComponent<Renderer>()).Where(r => r && !(r is ParticleSystemRenderer)))
                     {
                         renderer.sharedMaterials = renderer.sharedMaterials.Select(PolishMaterial).ToArray();
@@ -70,13 +76,12 @@ namespace OhmsLaw.Editor
                         var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(destination);
                         volume.sharedProfile = profile;
                         bool electric = profile.name.Contains("Electron");
-                        if (profile.TryGet<Bloom>(out var bloom)) { bloom.intensity.Override(electric ? 0.48f : 0.3f); bloom.threshold.Override(1.1f); bloom.scatter.Override(0.62f); }
+                        if (profile.TryGet<Bloom>(out var bloom)) { bloom.intensity.Override(electric ? 0.75f : 0.3f); bloom.threshold.Override(1.1f); bloom.scatter.Override(electric ? 0.7f : 0.62f); }
                         if (profile.TryGet<FilmGrain>(out var grain)) grain.intensity.Override(0.025f);
                         if (profile.TryGet<Vignette>(out var vignette)) vignette.intensity.Override(electric ? 0.22f : 0.18f);
                         if (profile.TryGet<ColorAdjustments>(out var colour)) { colour.contrast.Override(8f); colour.saturation.Override(-5f); }
                         EditorUtility.SetDirty(profile);
                     }
-                    if (wire) PolishWire(wire);
                     foreach (var wattson in all.Select(t => t.GetComponent<WattsonController>()).Where(w => w))
                     {
                         // Mesh bounds follow the original desks during the Scene 8 transformation.
@@ -150,61 +155,143 @@ namespace OhmsLaw.Editor
             return copy;
         }
 
+        // The electron space to the neon reference (Docs/Polish/References, 2026-10-09 brief): a field of tall dark pillars
+        // in three rows with bright cyan (a few amber) light strips, a glossy dark floor that mirrors them, a lit horizon
+        // line at the back, haze. Rebuilt in full on every apply (the old dressing goes), then the floor probe re-bakes.
         static void PolishWire(WireInterior wire)
         {
-            wire.fogDensity = 0.035f;
-            wire.fogColor = new Color(0.07f, 0.12f, 0.2f);
+            wire.fogDensity = 0.016f;
+            wire.fogColor = new Color(0.035f, 0.075f, 0.17f); // deeper navy: the floor stays black glass into the distance
             wire.background = wire.fogColor;
-            wire.ambient = new Color(0.09f, 0.14f, 0.22f);
+            wire.ambient = new Color(0.04f, 0.075f, 0.15f);
             wire.carrierSize = 0.22f;
             wire.conduitColor.a = 0.075f;
             foreach (var trail in wire.trails) if (trail) { trail.widthMultiplier = 0.035f; trail.numCapVertices = 3; }
-            var wall = Material("Chamber navy", new Color(0.2f, 0.3f, 0.45f), 0.45f);
-            var inset = Material("Chamber inset", new Color(0.27f, 0.4f, 0.55f), 0.38f);
-            var blue = Material("Chamber cyan", Blue * 2.2f, 0.5f, Blue * 2.2f);
-            var amber = Material("Chamber amber", Amber * 2f, 0.4f, Amber * 2f);
             foreach (var light in wire.GetComponentsInChildren<Light>(true))
-                if (light.name == "Space Key") light.intensity = 0.9f;
+                if (light.name == "Space Key") light.intensity = 0.3f;
             var floor = wire.GetComponentsInChildren<Renderer>(true).FirstOrDefault(r => r.name == "Floor");
-            if (floor) { floor.sharedMaterial.SetFloat("_Smoothness", 0.75f); EditorUtility.SetDirty(floor.sharedMaterial); }
-            if (wire.transform.Find("Chamber Depth") is Transform existing)
+            if (floor)
             {
-                foreach (var r in existing.GetComponentsInChildren<MeshRenderer>(true))
-                {
-                    GameObjectUtility.SetStaticEditorFlags(r.gameObject, StaticEditorFlags.BatchingStatic);
-                    r.gameObject.layer = 4;
-                    if (r.name == "Back wall") { r.transform.localPosition = new Vector3(0, 28.3f, 19); r.transform.localScale = new Vector3(180, 60, 0.4f); }
-                    int i = Mathf.RoundToInt((r.transform.localPosition.x + 19) / 3.8f);
-                    var p = r.transform.localPosition; var size = r.transform.localScale;
-                    if (r.name == "Recessed pier") { size.y = 9f + (i % 3) * 2.5f; p.y = -1.7f + size.y / 2; }
-                    if (r.name == "Inset panel") { p.y = 3.3f; size.y = 6.3f; }
-                    if (r.name == "Recess light") { p.y = 2.3f + (i % 3) * 1.2f; size.y = 4.5f; }
-                    if (r.name == "Panel seam") p.y = 6.7f;
-                    r.transform.localPosition = p; r.transform.localScale = size;
-                }
-                foreach (var light in existing.GetComponentsInChildren<Light>()) { light.intensity = 18; light.range = 20; }
-                return;
+                // Black glass: opaque (a see-through floor rendered as a flat cyan plane during the gate), with the strips'
+                // reflections drawn as streaks on it (URP has no planar reflection; the probe gives only a blurred sheen).
+                var m = floor.sharedMaterial;
+                m.SetFloat("_Surface", 0); m.SetFloat("_Blend", 0);
+                m.SetFloat("_SrcBlend", (float)BlendMode.One); m.SetFloat("_DstBlend", (float)BlendMode.Zero);
+                m.SetFloat("_ZWrite", 1); m.DisableKeyword("_SURFACE_TYPE_TRANSPARENT"); m.SetOverrideTag("RenderType", "Opaque");
+                m.renderQueue = -1;
+                m.SetColor("_BaseColor", new Color(0.012f, 0.02f, 0.045f, 1f));
+                m.SetFloat("_Metallic", 0.1f);
+                m.SetFloat("_Smoothness", 0.8f);
+                m.SetColor("_EmissionColor", new Color(0.31f, 0.82f, 1f) * 0.1f); // the seams, faint
+                EditorUtility.SetDirty(m);
             }
+            foreach (var t in wire.GetComponentsInChildren<Transform>(true)) if (t.name == "Silhouette") t.gameObject.SetActive(false); // the builder's flat slabs: the pillars replace them
+
+            if (wire.transform.Find("Chamber Depth") is Transform old) Object.DestroyImmediate(old.gameObject);
             var root = new GameObject("Chamber Depth").transform;
             root.SetParent(wire.transform, false);
-            // Behind every teaching object: simple layered surfaces, no machines or scientific claims.
-            Box("Back wall", root, new Vector3(0, 28.3f, 19), new Vector3(180, 60, 0.4f), wall);
-            for (int i = 0; i < 11; i++)
+            var pillar = Material("Chamber navy", new Color(0.05f, 0.075f, 0.12f), 0.62f);
+            pillar.SetFloat("_Metallic", 0.55f);
+            var cap = Material("Chamber inset", new Color(0.14f, 0.2f, 0.3f), 0.5f);
+            var cyan = Material("Chamber cyan", Blue * 5.5f, 0.5f, Blue * 5.5f);
+            var amber = Material("Chamber amber", Amber * 4f, 0.4f, Amber * 4f);
+            var cyanMirror = Additive("Chamber cyan mirror", new Color(Blue.r * 1.4f, Blue.g * 1.4f, Blue.b * 1.4f, 0.55f), soft: true);
+            var amberMirror = Additive("Chamber amber mirror", new Color(Amber.r, Amber.g, Amber.b, 0.45f), soft: true);
+            // A light strip and its reflection on the floor: a mirror would show the strip's image from its base toward the
+            // viewer's foot, D·h/(c+h) long (D the distance to the camera's foot, h the strip's top, c the eye 1 m up), so a
+            // dim streak lies there, pointed at the camera of the "Wire Inside" shot.
+            var shot = wire.gameObject.scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Transform>(true)).FirstOrDefault(t => t.name == "Wire Inside");
+            Vector3 foot = shot ? wire.transform.InverseTransformPoint(shot.position) : new Vector3(-2.6f, -0.7f, -8.7f);
+            float eye = foot.y + 1.7f;
+            foot.y = -1.7f;
+            void Strip(Vector3 at, Vector3 size, bool warm)
             {
-                float x = -19 + i * 3.8f, h = 9f + (i % 3) * 2.5f, z = 9.5f + (i % 2) * 5f;
-                Box("Recessed pier", root, new Vector3(x, -1.7f + h / 2, z), new Vector3(1.8f, h, 0.9f), wall);
-                Box("Inset panel", root, new Vector3(x, 3.3f, z - 0.49f), new Vector3(1.38f, 6.3f, 0.06f), inset);
-                Box("Recess light", root, new Vector3(x - 0.8f, 2.3f + (i % 3) * 1.2f, z - 0.51f), new Vector3(0.045f, 4.5f, 0.055f), i % 3 == 0 ? amber : blue);
-                Box("Panel seam", root, new Vector3(x, 6.7f, z - 0.53f), new Vector3(1.4f, 0.018f, 0.03f), blue);
+                Box("Strip", root, at, size, warm ? amber : cyan);
+                var baseAt = new Vector3(at.x, -1.7f, at.z);
+                float top = at.y + size.y / 2 + 1.7f;
+                Vector3 toFoot = foot - baseAt;
+                float length = toFoot.magnitude * top / (eye + top);
+                var mid = baseAt + toFoot.normalized * (length * 0.42f) + Vector3.up * 0.006f; // the soft quad fades at both ends: its far end reaches the base
+                var streak = GameObject.CreatePrimitive(PrimitiveType.Quad); // soft radial texture stretched along the view: a blurred reflection, bright at the base
+                streak.name = "Strip reflection"; streak.transform.SetParent(root, false);
+                streak.transform.localPosition = mid; streak.transform.localRotation = Quaternion.LookRotation(toFoot) * Quaternion.Euler(90, 0, 0); streak.transform.localScale = new Vector3(size.x * 3.2f, length * 1.15f, 1f);
+                streak.layer = 4; Object.DestroyImmediate(streak.GetComponent<Collider>());
+                var sr = streak.GetComponent<Renderer>(); sr.sharedMaterial = warm ? amberMirror : cyanMirror; sr.shadowCastingMode = ShadowCastingMode.Off;
             }
-            foreach (float x in new[] { -8f, 8f })
+            // Three rows (near 7 m, mid 11 m, far 16 m behind the conduit), heights and widths from the index so an apply is
+            // repeatable; the near row leaves the centre open behind the conduit. Each pillar: body, a lip on top, one or two
+            // strips down a front edge, every seventh one amber.
+            int n = 0;
+            foreach (var (z, step, h0) in new[] { (7f, 4.2f, 5.5f), (11f, 3.4f, 8f), (16f, 2.8f, 11f) })
+                for (float x = -22f; x <= 24f; x += step, n++)
+                {
+                    if (z < 8f && Mathf.Abs(x) < 6.5f) continue;
+                    float h = h0 + (n * 7 % 11) * 0.7f, w = 1.0f + (n * 5 % 7) * 0.22f, d = w * 0.8f;
+                    float xj = x + (n * 3 % 5 - 2) * 0.25f;
+                    Box("Pillar", root, new Vector3(xj, -1.7f + h / 2, z), new Vector3(w, h, d), pillar);
+                    Box("Pillar lip", root, new Vector3(xj, -1.7f + h + 0.06f, z), new Vector3(w + 0.14f, 0.12f, d + 0.14f), cap);
+                    bool warm = n % 7 == 3;
+                    float sh = h * (0.55f + (n * 2 % 4) * 0.1f);
+                    int edge = n % 2 == 0 ? -1 : 1;
+                    Strip(new Vector3(xj + edge * (w / 2 - 0.08f), -1.7f + sh / 2 + 0.3f, z - d / 2 - 0.03f), new Vector3(0.06f, sh, 0.05f), warm);
+                    if (n % 3 == 0) Strip(new Vector3(xj - edge * (w / 2 - 0.08f), -1.7f + sh * 0.35f + 0.3f, z - d / 2 - 0.03f), new Vector3(0.06f, sh * 0.7f, 0.05f), false);
+                }
+            Box("Horizon line", root, new Vector3(0, -1.62f, 19.5f), new Vector3(70f, 0.1f, 0.1f), cyan); // the lit baseline at the back of the hall
+            var band = GameObject.CreatePrimitive(PrimitiveType.Quad); // and its glow: a soft cyan band where the floor meets the back, as in the reference
+            band.name = "Horizon glow"; band.transform.SetParent(root, false);
+            band.transform.localPosition = new Vector3(0, -0.4f, 19.2f); band.transform.localScale = new Vector3(72f, 4f, 1f);
+            band.layer = 4; Object.DestroyImmediate(band.GetComponent<Collider>());
+            var br = band.GetComponent<Renderer>(); br.sharedMaterial = Additive("Chamber horizon", new Color(Blue.r * 1.2f, Blue.g * 1.2f, Blue.b * 1.2f, 0.35f), soft: true); br.shadowCastingMode = ShadowCastingMode.Off;
+            // The conduit's own light on the glossy floor (the baked probe cannot mirror what moves): a soft cyan pool under it.
+            var halo = AssetDatabase.LoadAssetAtPath<Material>("Assets/OhmsLaw/Shared/Art/Materials/Glow_WireBadgeHalo_4FD1FF.mat");
+            if (halo)
+            {
+                var pool = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                pool.name = "Floor glow"; pool.transform.SetParent(root, false);
+                pool.transform.localPosition = new Vector3(0, -1.69f, 0.2f); pool.transform.localRotation = Quaternion.Euler(90, 0, 0); pool.transform.localScale = new Vector3(13f, 3f, 1f);
+                Object.DestroyImmediate(pool.GetComponent<Collider>());
+                var pr = pool.GetComponent<Renderer>(); pr.sharedMaterial = halo; pr.shadowCastingMode = ShadowCastingMode.Off;
+            }
+            // Cyan washes along the pillar line light their faces and the floor between them; one warm one.
+            foreach (var (x, z, c) in new[] { (-14f, 6f, Blue), (-5f, 8f, Blue), (6f, 8f, Blue), (15f, 6f, Blue), (0f, 13f, Blue), (-9f, 12f, Amber) })
             {
                 var go = new GameObject("Chamber wash");
                 go.transform.SetParent(root, false);
-                go.transform.localPosition = new Vector3(x, 3, 6);
-                var l = go.AddComponent<Light>(); l.type = LightType.Point; l.color = Blue;
-                l.intensity = 18; l.range = 20; l.shadows = LightShadows.None;
+                go.transform.localPosition = new Vector3(x, 6f, z);
+                var l = go.AddComponent<Light>(); l.type = LightType.Point; l.color = c;
+                l.intensity = c == Amber ? 4f : 7f; l.range = 16f; l.shadows = LightShadows.None;
             }
+            // The floor's probe mirrors the static set (layer 4): re-bake it now that the set has changed.
+            var probe = wire.GetComponentInChildren<ReflectionProbe>(true);
+            if (probe)
+            {
+                probe.resolution = 512;
+                probe.size = new Vector3(64, 30, 60);
+                probe.center = new Vector3(0, -1.7f + 15f, 6f);
+                string path = AssetDatabase.GetAssetPath(probe.bakedTexture);
+                if (string.IsNullOrEmpty(path)) path = "Assets/OhmsLaw/Shared/Art/Post/Probe_" + wire.gameObject.scene.name.Substring(0, 7) + "_Wire.exr";
+                probe.mode = ReflectionProbeMode.Baked;
+                if (Lightmapping.BakeReflectionProbe(probe, path)) probe.bakedTexture = AssetDatabase.LoadAssetAtPath<Texture>(path);
+                else Debug.LogWarning(wire.gameObject.scene.name + ": the wire floor probe did not re-bake; its mirror is stale.");
+            }
+        }
+
+        // Additive, unlit, translucent (alpha in the colour): light laid over the floor, not a solid bar.
+        static Material Additive(string name, Color colour, bool soft = false)
+        {
+            string path = Art + "/" + name + ".mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (!material) { material = new Material(Shader.Find("Universal Render Pipeline/Unlit")); AssetDatabase.CreateAsset(material, path); }
+            material.shader = Shader.Find("Universal Render Pipeline/Unlit");
+            material.SetFloat("_Surface", 1); material.SetFloat("_Blend", 2);
+            material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha); material.SetFloat("_DstBlend", (float)BlendMode.One);
+            material.SetFloat("_ZWrite", 0); material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); material.SetOverrideTag("RenderType", "Transparent");
+            material.renderQueue = 3000;
+            material.SetColor("_BaseColor", colour);
+            material.SetTexture("_BaseMap", soft ? AssetDatabase.GetBuiltinExtraResource<Texture2D>("Default-Particle.psd") : null);
+            material.enableInstancing = true;
+            EditorUtility.SetDirty(material);
+            return material;
         }
 
         static Material Material(string name, Color colour, float smoothness, Color? emission = null)

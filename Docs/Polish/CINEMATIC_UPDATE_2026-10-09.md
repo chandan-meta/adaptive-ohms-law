@@ -28,6 +28,21 @@ This update works in the existing Unity module. The supplied gameplay video and 
 
 No third-party assets, dependencies, or packages were added. Background dressing uses Unity primitives and the existing render pipeline. Audio clips remain the project's existing resources; this update does not claim newly composed music.
 
+## Wire chamber to the neon reference (later the same day)
+
+Brief: redesign `Scene06_AdaptiveQuestion`'s environment (and the match-cut twin `Scene05_InsideTheWire`) to the supplied
+neon reference: tall dark pillars with cyan and amber light strips, a black glossy floor that reflects them, haze, the
+conduit and terminals unchanged. Done in `CinematicPolish.PolishWire` and applied in place by
+`Ohm's Law > Polish > Apply wire chamber (Scenes 5, 6)` (the full `Apply later scenes` runs the same code): the old
+"Chamber Depth" dressing and the builder's flat slabs go; three rows of pillars (39) with 52 emissive strips, each
+strip's floor reflection as a soft additive quad lying on the floor toward the "Wire Inside" camera (URP has no planar
+reflection), a lit horizon line, a cyan pool under the conduit, six soft washes; the floor material opaque black glass
+(smoothness 0.8) with its reflection probe re-baked at 512 over the new set; fog 0.017 in a deeper navy; the ambient
+down and the key light to 0.3 so the strips carry the light; bloom 0.75 on the electron profile. Gameplay, cameras,
+Timeline, dialogue, electron behaviour (random motion before the voltage, drift after) and the terminal labels are
+untouched; Scenes 5 and 6 play-tested PASS after each pass. Evidence: `Docs/Polish/Evidence/HUD/wire_chamber_before_after.jpg`.
+Not matched: the reference's volumetric haze along the floor (no cheap URP equivalent) and a true mirror floor.
+
 ## Modified code
 
 - `Shared/HudScreens.cs`: title composition and handoff.
