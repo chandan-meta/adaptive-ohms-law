@@ -59,6 +59,9 @@ namespace OhmsLaw.Editor
         static double hudTime;
         // "hud" in the request: the probe replays and skips, so repeated or missing lines are expected in that scene.
         static bool HudProbe => SessionState.GetString(SceneKey + ".req", "").Contains("hud");
+        // "record" in the request: the Game view and the mix are recorded (GameplayRecorder) at a fixed 30 fps game clock, so
+        // the run takes longer in real time than it plays back.
+        static bool Recording => SessionState.GetString(SceneKey + ".req", "").Contains("record");
         static bool hooked;
 
         [MenuItem("Ohm's Law/Play Test/Whole module (autoAnswer)")] static void Module() => Run("all");
@@ -213,6 +216,7 @@ namespace OhmsLaw.Editor
         {
             // Play mode stopped from the editor: close the test down so playModeStartScene does not stick.
             if (!EditorApplication.isPlaying) { if (started > 0) { Note("STOPPED  play mode exited before the end card"); Finish(); } return; }
+            if (started == 0 && Recording && !GameplayRecorder.Active) GameplayRecorder.Begin("Logs/Blockout/recording", 30);
             if (started == 0) { titleShot = false; started = Time.realtimeSinceStartup; lastProgress = started; Application.runInBackground = true; SubtitleUI.Enabled = true; ReducedMotion.On = SessionState.GetString(SceneKey + ".req", "").Contains("calm"); // captures show full motion unless the request says "calm"
                 // "fresh" plays as a new learner (no saved progress: chapters locked, no Continue); "larger" turns Larger text on.
                 var words = SessionState.GetString(SceneKey + ".req", "");
@@ -290,7 +294,7 @@ namespace OhmsLaw.Editor
             var note = GameObject.Find("WhiteFade") ? GameObject.Find("WhiteFade").GetComponentInChildren<TMPro.TMP_Text>() : null;
             bool ended = note && (note.text.Contains("Scene 14") || note.text.Contains("not built yet") || note.text.Contains("End of module"))
                       || (ModuleFlow.Instance && ModuleFlow.Instance.Ended);
-            bool timedOut = Time.realtimeSinceStartup - started > MaxMinutes * 60;
+            bool timedOut = Time.realtimeSinceStartup - started > (Recording ? 3f : 1f) * MaxMinutes * 60;
             if (ended && endedAt == 0) { endedAt = Time.realtimeSinceStartup; Later("end_card", 0.5f); }
             if (ended && !stalled && Time.realtimeSinceStartup - endedAt < 1.5f) return; // the end card's frame (replay / exit) lands before play mode ends
             if (!stalled && !ended && !timedOut) return;
@@ -322,6 +326,7 @@ namespace OhmsLaw.Editor
 
         static void Finish()
         {
+            if (GameplayRecorder.Active) { GameplayRecorder.Active.End(); Note("RECORD Logs/Blockout/recording (video.mp4 + audio.wav)"); }
             EditorApplication.update -= Tick;
             Application.logMessageReceived -= OnLog;
             SubtitleTrack.LineStarted -= OnLine;
