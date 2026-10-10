@@ -7,6 +7,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$ROOT" || exit 1
 STEPS="${*:-compile build04 build vo apply tests play sheets}"  # vo rebuilds the scenes it re-times, so the polish goes after it
 PLAY="${PLAY:-all 2x}"
 SHEETS="${SHEETS:-Logs/Blockout/sheets}"
+# Every step but "compile" and "sheets" drives the open editor: stop at once when it is not running.
+if [ "$STEPS" != "compile" ] && ! powershell -NoProfile -Command "if (Get-Process Unity -ErrorAction SilentlyContinue | Where-Object { \$_.MainWindowTitle -like '*OHM*' }) { exit 0 } else { exit 1 }"; then
+  echo "The Ohm's Law editor is not open: open the project in Unity 6000.3, wait for it to load, then run this again."; exit 1
+fi
 req() { echo "== $1"; bash Tools/unity_request.sh "$1" | grep -v "^$" | head -${2:-40}; }
 for step in $STEPS; do
   case $step in
