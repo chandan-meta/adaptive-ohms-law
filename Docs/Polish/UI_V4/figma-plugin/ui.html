@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; font: 12px/1.4 Inter, system-ui, sans-serif; background: #081A2B; color: #F5F7FB; }
+  header { padding: 12px 14px; border-bottom: 1px solid rgba(39, 208, 240, .25); }
+  header b { color: #FFC857; }
+  #log { height: 270px; margin: 0; padding: 10px 14px; overflow: auto; white-space: pre-wrap; color: #AFC5D5; font-family: ui-monospace, Consolas, monospace; font-size: 11px; }
+  footer { padding: 10px 14px; display: flex; gap: 8px; align-items: center; border-top: 1px solid rgba(39, 208, 240, .25); }
+  a, button { font: inherit; padding: 8px 12px; border-radius: 999px; border: 1.5px solid rgba(39, 208, 240, .55); background: #10283D; color: #F5F7FB; text-decoration: none; cursor: pointer; }
+  a.primary { background: #FFC857; color: #081A2B; border-color: #FFC857; font-weight: 600; }
+  a[hidden] { display: none; }
+</style>
+</head>
+<body>
+<header><b>OHM'S LAW</b> · UI v4 builder — builds the design system, the screens and the reference board into this file. Leave it running; it takes a minute or two.</header>
+<pre id="log">Starting…</pre>
+<footer>
+  <a id="jpg" class="primary" hidden download="ohms-law-ui-v4-reference-board.jpg">Save reference board (JPG)</a>
+  <a id="json" hidden download="ohms-law-ui-v4-build.json">Save build log (JSON)</a>
+  <button id="close">Close</button>
+</footer>
+<script>
+  const log = document.getElementById('log');
+  onmessage = (e) => {
+    const m = e.data.pluginMessage || {};
+    if (m.log) { log.textContent += '\n' + m.log; log.scrollTop = log.scrollHeight; }
+    if (m.error) { log.textContent += '\n\nSTOPPED: ' + m.error + '\nRun the plugin again: every step is idempotent (it rebuilds its own sections).'; }
+    if (m.done) {
+      log.textContent += '\n\nDone in ' + m.seconds + ' s. Save the board JPG into Docs/Polish/UI_V4/ and send the build log to Claude.';
+      if (m.jpeg) { const a = document.getElementById('jpg'); a.href = 'data:image/jpeg;base64,' + m.jpeg; a.hidden = false; }
+      if (m.result) { const b = document.getElementById('json'); b.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(m.result); b.hidden = false; }
+    }
+  };
+  document.getElementById('close').onclick = () => parent.postMessage({ pluginMessage: 'close' }, '*');
+</script>
+</body>
+</html>
