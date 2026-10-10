@@ -192,7 +192,7 @@ namespace OhmsLaw.Editor
         {
             if (!chalkFace) chalkFace = ChalkMaterial();
             var wood = Lit("DarkWood", new Color(0.2f, 0.11f, 0.06f), 0f, 0.4f);
-            var slate = Lit("Slate", new Color(0.075f, 0.09f, 0.085f), 0f, 0.22f);
+            var slate = Lit("Slate", new Color(0.1f, 0.12f, 0.11f), 0f, 0.3f);
             var easel = Ref(Node("Study Easel", parent)).transform;
             easel.position = EaselFoot;
             var toCamera = Vector3.ProjectOnPlane(StudyWideCamC - EaselFoot, Vector3.up).normalized;
@@ -220,6 +220,20 @@ namespace OhmsLaw.Editor
             Strut("Back Leg", new Vector3(0f, 0.02f, 0.62f), new Vector3(0f, y + h / 2 + 0.08f, 0.04f), 0.016f);
             Strut("Peg", new Vector3(-w / 3, ledge - 0.01f, 0.02f), new Vector3(-w / 3, ledge - 0.01f, -0.07f), 0.01f);
             Strut("Peg", new Vector3(w / 3, ledge - 0.01f, 0.02f), new Vector3(w / 3, ledge - 0.01f, -0.07f), 0.01f);
+
+            // A warm picture light over the slate, so its face reads as slate under chalk in the firelit room instead of a flat
+            // black panel (no light reached it in front of the fireplace). One of the study's lights, so Scene 8's room change
+            // fades it with them (the easel itself vanishes earlier).
+            var lamp = Node("Slate Light", easel, new Vector3(0f, y + h / 2 + 0.3f, -0.55f)).AddComponent<Light>();
+            lamp.transform.localRotation = Quaternion.LookRotation(new Vector3(0f, y, 0f) - lamp.transform.localPosition);
+            lamp.transform.SetParent(refs["Study Lighting"].transform, true);
+            lamp.type = LightType.Spot;
+            lamp.color = new Color(1f, 0.8f, 0.58f);
+            lamp.intensity = 2f;
+            lamp.range = 2.5f;
+            lamp.spotAngle = 110f;
+            lamp.innerSpotAngle = 60f;
+            lamp.shadows = LightShadows.None;
 
             boardFace = Node("Board Face", easel, new Vector3(0f, y, -0.0135f)).transform;
             boardFace.localScale = Vector3.one * SlateScale; // identity rotation: +Z into the slate, text reads from the camera side
@@ -611,6 +625,8 @@ namespace OhmsLaw.Editor
             worker.needle = At("Galvanometer Needle Pivot");
             worker.handWire = At("Ohm Hand Wire");
             worker.mode = OhmWorker.Mode.Work;
+            worker.naturalPerformance = true; // breathing, slow head and torso variation (CinematicPolish's values, kept by a rebuild)
+            worker.blendSpeed = 2.2f;
             if (PrefabUtility.IsPartOfPrefabInstance(worker)) PrefabUtility.RecordPrefabInstancePropertyModifications(worker); // scene references are instance overrides
             return ohm;
         }

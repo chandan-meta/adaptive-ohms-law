@@ -5,13 +5,20 @@ namespace OhmsLaw.Editor
 {
     // Scene 9: Build the Circuit, guided. Every step is stated in the panel before the learner acts (select the
     // ammeter, click the highlighted position, select the voltmeter, click its position, close the switch), with a live
-    // schematic in the panel: the ammeter in series, the voltmeter in parallel across XY, the key. Bench Present holds
-    // the whole bench with Wattson behind it, so taps land where the learner looks.
+    // schematic on a glass board floating over the back of the bench: the ammeter in series, the voltmeter in parallel
+    // across XY, the key. The dock keeps the turn card. Bench Study holds the whole bench with Wattson behind it, so
+    // taps land where the learner looks.
     public class Scene09Builder : SceneBuilderBase
     {
         public override string SceneId => "Scene09";
         public override string SceneName => "Scene09_BuildCircuit";
         public override string Title => "Build the Circuit";
+
+        // The schematic board: 1.15 m wide over the back of the bench, left of centre so Wattson's points at the tray, the
+        // voltmeter and the key (frame right) stay clear of it, tilted 10° down toward the Bench Study lens. On Bench Study
+        // it spans about x 240-877, y 131-404 of 1920 x 1080: clear of the chapter chip above, the meter tops (~450) below.
+        static readonly Vector3 BoardC = new Vector3(-0.28f, 1.34f, 0.42f);
+        const float BoardWidth = 1.15f;
 
         protected override void Dialogue()
         {
@@ -37,7 +44,7 @@ namespace OhmsLaw.Editor
                 "The ammeter is connected in series so the same current passes through it and the test wire.",
                 "The voltmeter is connected in parallel across the two ends of the wire, X and Y, to measure the potential difference between them.",
                 "Closing the key completes the circuit so current can flow.",
-                "The schematic in the panel shows the same circuit: conventional current is drawn from + to − around the loop; the free electrons themselves drift the other way, from − to +.",
+                "The schematic on the board over the bench shows the same circuit: conventional current is drawn from + to − around the loop; the free electrons themselves drift the other way, from − to +.",
             },
             new[] { "The readings", "The pattern between V and I", "V is proportional to I", "V = IR", "Resistance", "Ohms", "The Christmas-lights answer" },
             ("Why is the ammeter in series?", "Because we want the ammeter to measure the current through the nichrome wire. In series, the ammeter is part of the same single path, so every bit of charge that passes through the wire also passes through the ammeter. Same path, same current."),
@@ -61,7 +68,23 @@ namespace OhmsLaw.Editor
             Callout("voltmeter", refs["VOLTMETER"], CalloutDef.Anchor.MidRight);
             BadgePulse();
             KeyPulse();
+            SchematicBoard();
             Vcam("Bench Study", Scene10Builder.StudyCamC, Scene10Builder.StudyLookC, Scene10Builder.StudyFov, refs["Bench Point"].transform, lensMedium);
+        }
+
+        // The live schematic on a world board (WorldSchematic builds the glass canvas and CircuitSchematic.CreateOn at
+        // runtime). Hidden until "show Schematic Board"; pops in.
+        void SchematicBoard()
+        {
+            var board = Node("Schematic Board", null, BoardC);
+            board.transform.rotation = Quaternion.Euler(-10f, 0f, 0f);
+            board.AddComponent<WorldSchematic>().width = BoardWidth;
+            var pop = board.AddComponent<PopIn>();
+            pop.duration = 0.4f;
+            pop.fromScale = 0.6f;
+            pop.overshoot = 1.08f;
+            board.SetActive(false);
+            Ref(board);
         }
 
         // "Points X and Y pulse" while the voltmeter waits: a breathing amber halo with slow rings behind each badge. The
@@ -143,19 +166,17 @@ namespace OhmsLaw.Editor
             Line("S09_L03");
             Hide("Wire Highlight");
             Cue("callout hideall");
-            Cue("schematic 1", "the circuit schematic appears in the panel: the loop with the empty positions");
+            Show("Schematic Board"); // the circuit schematic pops in on the glass board over the bench: the loop with the empty positions
 
             // The ammeter: select it, then click the highlighted position (the gate writes both instructions).
             Gesture(WattsonController.Gesture.Point, point: "AMMETER", moveTo: "Tray Point");
             Cue("callout show ammeter");
             Cue("rig.drag ammeter", "the series slot glows: the ammeter may be selected now");
             Line("S09_L05", 0.2);
-            Gate("S09_PlaceAmmeter", "Panel: 'Select the ammeter.' then 'Click the highlighted position to place it.' (tap the meter, tap the glowing slot; or drag it there). Snaps with a placement sound; the series path lights, the X → Y pulse runs, the schematic's A lights. AutoPlace / autoAnswer fly it in.");
+            Gate("S09_PlaceAmmeter", "Panel: 'Select the ammeter.' then 'Click the highlighted position to place it.' (tap the meter, tap the glowing slot; or drag it there). Snaps with a placement sound; the series path lights, the X → Y pulse runs, the board's A lights. AutoPlace / autoAnswer fly it in.");
             Visual("The ammeter snaps in: the series path lights, the X → Y pulse starts", 0.8);
             Gesture(WattsonController.Gesture.Point, point: "AMMETER");
             Line("S09_L06");
-            Show("[VFX] Pulse travels from X to Y"); // the twist gets its picture: conventional current runs X (+ side) to Y
-            Line("S09_Conventional");
 
             // The voltmeter, across XY.
             Gesture(WattsonController.Gesture.Point, point: "VOLTMETER", moveTo: "Voltmeter Point");
@@ -163,7 +184,7 @@ namespace OhmsLaw.Editor
             Cue("rig.drag voltmeter", "the parallel slot glows: the voltmeter may be selected now");
             Line("S09_L07", 0.2);
             Show("[VFX] X and Y pulse");
-            Gate("S09_PlaceVoltmeter", "Panel: 'Select the voltmeter.' then 'Click the highlighted position to place it.' Its leads reach X and Y; the schematic's V and its parallel leads light.");
+            Gate("S09_PlaceVoltmeter", "Panel: 'Select the voltmeter.' then 'Click the highlighted position to place it.' Its leads reach X and Y; the board's V and its parallel leads light.");
             Hide("[VFX] X and Y pulse");
             Cue("callout hideall");
             Cue("retract 0.5 Parts Tray", "the empty tray folds away, so the last frame matches Scene 10's bench");
@@ -174,15 +195,24 @@ namespace OhmsLaw.Editor
             Gesture(WattsonController.Gesture.Point, point: "switch / key", moveTo: "Key Point");
             Show("[VFX] Key pulse");
             Line("S09_L09", 0.2);
-            Gate("S09_CloseKey", "Panel: 'Close the switch to complete the circuit.' Tap the key (tap-hand hint): the lever closes with a clack, the needles move at the small default voltage, the loop in the schematic warms to amber (conventional current, + → −).");
+            Gate("S09_CloseKey", "Panel: 'Close the switch to complete the circuit.' Tap the key (tap-hand hint): the lever closes with a clack, the needles move at the small default voltage, the loop on the board warms to amber (conventional current, + → −).");
             Hide("[VFX] Key pulse");
             Gesture(WattsonController.Gesture.Talking);
             Line("S09_L10");
+            // The twist gets its picture once current flows: the board's loop is amber with its "+ → −" note, and the
+            // pulse runs X (+ side) to Y on the bench while Wattson points at the board (restarted: the key's own run is
+            // nearly over by now).
+            Hide("[VFX] Pulse travels from X to Y");
+            Show("[VFX] Pulse travels from X to Y", 0.1);
+            Gesture(WattsonController.Gesture.Point, point: "Schematic Board");
+            Line("S09_Conventional");
+            Gesture(WattsonController.Gesture.Talking);
             Cue("reminder", "the panel recalls the question and the learner's own prediction");
             Line("S09_L11", 0.2);
             Line("S09_L12", 0.2);
             Cue("rig.path 0", "the lit path goes: Scene 10 shows plain cables");
             Cue("callout hideall");
+            Hide("Schematic Board"); // the board goes with the notes: the last frame matches Scene 10's first
             Cue("handoff", "SceneHandoffState: CircuitState + camera");
             Handoff("Scene09Complete", cut: true, afterSeconds: 0.3);
         }

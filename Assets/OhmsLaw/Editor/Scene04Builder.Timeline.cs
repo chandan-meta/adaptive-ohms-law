@@ -82,19 +82,19 @@ namespace OhmsLaw.Editor
                 Shot(a, start[shot], end[shot] - 0.05);
                 Shot(b, start[shot] + 0.05, end[shot]);
             }
-            // A restrained plan: an establishing view with one slow settle, a held two-shot for the entrance, held character
-            // framings, one cut to Ohm and back, the words and the gadget held, one apparatus close-up that then holds for
-            // the tap. Only the arrival drifts and the post-tap dive moves; no orbit, no racks, no pushes.
-            Move("SH01", "SH01a Arrival", "SH01b Arrival");
-            Shot("SH02b Wattson Enters", start["SH02"], end["SH02"]);
+            // Slow, readable moves (v5): every shot that carries a beat drifts for its whole length as a two-camera blend
+            // (the Timeline's ease in / out makes each a dolly, push or orbit); the cuts between them are all 1.5 s or
+            // longer and no orbit turns faster than 6 deg/s. Reduced motion keeps the same moves: ReducedMotionCamera only
+            // drops the handheld noise.
+            Move("SH01", "SH01a Arrival", "SH01b Arrival");                      // crane down and drift in as the group lands
+            Move("SH02", "SH02a Wattson Enters", "SH02b Wattson Enters");        // tracking dolly on Wattson's flight
             Shot("SH03 Welcome", start["SH03"], end["SH03"]);
-            Shot("SH04a Over Shoulder", start["SH04"], T("SH04", 2.6));          // Wattson, then one cut to Ohm and back
-            Shot("SH04b Rack To Ohm", T("SH04", 2.6), end["SH04"] - 1.8);
-            Shot("SH04a Over Shoulder", end["SH04"] - 1.8, end["SH04"]);
-            Shot("SH05 Words", start["SH05"], end["SH06"]);                      // the words and the question mark, one held frame
+            Move("SH04", "SH04a Over Shoulder", "SH04b Rack To Ohm");            // lateral dolly past the lamp and candle to Ohm, Ohm in focus; no cut
+            Shot("SH06a Orbit", start["SH05"], end["SH06"] - 0.05);              // the 25-degree orbit round the words over both shots, ~2.7 deg/s
+            Shot("SH06b Orbit", start["SH05"] + 0.05, end["SH06"]);
             Shot("SH07 Before", start["SH07"], end["SH07"]);
-            Shot("SH08a Hero", start["SH08"], end["SH08"]);                      // the Ohm-niscope raise, held
-            Shot("SH09b Aim", start["SH09"], end["SH09"]);                       // the wire close-up: the lock-on
+            Move("SH08", "SH08a Hero", "SH08b Hero");                            // the low-angle push on the Ohm-niscope
+            Move("SH09", "SH09a Aim", "SH09b Aim");                              // the push to the wire: the lock-on
             Shot("SH10 Everybody In", start["SH10"], end["SH10"]);
             Shot("SH11a Dive", start["SH11"], end["SH11"] - 1.0);                 // holds here for the tap, then the dive
             Shot("SH11b Dive", T("SH11", 0.4), end["SH11"]);
@@ -105,6 +105,17 @@ namespace OhmsLaw.Editor
                 if (overlap <= 0) continue;
                 shots[i].blendInDuration = overlap;
                 shots[i - 1].blendOutDuration = overlap;
+            }
+            // The plan's two rules, checked on the built track so a bad edit fails at build time: every clip lasts 1.5 s or
+            // more (no shorter cut) and no blend turns the view faster than 6 deg/s on average.
+            foreach (var clip in shots)
+                if (clip.duration < 1.5) Debug.LogError($"Scene04 shot plan: {clip.displayName} lasts {clip.duration:F2} s (under 1.5 s)");
+            for (int i = 1; i < shots.Length; i++)
+            {
+                double overlap = shots[i - 1].end - shots[i].start;
+                if (overlap <= 0) continue;
+                float turn = Quaternion.Angle(s.cams[shots[i - 1].displayName].transform.rotation, s.cams[shots[i].displayName].transform.rotation);
+                if (turn / overlap > 6) Debug.LogError($"Scene04 shot plan: {shots[i - 1].displayName} to {shots[i].displayName} turns {turn / overlap:F1} deg/s (over 6)");
             }
 
             // --- Wattson: flight along the spline, then gestures
@@ -143,7 +154,7 @@ namespace OhmsLaw.Editor
             Pose(0, end["SH02"], G, s.groupPoint);
             Pose(start["SH03"], end["SH03"], WattsonController.Gesture.Greet, s.groupPoint);
             // SH04 is over his shoulder: for L02's first 2 s (the line starts at 0.3) he keeps his look on the camera, so his face
-            // turns to it instead of the hat brim filling the frame, then glances at Ohm as the focus racks, then back to the group.
+            // turns to it instead of the hat brim filling the frame, then glances at Ohm, then back to the group.
             Pose(start["SH04"], T("SH04", 2.3), WattsonController.Gesture.Point, s.camera.transform, s.ohmPoint);
             Pose(T("SH04", 2.3), T("SH04", 3.2), WattsonController.Gesture.Point, s.ohmPoint, s.ohmPoint);
             Pose(T("SH04", 3.2), end["SH04"], WattsonController.Gesture.Point, s.groupPoint, s.ohmPoint);
@@ -220,6 +231,15 @@ namespace OhmsLaw.Editor
                 UnityEventTools.AddPersistentListener(reaction, call);
                 s.receiver.AddReaction(asset, reaction);
             }
+            // The same, calling Ohm's Attend(target): he glances at `target` until a plain Signal(..., s.ohm.Attend) clears it.
+            void SignalLook(string name, double time, Transform target)
+            {
+                var asset = Asset(S4 + "/Timeline/" + name + ".signal", ScriptableObject.CreateInstance<SignalAsset>);
+                signals.CreateMarker<SignalEmitter>(time).asset = asset;
+                var reaction = new UnityEvent();
+                UnityEventTools.AddObjectPersistentListener<Transform>(reaction, s.ohm.Attend, target);
+                s.receiver.AddReaction(asset, reaction);
+            }
 
             // SH01 arrival and SH02 entrance
             Active("Charge Streams Blue", 0, 5);
@@ -227,6 +247,9 @@ namespace OhmsLaw.Editor
             Active("Landing Dust", 0.7, 4.5);
             Sfx("Whoosh", 0);
             Sfx("Zip", T("SH02", 0.3));
+            // SH04: Ohm looks up at Wattson as he is pointed out (Wattson glances back at 2.3), then back to the galvanometer.
+            SignalLook("Scene04_OhmAttend", T("SH04", 1.2), s.wattson.transform);
+            Signal("Scene04_OhmAttendOff", T("SH04", 4.6), s.ohm.Attend);
             // SH05 words, SH06 arc and question mark, SH07 drift
             double wordsOff = T("SH11", 1.0);
             Active("VOLTAGE", T("SH05", 0.7), wordsOff);

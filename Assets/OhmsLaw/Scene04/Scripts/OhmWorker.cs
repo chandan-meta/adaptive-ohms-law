@@ -37,6 +37,8 @@ namespace OhmsLaw
         [Tooltip("Stops the clock, the goals and the blend so he holds his current pose (the 'ohm.freeze' cue). Disabling the component would leave the T-pose instead.")]
         public bool frozen;
         [Tooltip("Mode blend rate: 3 = a third of a second.")] public float blendSpeed = 3f;
+        [Tooltip("The size the builders give him. While a PopIn grow-in or shrink-out ('appear' / 'vanish') has him smaller, each frame's pose is solved at this size and the scale put back.")]
+        public float bodyScale = 1.55f;
         [Tooltip("Present: what he looks at. The main camera when empty.")] public Transform lookTarget;
         [Tooltip("Someone to glance at (Wattson while he speaks); the head turns part-way toward it in every mode.")] public Transform attention;
         [Range(0, 1)] public float attentionWeight = 0.65f;
@@ -169,6 +171,12 @@ namespace OhmsLaw
 
         void Pose(float dt)
         {
+            // Small (a PopIn mid-grow or mid-shrink): solved at his built size, then shrunk back, so the arms never reach for
+            // targets out of a tiny body's range and the desk lift never winds up (Scene 13's 'appear' left both arms straight
+            // up). A uniform scale leaves the solved bone rotations valid at any size.
+            Vector3 size = transform.localScale;
+            bool small = size.y < bodyScale * 0.9f;
+            if (small) transform.localScale = Vector3.one * bodyScale;
             clock += dt;
             if (mode != shown)
             {
@@ -201,6 +209,7 @@ namespace OhmsLaw
                 pose[i] = w >= 1f ? bones[i].localRotation : Quaternion.Slerp(from[i], bones[i].localRotation, w);
                 bones[i].localRotation = pose[i];
             }
+            if (small) transform.localScale = size;
             HoldWire();
             Needle(dt);
             SwingCue();
@@ -219,17 +228,20 @@ namespace OhmsLaw
             float leftArc = Travel(ref leftGoal, ref leftWant, ref leftTotal, Goal(-1, active), dt);
             lookGoal = Vector3.Lerp(lookGoal, P(active), Ease(2.5f, dt));
 
-            // Lean over the desk, with a slow breath.
+            // Lean over the desk, with a slow breath. A glance (Attend) straightens him a little and turns the head most of the
+            // way, so he visibly looks up from the work (a leaning body's 60 % head turn read as more writing).
+            float up = attentionWeight > 0f ? Mathf.Clamp01(attend / attentionWeight) : 0f;
+            float bend = lean * (1f - 0.35f * up);
             float breath = Mathf.Sin(clock * 1.4f) * 1.2f;
-            spine.Rotate(transform.right, lean * 0.5f + breath, Space.World);
-            chest.Rotate(transform.right, lean * 0.5f, Space.World);
+            spine.Rotate(transform.right, bend * 0.5f + breath, Space.World);
+            chest.Rotate(transform.right, bend * 0.5f, Space.World);
             // Head part-way to the work and a little toward the camera, so his face stays readable over the desk.
             if (!cam && Camera.main) cam = Camera.main.transform;
-            Look(Glance(cam ? Vector3.Lerp(lookGoal, cam.position, 0.25f) : lookGoal, dt), 0.6f, lean);
+            Look(Glance(cam ? Vector3.Lerp(lookGoal, cam.position, 0.25f) : lookGoal, dt), Mathf.Lerp(0.6f, 0.95f, up), bend);
 
-            // The targets are wrist positions; the writing hand scribbles small loops on the page. The arcs lift a hand that
-            // is changing props, the palms lie on the desk, and Hand() keeps every finger off its top.
-            Vector3 scribble = writing ? transform.right * (Mathf.Sin(clock * 9f) * 0.015f) + transform.forward * (Mathf.Sin(clock * 13f) * 0.008f) : Vector3.zero;
+            // The targets are wrist positions; the writing hand scribbles small loops on the page (and pauses while he looks
+            // up). The arcs lift a hand that is changing props, the palms lie on the desk, and Hand() keeps every finger off its top.
+            Vector3 scribble = (writing ? transform.right * (Mathf.Sin(clock * 9f) * 0.015f) + transform.forward * (Mathf.Sin(clock * 13f) * 0.008f) : Vector3.zero) * (1f - up);
             Vector3 elbowOut = -transform.forward * 0.3f - transform.up * 0.15f;
             Hand(1, rightGoal + Vector3.up * rightArc + (writeSide > 0 ? scribble : Vector3.zero), rightArm.position + transform.right * 0.35f + elbowOut, Vector3.down, writing && writeSide > 0 ? 0.6f : 0.35f, dt);
             Hand(-1, leftGoal + Vector3.up * leftArc + (writeSide < 0 ? scribble : Vector3.zero), leftArm.position - transform.right * 0.35f + elbowOut, Vector3.down, writing && writeSide < 0 ? 0.6f : 0.35f, dt);

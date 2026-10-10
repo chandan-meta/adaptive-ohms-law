@@ -20,8 +20,12 @@ namespace OhmsLaw
     //   UI_Dock             right, under the controls: cards only while a beat needs them (the turn, a clue, the steps,
     //                       readings, the counter, the schematic, the inset, the table and graph, formulas, the finale)
     //   the chapter banner, the pause menu and the title screen live in HudScreens.cs
+    //   v5 "Live Wire" surfaces, each centred in the free frame: UI_Hero (a reveal plate), UI_TopReadings (the live V / I
+    //                       strip at the top), UI_Stage (the table, graph and formula cards in front of the 3D view),
+    //                       UI_Popup3D (a card showing a RenderTexture the learner can turn), UI_VoltageStrip (the battery slider)
     // Sizes are 1920x1080 reference px; HudScale keeps the canvas from shrinking below 75 %. Colour means something:
-    // the chrome is ink and paper, Wattson's spark marks guidance and "done", blue / amber / red only ever mean V, I, R.
+    // the chrome is translucent navy glass with a cyan hairline, Wattson's spark marks guidance and "done", blue / amber /
+    // red only ever mean V, I, R.
     public class LessonPanel : MonoBehaviour
     {
         public static LessonPanel Instance { get; private set; }
@@ -34,10 +38,16 @@ namespace OhmsLaw
         // Type scale (v3 floor: nothing under 15 px at 1080p).
         public const float ControlFont = 16f, InstructionFont = 28f, HintFont = 20f, HeadingFont = 16f, CaptionFont = 32f, SpeakerFont = 15f;
         public const float InfoTitleFont = 24f, InfoFont = 21f, FormulaFont = 34f, RevealFont = 64f, RevealSubFont = 22f;
+        // ponytail: StageScale 1.1, not the brief's 1.2: the stage shows the dock-sized table and graph cards side by side
+        // (1153 px before scaling), and 1.2 would overrun the 1408 px free frame; bigger needs taller view holders on the stage.
+        public const float HeroFont = 120f, HeroSubFont = 26f, StageScale = 1.1f, Popup3DWidth = 980f, Popup3DView = 440f, VoltStripWidth = 720f, VoltStripBottom = 212f;
 
-        // Block order in the dock (top to bottom). Names are what callers ask Block() for.
-        public static readonly string[] Order = { "Instruction", "Info", "Volt", "Readings", "Counter", "Schematic", "Inset", "Table", "Graph", "Formula", "MCQ", "Spacer", "End" };
+        // Block order in the dock (top to bottom). Names are what callers ask Block() for. A question (MCQ) sits right
+        // under its turn card, above the data it asks about.
+        public static readonly string[] Order = { "Instruction", "Info", "Volt", "Readings", "Counter", "Schematic", "Inset", "MCQ", "Table", "Graph", "Formula", "Spacer", "End" };
         static readonly HashSet<string> Bare = new HashSet<string> { "Spacer" }; // draws no card
+        static readonly HashSet<string> Keep = new HashSet<string> { "Edge", "Plate", "Shine" }; // a card's own layers, kept by Clear()
+        static readonly HashSet<string> StageBlocks = new HashSet<string> { "Table", "Graph", "Formula" };
 
         public RectTransform Root { get; private set; }
         public RectTransform Dock { get; private set; }
@@ -57,10 +67,16 @@ namespace OhmsLaw
         public static readonly Color Muted = new Color32(0xA9, 0xB6, 0xCC, 0xFF);
         public static readonly Color Raised = new Color32(0x14, 0x1D, 0x30, 0xFF);
         public static readonly Color HoverFill = new Color32(0x1D, 0x29, 0x44, 0xFF);
-        // Opaque: the project renders in linear colour space, where UI alpha blends in linear light, so even 3 % of a white
-        // poster behind a card reads as ~20 % grey in the final image. Cards are solid; only the caption keeps a little air.
-        public static Color CardFill => Ink;
-        public static Color CardLine => new Color(1f, 1f, 1f, 0.10f);
+        // v5 glass: cards are translucent navy (Glass at GlassAlpha) with a 1 px cyan hairline and a soft top highlight.
+        // The project renders in linear colour space, where UI alpha blends in linear light (0.72 of navy over a white bench
+        // reads as a mid grey, and a tenth of a bright poster still ghosts through), so every card also carries an inset ink
+        // plate (PlateAlpha) under its content: 7 % of the scene reaches the text, paper text keeps ~8:1 and muted text
+        // ~4.5:1 over the lab's white bench and the THINK poster, while the 4 px glass rim still shows the scene. The bars
+        // (controls, chip, hint pill) have no plate: their glass is BarAlpha.
+        public static readonly Color Glass = new Color32(0x08, 0x1A, 0x2B, 0xFF);
+        public const float GlassAlpha = 0.72f, PlateAlpha = 0.75f, BarAlpha = 0.93f;
+        public static Color CardFill => UI.Alpha(Glass, GlassAlpha);
+        public static Color CardLine => UI.Alpha(Spark, 0.45f);
         public static Color ControlLine => new Color(1f, 1f, 1f, 0.38f);   // interactive borders: 3:1 on ink
         public static Color Spark => UI.Theme ? UI.Theme.wattsonAccent : new Color32(0xBF, 0xF6, 0xFF, 0xFF);
         public static Color AccentColor => Spark;   // guidance (was voltage blue: blue now only ever means V)
@@ -71,17 +87,20 @@ namespace OhmsLaw
 
         // Reference px the dock covers from the right edge (its width plus the margin) in a scene that reserves it.
         public float Cover => dockReserved > 0f || Wide ? shownWidth + Margin : 0f;
-        // Fraction of the actual screen the dock covers right now (PanelFraming reads it every frame). A scene that reserves
-        // the strip frames around the reserved width, not the eased one: a table or graph widening the dock overlaps a little
-        // more of the shot instead of sliding the whole picture (that broke the match-cuts between the bench chapters).
+        // What the 3D view is framed around. A scene that reserves the strip frames around the reserved width, not the eased
+        // one: a table or graph widening the dock overlaps a little more of the shot instead of sliding the whole picture
+        // (that broke the match-cuts between the bench chapters).
+        float FrameTarget => dockReserved > 0f ? dockReserved + Margin : Cover;
+        // Fraction of the actual screen the 3D view is framed around (PanelFraming reads it every frame). After a match-cut
+        // into a chapter that reserves another strip (8 -> 9: none -> the dock) it eases over ~0.5 s instead of jumping the
+        // picture sideways; behind a white fade, or with reduced motion, it is there at once.
         public float ScreenShare
         {
             get
             {
                 var canvas = GetComponentInParent<Canvas>();
                 float scale = canvas ? canvas.scaleFactor : 1f;
-                float cover = dockReserved > 0f ? dockReserved + Margin : Cover;
-                return Screen.width > 0 ? Mathf.Clamp01(cover * scale / Screen.width) : 0f;
+                return Screen.width > 0 ? Mathf.Clamp01(framed * scale / Screen.width) : 0f;
             }
         }
         // A cinematic chapter (no dock reserved): the controls fold to icons when idle.
@@ -91,13 +110,18 @@ namespace OhmsLaw
         readonly List<GameObject> controlWords = new List<GameObject>();
         readonly HashSet<string> aside = new HashSet<string>();
         RectTransform instruction, info, formula, popup, catcher, pulseRing, hintPill, badge;
+        RectTransform hero, heroGlow, topStrip, stage, stageRow, popup3D, voltStrip;
+        TextMeshProUGUI heroBig, heroSmall, popupTitle, popupCaption;
+        RawImage popupView;
+        CurrentEdge turnCurrent;
+        float heroT = 9f;
         TextMeshProUGUI instructionText, turnEyebrow, turnHint, infoEyebrow, infoTitle, infoBody, askLabel, pauseLabel, ccLabel, hintText;
         Image pauseIcon, ring, glow, avatarDisc, barFill, badgeFill, badgeIcon, turnEdge;
         HudButton pauseButton, replayButton, ccButton, volumeButton, skipButton, askHud;
         CardHeight turnHeight;
         GameObject[] barOnlyInGame;
         Image[] dots;
-        float width = NormalWidth, shownWidth = NormalWidth, dockReserved, pulseT, doneUntil, hintUntil, lastInput, fittedWidth;
+        float width = NormalWidth, shownWidth = NormalWidth, dockReserved, framed, pulseT, doneUntil, hintUntil, lastInput, fittedWidth;
         string instructionShown = "", turnKey = "", infoKey = "", attention;
         bool folded, stepDone, holding, turnLaidOut, captionsShown = true;
         int fittedLines = -1;
@@ -135,13 +159,26 @@ namespace OhmsLaw
             BuildHint();
         }
 
-        // A rounded card: ink at 94 % with a hairline edge. `alpha` overrides the ink's opacity (captions 0.8).
+        // A rounded glass card (v5): translucent navy, an inset ink plate behind the content, a soft top highlight and a
+        // 1 px cyan hairline. `alpha` overrides the glass's opacity (1 = solid).
         public static void Card(RectTransform rect, float alpha = -1f, float corner = Corner)
         {
-            UI.Panel(rect, alpha < 0 ? CardFill : UI.Alpha(Ink, alpha), true, corner).raycastTarget = true;
+            UI.Panel(rect, alpha < 0 ? CardFill : UI.Alpha(Glass, alpha), true, corner).raycastTarget = true;
+            var plate = UI.Stretch("Plate", rect);
+            plate.offsetMin = new Vector2(4f, 4f);
+            plate.offsetMax = new Vector2(-4f, -4f);
+            plate.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+            UI.Panel(plate, UI.Alpha(Ink, PlateAlpha), true, Mathf.Max(4f, corner - 4f)).raycastTarget = false;
+            var shine = UI.Rect("Shine", rect, new Vector2(0, 1), new Vector2(0.5f, 1), new Vector2(0, -1f), new Vector2(-2f * corner, 26f));
+            shine.anchorMax = new Vector2(1, 1);
+            shine.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+            var gloss = shine.gameObject.AddComponent<Image>();
+            gloss.sprite = Vignettes.Shine;
+            gloss.color = Color.white;
+            gloss.raycastTarget = false;
             var edge = UI.Stretch("Edge", rect);
             edge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-            UI.Outline(edge, CardLine, corner, 1.5f);
+            UI.Outline(edge, CardLine, corner, 1f);
         }
 
         void BuildDock()
@@ -191,16 +228,7 @@ namespace OhmsLaw
         {
             if (blocks.TryGetValue(name, out var block) && block) return block;
             block = UI.Rect(name, Column, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
-            int order = System.Array.IndexOf(Order, name);
-            int index = 0;
-            for (int i = 0; i < Column.childCount; i++)
-            {
-                var sibling = Column.GetChild(i);
-                if (sibling == block) continue;
-                int siblingOrder = System.Array.IndexOf(Order, sibling.name);
-                if (siblingOrder < 0 || siblingOrder < order) index = i + 1;
-            }
-            block.SetSiblingIndex(index);
+            Place(block);
             var layout = block.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
@@ -214,6 +242,22 @@ namespace OhmsLaw
             block.gameObject.SetActive(false);
             blocks[name] = block;
             return block;
+        }
+
+        // Puts a block in the column at its place in Order (a block comes back from the stage or the top strip this way).
+        void Place(RectTransform block)
+        {
+            if (block.parent != Column) block.SetParent(Column, false);
+            int order = System.Array.IndexOf(Order, block.name);
+            int index = 0;
+            for (int i = 0; i < Column.childCount; i++)
+            {
+                var sibling = Column.GetChild(i);
+                if (sibling == block) continue;
+                int siblingOrder = System.Array.IndexOf(Order, sibling.name);
+                if (siblingOrder < 0 || siblingOrder < order) index = i + 1;
+            }
+            block.SetSiblingIndex(index);
         }
 
         public void Show(string name, bool on)
@@ -257,7 +301,9 @@ namespace OhmsLaw
             if (hud && hud.TryGetComponent(out Button button) && button.interactable) button.onClick.Invoke();
         }
 
-        public bool Showing(string name) => blocks.TryGetValue(name, out var block) && block && block.gameObject.activeSelf;
+        // "Volt" is the battery strip (v5): shown while VoltageButtons has built its slider there.
+        public bool Showing(string name) => name == "Volt" ? voltStrip && voltStrip.gameObject.activeSelf
+            : blocks.TryGetValue(name, out var block) && block && block.gameObject.activeSelf;
 
         // Empties the block and returns a new child root for a view to build in (its own layout and padding), so the
         // next Clear() takes the whole view away. The card itself is the block's.
@@ -276,18 +322,23 @@ namespace OhmsLaw
             return home;
         }
 
-        // Everything inside a block goes (the block itself and its card stay for the next use).
+        // Everything inside a block goes (the block itself and its card stay for the next use). "Volt" empties the battery strip.
         public void Clear(string name)
         {
-            var block = Block(name);
-            for (int i = block.childCount - 1; i >= 0; i--)
+            if (name == "Volt" && voltStrip) { Empty(voltStrip); voltStrip.gameObject.SetActive(false); }
+            Empty(Block(name));
+            Show(name, false);
+        }
+
+        static void Empty(RectTransform card)
+        {
+            for (int i = card.childCount - 1; i >= 0; i--)
             {
-                var child = block.GetChild(i).gameObject;
-                if (child.name == "Edge") continue;
+                var child = card.GetChild(i).gameObject;
+                if (Keep.Contains(child.name)) continue;
                 child.SetActive(false);
                 Destroy(child);
             }
-            Show(name, false);
         }
 
         // Width a view may use inside a card at the dock's normal or wide width.
@@ -381,7 +432,7 @@ namespace OhmsLaw
         void BuildControls()
         {
             Controls = UI.Rect("UI_TopControls", Root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-Margin, -TopInset), new Vector2(0, ControlHeight));
-            barFill = UI.Panel(Controls, Ink, true, ControlHeight / 2f);
+            barFill = UI.Panel(Controls, UI.Alpha(Glass, BarAlpha), true, ControlHeight / 2f);
             barFill.raycastTarget = true;
             var edge = UI.Stretch("Edge", Controls);
             edge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
@@ -398,7 +449,7 @@ namespace OhmsLaw
             var s1 = Rule(Controls);
             replayButton = Control(Controls, "Replay", "replay", "REPLAY", ReplayLine, out _, out _);
             var s2 = Rule(Controls);
-            ccButton = Control(Controls, "CC", null, "CC", () => SubtitleUI.Enabled = !SubtitleUI.Enabled, out ccLabel, out _);
+            ccButton = Control(Controls, "CC", null, "CAPTIONS", () => SubtitleUI.Enabled = !SubtitleUI.Enabled, out ccLabel, out _);
             Rule(Controls);
             volumeButton = Control(Controls, "Volume", "volume", "VOLUME", TogglePopup, out _, out _);
             var s4 = Rule(Controls);
@@ -522,7 +573,7 @@ namespace OhmsLaw
         void BuildHint()
         {
             hintPill = UI.Rect("UI_Hint", Root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-Margin, -(TopInset + ControlHeight + 10f)), new Vector2(0, 40));
-            UI.Panel(hintPill, UI.Alpha(Ink, 0.94f), true, 20f).raycastTarget = false;
+            UI.Panel(hintPill, UI.Alpha(Glass, BarAlpha), true, 20f).raycastTarget = false;
             var edge = UI.Stretch("Edge", hintPill);
             edge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
             UI.Outline(edge, UI.Alpha(Spark, 0.5f), 20f, 1.5f);
@@ -568,7 +619,7 @@ namespace OhmsLaw
             stack.childForceExpandWidth = true;
             stack.childForceExpandHeight = false;
             popup.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            Card(popup, 1f, 18f);
+            Card(popup, -1f, 18f);
             foreach (var (name, kind) in new[] { ("Wattson", AudioBus.Kind.Voice), ("Effects", AudioBus.Kind.Sfx), ("Music", AudioBus.Kind.Music) })
                 VolumeRow(popup, name, kind);
             SwitchRow.Create(popup, "Reduce motion", () => ReducedMotion.On, on => ReducedMotion.On = on);   // the pause menu's switch
@@ -629,7 +680,7 @@ namespace OhmsLaw
             // Bottom-left anchor, centre-bottom pivot: SubtitleUI moves it to the centre of the free frame and sizes it to
             // the line (pivot set first: changing it afterwards keeps anchoredPosition and shifts the bar).
             Caption = UI.Rect("UI_SubtitlePanel", Root, Vector2.zero, new Vector2(0.5f, 0), new Vector2(960, BottomInset), new Vector2(400, 100));
-            Card(Caption, 0.94f);
+            Card(Caption);
         }
 
         void BuildAsk()
@@ -679,6 +730,16 @@ namespace OhmsLaw
                 dots[i].color = Color.clear;
                 dots[i].raycastTarget = false;
             }
+            // v5: a bolt badge at the ring's top-right, the electric motif.
+            var boltBadge = UI.Rect("Bolt", buttonRect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(AvatarSize * 0.36f, AvatarSize * 0.36f), new Vector2(26, 26));
+            var boltDisc = boltBadge.gameObject.AddComponent<Image>();
+            boltDisc.sprite = UI.Circle();
+            boltDisc.color = Spark;
+            boltDisc.raycastTarget = false;
+            var boltIcon = UI.Rect("Icon", boltBadge, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(16, 16)).gameObject.AddComponent<Image>();
+            boltIcon.sprite = Icons.Get("bolt");
+            boltIcon.color = Ink;
+            boltIcon.raycastTarget = false;
             var labelRect = UI.Rect("Label", AskRoot, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 0), new Vector2(160, 40));
             askLabel = UI.Label(labelRect, "ASK\nWATTSON", 15f, Paper, TextAlignmentOptions.Top);
             askLabel.fontStyle = FontStyles.Bold;
@@ -714,6 +775,7 @@ namespace OhmsLaw
             instruction = Block("Instruction");
             turnHeight = instruction.GetComponent<CardHeight>();
             turnEdge = instruction.Find("Edge").GetComponent<Image>();
+            turnCurrent = CurrentEdge.Add(instruction, Corner);   // v5: the current marching along the active turn card
             var row = Row("Turn", instruction, 16f);
             badge = UI.Rect("Badge", row, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(60, 60));
             var element = badge.gameObject.AddComponent<LayoutElement>();
@@ -736,9 +798,10 @@ namespace OhmsLaw
         {
             stepDone = done;
             badgeFill.color = done ? Spark : listening ? new Color(1f, 1f, 1f, 0.08f) : UI.Alpha(Spark, 0.14f);
-            badgeIcon.sprite = Icons.Get(done ? "check" : listening ? "volume" : "target");
+            badgeIcon.sprite = Icons.Get(done ? "check" : listening ? "volume" : "bolt");
             badgeIcon.color = done ? Ink : listening ? Muted : Spark;
             turnEdge.color = done || listening ? CardLine : UI.Alpha(Spark, 0.55f);
+            turnCurrent.enabled = !done && !listening;
             turnEyebrow.color = listening ? Muted : Spark;
         }
 
@@ -1037,10 +1100,11 @@ namespace OhmsLaw
         GraphUI graph;
         // A crowded column shrinks the views, down to MinViewShare of their size; below YieldShare their text would fall
         // under the 15 px floor, so the cards in Yielders step aside first (in that order), as they do when the cards
-        // alone would run past the dock: the live readings (the meters say the same), then the formula card. They come
-        // back when there is room.
+        // alone would run past the dock: the live readings (the meters say the same), then the formula card, then the
+        // graph (the table holds the same numbers: a quick check under the data needs the room). They come back when
+        // there is room.
         public const float TableScale = 0.49f, GraphScale = 0.48f, MinViewShare = 0.6f, YieldShare = 0.7f;
-        static readonly string[] Yielders = { "Readings", "Formula" };
+        static readonly string[] Yielders = { "Readings", "Formula", "Graph" };
         public bool HasViews => table || graph;
         public bool SteppedAside(string name) => aside.Contains(name);
 
@@ -1083,11 +1147,259 @@ namespace OhmsLaw
             return rect;
         }
 
+        // ------------------------------------------------------------------ v5 surfaces: hero, top readings, stage, 3D pop-up, battery strip
+
+        public bool ReadingsOnTop { get; private set; }
+        public bool Staged { get; private set; }
+        public bool Popup3DOpen => popup3D && popup3D.gameObject.activeSelf;
+        // The 3D pop-up forwards pointer drags over its view here (area C turns the sample with them).
+        public System.Action<Vector2> Popup3DDrag;
+
+        // A block that is in the dock column where Crowd and the readings rule expect it (not moved to the stage or the top).
+        public bool InDock(string name) => Showing(name) && !(Staged && StageBlocks.Contains(name)) && !(ReadingsOnTop && name == "Readings");
+        // The top readings strip is on screen with its values (the chapter chip folds to its number beside it).
+        public bool TopStripShown => topStrip && topStrip.gameObject.activeSelf && topStrip.rect.width > 1f;
+
+        // A surface centred in the part of the frame the dock leaves free (Follow places it every frame): a column that
+        // sizes itself to its content, over the dock and under the captions, the controls and the menus.
+        RectTransform Surface(string name, float width, float pivotY, bool fitWidth = false, bool card = true, float glass = -1f)
+        {
+            var rect = UI.Rect(name, Root, Vector2.zero, new Vector2(0.5f, pivotY), Vector2.zero, new Vector2(width, 0));
+            rect.SetSiblingIndex(Dock.GetSiblingIndex() + 1);
+            var stack = rect.gameObject.AddComponent<VerticalLayoutGroup>();
+            stack.padding = card ? new RectOffset((int)Pad, (int)Pad, 18, 18) : new RectOffset();
+            stack.spacing = Gap;
+            stack.childAlignment = TextAnchor.UpperCenter;
+            stack.childControlWidth = stack.childControlHeight = true;
+            stack.childForceExpandWidth = true;
+            stack.childForceExpandHeight = false;
+            var fit = rect.gameObject.AddComponent<ContentSizeFitter>();
+            fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            if (fitWidth) fit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            if (card) Card(rect, glass);
+            rect.gameObject.SetActive(false);
+            return rect;
+        }
+
+        // "hero <big>|<small>": a centre-screen reveal plate: `big` at 120 px (V, I, R, Ω in their colours), `small` under it,
+        // glass with a cyan frame and a bolt, popping in with a spark pulse; stays until HeroClear or the next scene. Never
+        // takes input. Nearly solid glass: the bench's bright meter readouts behind the big glyphs never mix with them.
+        public void Hero(string big, string small)
+        {
+            if (!hero)
+            {
+                hero = Surface("UI_Hero", 0f, 0.5f, fitWidth: true, glass: 0.95f);
+                hero.GetComponent<VerticalLayoutGroup>().padding = new RectOffset(60, 60, 30, 34);
+                // The arrival: a spark ring leaves the plate's edge and fades (Follow), a pulse instead of a flat disc.
+                heroGlow = UI.Rect("Glow", hero, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+                heroGlow.SetAsFirstSibling();
+                heroGlow.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+                UI.Outline(heroGlow, Color.clear, Corner + 8f, 3f);
+                var frame = UI.Stretch("Frame", hero);
+                frame.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+                UI.Outline(frame, UI.Alpha(Spark, 0.8f), Corner, 2f);
+                var boltBadge = UI.Rect("Bolt", hero, new Vector2(0, 1), new Vector2(0.5f, 0.5f), new Vector2(22, -22), new Vector2(40, 40));
+                boltBadge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+                var disc = boltBadge.gameObject.AddComponent<Image>();
+                disc.sprite = UI.Circle();
+                disc.color = Spark;
+                var bolt = UI.Rect("Icon", boltBadge, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(24, 24)).gameObject.AddComponent<Image>();
+                bolt.sprite = Icons.Get("bolt");
+                bolt.color = Ink;
+                heroBig = Text(hero, "", HeroFont, Paper, TextAlignmentOptions.Center);
+                heroBig.characterSpacing = 4f;
+                heroBig.textWrappingMode = TextWrappingModes.NoWrap;
+                heroSmall = Text(hero, "", HeroSubFont, Body, TextAlignmentOptions.Center, false);
+                heroSmall.textWrappingMode = TextWrappingModes.NoWrap;
+                foreach (var graphic in hero.GetComponentsInChildren<Graphic>(true)) graphic.raycastTarget = false;
+            }
+            heroBig.text = Symbols(big ?? "");
+            heroSmall.text = Symbols(small ?? "");
+            heroSmall.gameObject.SetActive(!string.IsNullOrEmpty(small));
+            hero.gameObject.SetActive(true);
+            heroT = 0f;
+            Pop(hero);
+            FadeIn(hero);
+        }
+
+        public void HeroClear() { if (hero) hero.gameObject.SetActive(false); }
+
+        // "readings.top 1|0": the Readings block moves to a strip at the top-centre of the free frame (LiveReadingsPanel
+        // builds larger there) and back to the dock; while it is on top the dock's column leaves it alone.
+        public void TopReadings(bool on)
+        {
+            if (ReadingsOnTop == on) return;
+            ReadingsOnTop = on;
+            var block = Block("Readings");
+            if (on)
+            {
+                if (!topStrip) topStrip = Surface("UI_TopReadings", 0f, 1f, fitWidth: true, card: false);
+                topStrip.gameObject.SetActive(true);
+                block.SetParent(topStrip, false);
+            }
+            else
+            {
+                if (topStrip) topStrip.gameObject.SetActive(false);
+                Place(block);
+            }
+        }
+
+        // "stage 1|0": the Table, Graph and Formula blocks move to one wide glass plate in the centre of the free frame
+        // (Table left, Graph right, Formula under, the plate at StageScale) and back to the dock. The turn card and the
+        // clue stay in the dock; the dock's reservation is untouched, so the camera never jumps.
+        public void Stage(bool on)
+        {
+            if (Staged == on) return;
+            Staged = on;
+            if (on)
+            {
+                if (!stage)
+                {
+                    stage = Surface("UI_Stage", 0f, 0.5f, fitWidth: true);
+                    stage.localScale = Vector3.one * StageScale;
+                    stageRow = Row("Views", stage, Gap, TextAnchor.UpperCenter);
+                }
+                stage.gameObject.SetActive(true);
+                Block("Table").SetParent(stageRow, false);
+                Block("Graph").SetParent(stageRow, false);
+                Block("Formula").SetParent(stage, false);
+                Width(Block("Table"), ObservationTableUI.Canvas.x * TableScale + 2f * Pad);
+                Width(Block("Graph"), GraphUI.Canvas.x * GraphScale + 2f * Pad);
+                FadeIn(stage);   // no Pop: the plate keeps its StageScale
+            }
+            else
+            {
+                if (stage) stage.gameObject.SetActive(false);
+                Width(Block("Table"), -1f);
+                Width(Block("Graph"), -1f);
+                Place(Block("Table"));
+                Place(Block("Graph"));
+                Place(Block("Formula"));
+            }
+            fittedLines = -1;   // the formula lines refit to their new width
+        }
+
+        static void Width(RectTransform block, float width)
+        {
+            if (!block.TryGetComponent(out LayoutElement element)) element = block.gameObject.AddComponent<LayoutElement>();
+            element.preferredWidth = element.minWidth = width;
+        }
+
+        // A centre card (~980 x 560) showing a RenderTexture with a title row and a caption; a drag over the view goes to
+        // Popup3DDrag. The view keeps the texture's aspect (it crops the top and bottom of a wider render).
+        public void Popup3D(RenderTexture rt, string title, string caption)
+        {
+            if (!popup3D)
+            {
+                popup3D = Surface("UI_Popup3D", Popup3DWidth, 0.5f);
+                var head = Row("Head", popup3D, 12f);
+                Fixed(head, 48f);
+                Icon(head, "bolt", 22f, Spark);
+                popupTitle = Text(head, "", InfoTitleFont, Paper, TextAlignmentOptions.MidlineLeft);
+                popupTitle.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+                Pill("Close", head, "Close", Popup3DClose, Kind.Secondary, "x", 48f, 17f);
+                var view = UI.Rect("View", popup3D, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(0, Popup3DView));
+                Fixed(view, Popup3DView);
+                popupView = view.gameObject.AddComponent<RawImage>();
+                popupView.raycastTarget = true;
+                var drag = view.gameObject.AddComponent<EventTrigger>();
+                var entry = new EventTrigger.Entry { eventID = EventTriggerType.Drag };
+                entry.callback.AddListener(data => Popup3DDrag?.Invoke(((PointerEventData)data).delta));
+                drag.triggers.Add(entry);
+                popupCaption = Text(popup3D, "", 19f, Muted, TextAlignmentOptions.Center, false);
+            }
+            popupView.texture = rt;
+            float viewAspect = (Popup3DWidth - 2f * Pad) / Popup3DView, texAspect = rt ? (float)rt.width / rt.height : viewAspect;
+            float kx = Mathf.Min(1f, viewAspect / texAspect), ky = Mathf.Min(1f, texAspect / viewAspect);
+            popupView.uvRect = new Rect((1f - kx) / 2f, (1f - ky) / 2f, kx, ky);
+            popupTitle.text = title ?? "";
+            popupCaption.text = caption ?? "";
+            popupCaption.gameObject.SetActive(!string.IsNullOrEmpty(caption));
+            popup3D.gameObject.SetActive(true);
+            popup3D.SetAsLastSibling();
+            UiSounds.Play("open");
+            Pop(popup3D);
+            FadeIn(popup3D);
+        }
+
+        public void Popup3DClose()
+        {
+            if (!Popup3DOpen) return;
+            popup3D.gameObject.SetActive(false);
+            popupView.texture = null;
+            UiSounds.Play("close");
+        }
+
+        // The battery strip: VoltageButtons builds its slider in the root this returns (bottom-centre of the free frame,
+        // above the captions). Clear("Volt") empties it and hides the strip; Showing("Volt") reads it.
+        public RectTransform VoltStrip()
+        {
+            if (!voltStrip) voltStrip = Surface("UI_VoltageStrip", VoltStripWidth, 0f);
+            Empty(voltStrip);
+            var home = UI.Rect("Root", voltStrip, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
+            var layout = home.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.spacing = 6f;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            voltStrip.gameObject.SetActive(true);
+            Pop(voltStrip);
+            FadeIn(voltStrip);
+            return home;
+        }
+
+        // The centred surfaces follow the free frame (the dock's width eases), and the hero's ring pulses out on arrival.
+        // The readings strip rides the top row, centred but never left of the chapter chip (which folds to its number while
+        // the strip shows); the hero, the stage and the pop-up share the band under that row (and under the strip) and
+        // over the dock's bottom edge.
+        void Follow()
+        {
+            float free = Root.rect.width - Cover, height = Root.rect.height, stripTop = height - TopInset;
+            if (topStrip && topStrip.gameObject.activeSelf)
+            {
+                // Between the chip and the controls; a row lower, centred, where they leave too little room (4:3 screens).
+                float w = topStrip.rect.width, x = Mathf.Max(free / 2f, ChapterBanner.ChipRight + Gap + w / 2f);
+                if (x + w / 2f > Root.rect.width - Margin - Controls.rect.width - Gap) { x = free / 2f; stripTop = height - DockTop; }
+                topStrip.anchoredPosition = new Vector2(x, stripTop);
+            }
+            float top = TopStripShown ? stripTop - topStrip.rect.height - Gap : height - DockTop, midY = (DockBottom + top) / 2f;
+            if (hero && hero.gameObject.activeSelf)
+            {
+                hero.anchoredPosition = new Vector2(free / 2f, midY + 40f);
+                heroT += Time.unscaledDeltaTime;
+                float k = ReducedMotion.On ? 0f : 1f - Mathf.Clamp01(heroT / 0.9f);
+                heroGlow.GetComponent<Image>().color = UI.Alpha(Spark, 0.8f * k);
+                heroGlow.sizeDelta = hero.rect.size + Vector2.one * (16f + 110f * (1f - k * k));
+            }
+            if (stage && stage.gameObject.activeSelf)
+            {
+                float fit = StageFit(top, DockBottom, stage.rect.height, out float y);
+                stage.localScale = Vector3.one * Mathf.Min(fit, (free - 2f * Margin) / Mathf.Max(1f, stage.rect.width)); // and never wider than the free frame (4:3 screens)
+                stage.anchoredPosition = new Vector2(free / 2f, y);
+            }
+            if (popup3D && popup3D.gameObject.activeSelf) popup3D.anchoredPosition = new Vector2(free / 2f, midY);
+            if (voltStrip && voltStrip.gameObject.activeSelf) voltStrip.anchoredPosition = new Vector2(free / 2f, VoltStripBottom);
+        }
+
+        // The data stage in a band (reference px, y up; `height` its unscaled layout height): StageScale, or smaller when
+        // the band is shorter, and low in the band (80 px under its middle), so Wattson's top-left spot stays clear.
+        public static float StageFit(float top, float bottom, float height, out float y)
+        {
+            float scale = StageScale * Mathf.Min(1f, (top - bottom) / Mathf.Max(1f, height * StageScale)), half = height * scale / 2f;
+            y = Mathf.Clamp((top + bottom) / 2f - 80f, bottom + half, Mathf.Max(bottom + half, top - half));
+            return scale;
+        }
+
         // A new scene: every card empties (the scene's cues rebuild what it needs), the dock narrows, and it reserves a
         // strip of the frame only when the scene asks for one (activity screens; 0 keeps the cinematic full-frame).
         public void ResetForScene(string sceneTitle, float dockWidth = 0f)
         {
             SetTitle(sceneTitle);
+            HeroClear();
+            Popup3DClose();
+            Popup3DDrag = null;
+            TopReadings(false);
+            Stage(false);
             foreach (var name in Order) if (name != "Spacer" && name != "Instruction" && name != "Info" && name != "Formula" && name != "End") Clear(name);
             table = null;
             graph = null;
@@ -1101,6 +1413,7 @@ namespace OhmsLaw
             Expand(false);
             attention = null;
             dockReserved = dockWidth;
+            if (!ModuleFlow.Instance || ModuleFlow.Instance.Covered) framed = FrameTarget;   // behind the white: no slide
             ShowPopup(false);
             lastInput = Time.unscaledTime;
         }
@@ -1173,7 +1486,7 @@ namespace OhmsLaw
             {
                 folded = idle;
                 foreach (var word in controlWords) word.SetActive(!idle);
-                barFill.color = UI.Alpha(Ink, idle ? 0.9f : 1f);
+                barFill.color = UI.Alpha(Glass, idle ? 0.78f : BarAlpha);
             }
 
             // The turn card's confirmation leaves after its moment (see Settle: not while an activity's controls sit under
@@ -1195,6 +1508,9 @@ namespace OhmsLaw
             float target = width;
             shownWidth = ReducedMotion.On ? target : Mathf.Lerp(shownWidth, target, 1 - Mathf.Exp(-10f * Time.unscaledDeltaTime));
             if (Mathf.Abs(shownWidth - target) < 0.5f) shownWidth = target;
+            float frame = FrameTarget;
+            framed = ReducedMotion.On ? frame : Mathf.Lerp(framed, frame, 1 - Mathf.Exp(-8f * Time.unscaledDeltaTime));
+            if (Mathf.Abs(framed - frame) < 0.5f) framed = frame;
             if (!Mathf.Approximately(Dock.offsetMin.x, -Margin - shownWidth))
             {
                 Dock.offsetMin = new Vector2(-Margin - shownWidth, DockBottom);
@@ -1209,6 +1525,7 @@ namespace OhmsLaw
         {
             FitFormula();
             Crowd();
+            Follow();
         }
 
         // Which Yielders step aside this frame, from the cards' preferred heights (not from the last layout, so the
@@ -1216,7 +1533,7 @@ namespace OhmsLaw
         void Crowd()
         {
             aside.Clear();
-            float views = (table && Showing("Table") ? ObservationTableUI.Canvas.y * TableScale : 0f) + (graph && Showing("Graph") ? GraphUI.Canvas.y * GraphScale : 0f);
+            float views = (table && InDock("Table") ? ObservationTableUI.Canvas.y * TableScale : 0f) + (graph && InDock("Graph") ? GraphUI.Canvas.y * GraphScale : 0f);
             float need = -Gap;
             for (int i = 0; i < Column.childCount; i++)
             {
@@ -1226,22 +1543,28 @@ namespace OhmsLaw
             foreach (var name in Yielders)
             {
                 if (need - views * (1f - YieldShare) <= Column.rect.height) break;
-                if (!Showing(name) || OwnWay(Block(name))) continue;
+                if (!InDock(name) || OwnWay(Block(name))) continue;
                 need -= LayoutUtility.GetPreferredHeight(Block(name)) + Gap;
+                if (name == "Graph" && graph) views -= GraphUI.Canvas.y * GraphScale;
                 aside.Add(name);
             }
-            // The readings card steps aside by itself (LiveReadingsPanel); the formula card here.
-            var lines = Block("Formula");
-            bool away = aside.Contains("Formula");
-            if (!lines.TryGetComponent(out LayoutElement element)) element = lines.gameObject.AddComponent<LayoutElement>();
-            if (!lines.TryGetComponent(out CanvasGroup group)) group = lines.gameObject.AddComponent<CanvasGroup>();
+            // The readings card steps aside by itself (LiveReadingsPanel); the formula and graph cards here.
+            StepAside(Block("Formula"), aside.Contains("Formula"));
+            StepAside(Block("Graph"), aside.Contains("Graph"));
+        }
+
+        // Out of the column's layout and out of sight (it keeps its state), or back.
+        static void StepAside(RectTransform card, bool away)
+        {
+            if (!card.TryGetComponent(out LayoutElement element)) element = card.gameObject.AddComponent<LayoutElement>();
+            if (!card.TryGetComponent(out CanvasGroup group)) group = card.gameObject.AddComponent<CanvasGroup>();
             if (element.ignoreLayout != away) { element.ignoreLayout = away; group.alpha = 1f; group.blocksRaycasts = !away; }
             if (away && group.alpha > 0f) group.alpha = 0f;
         }
 
         // The readings card is out of the column for its own reasons while the data table is up or the meters' plates
         // are hidden (LiveReadingsPanel).
-        bool OwnWay(RectTransform block) => block.name == "Readings" && (Showing("Table") || !(CircuitRig.Active && CircuitRig.Active.readoutsShown));
+        bool OwnWay(RectTransform block) => block.name == "Readings" && (InDock("Table") || !(CircuitRig.Active && CircuitRig.Active.readoutsShown));
 
         // The avatar's states: idle (spark ring, a slow breath while he can be asked), listening (an expanding ring),
         // thinking (three dots), speaking (the ring pulsing), offline or error (a muted ring). Minimal under reduced motion.

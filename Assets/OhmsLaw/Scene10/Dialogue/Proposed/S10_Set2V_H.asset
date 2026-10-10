@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
   id: S10_Set2V_H
   speaker: WATTSON
-  text: Tap the 2 V button.
-  ttsText: Tap the 2 V button.
+  text: Slide the battery to 2 volts.
+  ttsText: Slide the battery to 2 volts.
   vo: {fileID: 8300000, guid: 8d33f518ce7458447ac28de3c13321e5, type: 3}
-  fallbackDuration: 1.8
+  fallbackDuration: 2

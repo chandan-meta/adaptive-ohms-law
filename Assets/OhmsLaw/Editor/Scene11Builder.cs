@@ -2,9 +2,10 @@ using UnityEngine;
 
 namespace OhmsLaw.Editor
 {
-    // Scene 11: the discovery. The five points on the panel's graph are joined by a line that sweeps out from the
-    // origin, the two highlighted readings show the doubling, V ∝ I is revealed in the panel with a musical rise and
-    // Wattson's reaction. No challenge interrupts it: the learner sees why the relationship is true in their own data.
+    // Scene 11: the discovery. The five points on the dock's graph are joined by a line that sweeps out from the
+    // origin; the table and graph come to the centre of the screen (the data stage) while the doubling is read off them;
+    // V ∝ I is revealed centre screen with a musical rise and Wattson's reaction. No challenge interrupts it: the learner
+    // sees why the relationship is true in their own data.
     public class Scene11Builder : SceneBuilderBase
     {
         public override string SceneId => "Scene11";
@@ -38,20 +39,20 @@ namespace OhmsLaw.Editor
             director.matchCutFrom = "Scene10_Experiment";
             director.rig = Rig(assembled: true, keyClosed: true, voltage: 5);
             director.rig.showPath = false;
+            MeterPlates(false); // as Scene 10 left them: the readings strip carries the numbers, nothing reads through the glass
             Vcam("Bench Study", Scene10Builder.StudyCamC, Scene10Builder.StudyLookC, Scene10Builder.StudyFov, refs["Bench Point"].transform, lensMedium);
         }
 
         protected override void Beats()
         {
-            // Match-cut from Scene 10: the same data in the panel (the cues rebuild it), rows 1-2 still highlighted.
+            // Match-cut from Scene 10: the same data in the dock (the cues rebuild it), rows 1-2 still highlighted.
             Shot("Bench Study");
             Ambience("RoomTone");
             Music("PadLab");
             Cue("table.rows 5");
             Cue("table.highlight 0 1");
-            Cue("readings 1");
+            Cue("readings.top 1");
             Cue("graph.axes 1"); Cue("graph.plot 5");
-            Formula("V × 2   →   I × 2");
             Gesture(WattsonController.Gesture.Point, point: "Panel Point");
             Wait(0.4);
             Gate("S11_DrawLine", "the learner taps the graph: the line sweeps out through the five points");
@@ -62,19 +63,23 @@ namespace OhmsLaw.Editor
             Gesture(WattsonController.Gesture.Greet);
             Line("S11_L01");
 
-            Gesture(WattsonController.Gesture.Point, point: "Panel Point");
+            // The data stage: table and graph come to the centre of the screen while the doubling is read off them.
+            Cue("stage 1", "data stage: the table and the graph move to the centre, in front of the bench");
+            Gesture(WattsonController.Gesture.Talking);
             Cue("graph.highlight 0 1", "points (0.20, 1.0) and (0.40, 2.0) highlight");
             Cue("table.highlight 0 1");
             Line("S11_N01");
             Cue("graph.pulse");
             Cue("graph.clear");
             Cue("table.clear");
-            Cue("panel Table 0", "the table steps aside: the graph and the law fill the panel");
+            // The table and the graph stay in front through the formal statement and hand over to the plate on its last words.
             Line("S11_L04", 0.2);
-            Reveal("V ∝ I", "directly proportional, for this wire at constant temperature", -3.0);
+            Cue("stage 0", "the data returns to the dock", -3.4);
+            Cue("panel Table 0", "the table steps aside: the graph stays in the dock", -3.3);
+            Cue("hero V ∝ I|directly proportional, for this wire at constant temperature", "centre-screen reveal; stays through the handoff", -3.0);
             Sfx("Rise", -3.0);
-            Visual("V ∝ I glows in the panel", 1.0);
-            Gesture(WattsonController.Gesture.Thinking);
+            Visual("V ∝ I glows centre screen", 1.0);
+            Gesture(WattsonController.Gesture.Point, point: "Panel Point"); // not Thinking: its spinning gadget blooms to a white swirl
             Line("S11_L05", 0.2);
             Cue("handoff", "the data stays for Scene 12");
             Handoff("Scene11Complete", cut: true, afterSeconds: 0.3);

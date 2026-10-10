@@ -476,6 +476,7 @@ namespace OhmsLaw.Editor
             s.ohm = ohm.GetComponent<OhmWorker>();
             if (!s.ohm) s.ohm = ohm.AddComponent<OhmWorker>();
             s.ohm.deskTop = DeskY;
+            s.ohm.naturalPerformance = true; // breathing and slow head / torso variation (OhmWorker); the glance at Wattson is a Timeline signal
             if (!ohmVariant) Variant(ohm, "Ohm_Scene04");
             s.ohm.notebook = apparatus["Ohm Notebook Target"];
             s.ohm.galvanometer = apparatus["Ohm Galvanometer Target"];
@@ -497,7 +498,12 @@ namespace OhmsLaw.Editor
             var variant = AssetDatabase.LoadAssetAtPath<GameObject>(S4 + "/Prefabs/Wattson_Scene04.prefab");
             if (variant)
             {
-                // The finished variant, as edited: its controller, gadget, voices and sparks come with it.
+                // The finished variant, as edited: its controller, gadget, voices and sparks come with it. Only the gadget's
+                // glow is re-applied (its shared materials and the prefab's flare), so every scene's Wattson carries it.
+                NiscopeRing(accent);
+                NiscopeLens(accent);
+                var scope = variant.GetComponentInChildren<Niscope>(true);
+                if (scope && scope.flarePeak != NiscopeFlare) { scope.flarePeak = NiscopeFlare; variant = PrefabUtility.SavePrefabAsset(variant); }
                 var made = (GameObject)PrefabUtility.InstantiatePrefab(variant, scene);
                 made.name = "Wattson";
                 made.transform.position = Hover;
@@ -556,7 +562,7 @@ namespace OhmsLaw.Editor
             // Ohm-niscope: a brass and glass scanner, built along the arm so the lens rings lead the hand.
             var wrist = Find(go, "right_wrist_jnt");
             var brass = Lit("Brass", new Color(0.83f, 0.66f, 0.3f), 1f, 0.68f);
-            var ringGlow = Lit("NiscopeRing", new Color(0.83f, 0.66f, 0.3f), 1f, 0.75f, Hdr(accent, 2.2f));
+            var ringGlow = NiscopeRing(accent);
             var torus = Torus("NiscopeRing", 0.09f);
             var gadget = Node("Ohm-niscope", null, wrist.position);
             gadget.transform.rotation = Quaternion.LookRotation((wrist.position - w.rightElbow.position).normalized, go.transform.forward);
@@ -574,7 +580,7 @@ namespace OhmsLaw.Editor
                 ring.AddComponent<MeshRenderer>().sharedMaterial = ringGlow;
                 rings.Add(ring.transform);
             }
-            var lens = Prim(PrimitiveType.Quad, "Lens Flash", gadget.transform, Vector3.zero, Vector3.one * 0.3f, Glow("Glow_Lens", Hdr(accent, 2.5f)));
+            var lens = Prim(PrimitiveType.Quad, "Lens Flash", gadget.transform, Vector3.zero, Vector3.one * 0.3f, NiscopeLens(accent));
             lens.transform.localPosition = new Vector3(0, 0, offset[2]);
             lens.transform.localRotation = Quaternion.identity;
             var flare = Node("Lens Light", gadget.transform).AddComponent<Light>();
@@ -590,6 +596,7 @@ namespace OhmsLaw.Editor
             s.fx["Beam"] = beam.gameObject;
 
             s.niscope = gadget.AddComponent<Niscope>();
+            s.niscope.flarePeak = NiscopeFlare;
             s.niscope.rings = rings.ToArray();
             s.niscope.flare = flare;
             s.niscope.flash = lens.GetComponent<Renderer>();
@@ -600,6 +607,12 @@ namespace OhmsLaw.Editor
             Variant(go, "Wattson_Scene04");
             WireWattson(s, w, context);
         }
+
+        // The Ohm-niscope's glow, kept under bloom's clip point (the v5 frames: raised, its rings and flare bloomed into a white
+        // halo over his face, and in Scene 8 the flare blew out the bench): brass rings with a cyan glint, a soft lens flash.
+        static Material NiscopeRing(Color accent) => Lit("NiscopeRing", new Color(0.83f, 0.66f, 0.3f), 1f, 0.75f, Hdr(accent, 1f));
+        static Material NiscopeLens(Color accent) => Glow("Glow_Lens", Hdr(accent, 1.2f));
+        const float NiscopeFlare = 2.5f;
 
         // Scene-only wiring: flight path and what he looks at.
         static void WireWattson(Stage s, WattsonController w, SceneAgentContext context)
@@ -982,13 +995,13 @@ namespace OhmsLaw.Editor
             s.fx["Wire Highlight"] = highlight;
 
             // SH11: energy streaks rushing out of the wire at the camera.
-            s.fx["Dive Streaks"] = Particles("Dive Streaks", root, Wire, Glow("Glow_Streaks", Hdr(Color.Lerp(accent, current, 0.3f), 2.5f)), ps =>
+            s.fx["Dive Streaks"] = Particles("Dive Streaks", root, Wire, Glow("Glow_Streaks", Hdr(Color.Lerp(accent, current, 0.6f), 1.6f)), ps =>
             {
                 ps.transform.rotation = Quaternion.LookRotation(-view);
                 var main = ps.main;
                 main.startLifetime = new ParticleSystem.MinMaxCurve(0.25f, 0.6f);
                 main.startSpeed = new ParticleSystem.MinMaxCurve(4f, 9f);
-                main.startSize = new ParticleSystem.MinMaxCurve(0.01f, 0.03f);
+                main.startSize = new ParticleSystem.MinMaxCurve(0.005f, 0.014f);
                 main.maxParticles = 600;
                 var emission = ps.emission;
                 emission.rateOverTime = 320;
@@ -1096,20 +1109,26 @@ namespace OhmsLaw.Editor
             Vcam(s, root, "SH02b Wattson Enters", new Vector3(-0.3f, 0.3f, 0.3f), Hover, 42, W, tracking, W);
             // SH03: medium close-up from slightly below.
             Vcam(s, root, "SH03 Welcome", Hover + toGroup * 0.95f - up * 0.12f, Hover + up * 0.05f, 32, W, shallow);
-            // SH04: over Wattson's shoulder to Ohm; focus racks from Wattson to Ohm and back.
+            // SH04: over Wattson's shoulder to Ohm, Ohm in focus the whole shot (a rack spread over the 9 s line left nobody
+            // sharp), on the medium lens so Wattson's shoulder is a soft edge, not a blur.
             Vector3 fromOhm = Vector3.ProjectOnPlane(Hover - OhmHead, up).normalized;
             Vector3 shoulder = Vector3.Cross(up, -fromOhm) * 0.3f;
             Vector3 ots = Hover + fromOhm * 0.85f + shoulder + up * 0.15f;
-            Vcam(s, root, "SH04a Over Shoulder", ots, OhmHead + new Vector3(0.2f, -0.1f, 0), 38, W, shallow);
-            Vcam(s, root, "SH04b Rack To Ohm", ots - fromOhm * 0.35f, OhmHead + new Vector3(0.1f, -0.1f, 0), 36, ohm, shallow);
+            Vcam(s, root, "SH04a Over Shoulder", ots, OhmHead + new Vector3(0.2f, -0.1f, 0), 38, ohm, medium);
+            // SH04b ends the shot's lateral dolly: a step to camera-right and in, so the lamp and the candle slide across the
+            // foreground (parallax) and Wattson's shoulder stays a soft edge on the left.
+            // ponytail: ends on a three-quarter view, not a true profile (Ohm faces +Z, so a profile needs the camera on
+            // Wattson's side, behind him); move SH04b toward +X and raise it if the previews want more profile.
+            Vcam(s, root, "SH04b Rack To Ohm", ots + shoulder * 0.8f - fromOhm * 0.3f - up * 0.03f, OhmHead + new Vector3(0.1f, -0.1f, 0), 36, ohm, medium);
             // SH05: medium, Wattson centred, room for the words on both sides (fits 4:3 too).
             Vcam(s, root, "SH05 Words", WordsCamera, Hover + up * 0.3f, 44, W, medium);
-            // SH06: slow orbit of about 25 degrees around the words.
+            // SH06: slow orbit of about 25 degrees around the words, at their height (a low orbit looking up was 40 % ceiling).
             Vector3 radius = Vector3.ProjectOnPlane(WordsCamera - Hover, up).normalized * 1.8f;
-            Vcam(s, root, "SH06a Orbit", Hover + Quaternion.Euler(0, -12.5f, 0) * radius + up * 0.15f, words.position, 44, words, medium);
-            Vcam(s, root, "SH06b Orbit", Hover + Quaternion.Euler(0, 12.5f, 0) * radius + up * 0.15f, words.position, 42, words, medium);
-            // SH07: medium.
-            Vcam(s, root, "SH07 Before", Hover + toGroup * 1.4f - up * 0.04f, Hover + up * 0.22f, 38, W, medium);
+            Vcam(s, root, "SH06a Orbit", Hover + Quaternion.Euler(0, -12.5f, 0) * radius + up * 0.4f, words.position, 44, words, medium);
+            Vcam(s, root, "SH06b Orbit", Hover + Quaternion.Euler(0, 12.5f, 0) * radius + up * 0.4f, words.position, 42, words, medium);
+            // SH07: a little low (the hero's low angle comes next) and far enough back that VOLTAGE, CURRENT and the "?" stay
+            // inside the frame, under the HUD, while the words drift up and back (at 1.4 m / 38 deg they left it).
+            Vcam(s, root, "SH07 Before", Hover + toGroup * 1.9f - up * 0.04f, Hover + up * 0.34f, 42, W, medium);
             // SH08: hero low angle with a slow push.
             Vcam(s, root, "SH08a Hero", Hover + toGroup * 0.98f - up * 0.42f, Hover + up * 0.3f, 36, W, shallow);
             Vcam(s, root, "SH08b Hero", Hover + toGroup * 0.74f - up * 0.38f, Hover + up * 0.3f, 34, W, shallow);

@@ -31,6 +31,10 @@ namespace OhmsLaw
         //   sfx <name>          one-shot from the bank            ambience <name>|off · music <name>|off  looping beds (crossfade)
         //   end                 the finale: replay / exit in the panel
         //   panel <Block> 1|0   show or hide one panel block (Table, Graph ...) so each beat holds only what it is about
+        // v5 (Docs/Polish/V5_PLAN.md):
+        //   hero <big>|<small>  a centre-screen reveal plate      hero.clear       takes it away
+        //   readings.top 1|0    the live readings on the top strip instead of the dock card (readings.r still adds R)
+        //   stage 1|0           the table, graph and formula cards in front of the 3D view, and back to the dock
         bool ExperimentCue(string verb, string[] words, string rest, float value, bool on)
         {
             switch (verb)
@@ -60,6 +64,25 @@ namespace OhmsLaw
                 case "ambience": Bed(ambience, rest, 1.5f); return true;
                 case "music": Bed(music, rest, 2.5f); return true;
                 case "end": if (Flow) Flow.EndOfModule(); return true;
+                case "hero":
+                {
+                    if (!Panel) return true;
+                    int bar = rest.IndexOf('|');
+                    Panel.Hero(bar < 0 ? rest : rest.Substring(0, bar).Trim(), bar < 0 ? "" : rest.Substring(bar + 1).Trim());
+                    Play("Reveal");
+                    return true;
+                }
+                case "hero.clear": if (Panel) Panel.HeroClear(); return true;
+                case "readings.top":
+                {
+                    if (!Panel) return true;
+                    bool had = readings;
+                    Readings(false);                 // the card rebuilds at the strip's size (or the dock's)
+                    Panel.TopReadings(on);
+                    Readings(on || had);
+                    return true;
+                }
+                case "stage": if (Panel) Panel.Stage(on); return true;
                 default: return false;
             }
         }
@@ -110,7 +133,7 @@ namespace OhmsLaw
             ControlsMax = volts;
             Volts(true);
             // The turn and the open controls come with Wattson's "Now N volts": the learner may act while he speaks.
-            Turn($"Set the battery to {Volts(volts)}.", $"{volts:0} of 5", "Tap the button, then watch the meters.");
+            Turn($"Set the battery to {Volts(volts)}.", $"{volts:0} of 5", "Slide the battery, then watch the meters.");
             rig.controlsOpen = true;
             var go = Line(gate, gate.gateId + "_GO");
             if (go) StartCoroutine(Say(go));

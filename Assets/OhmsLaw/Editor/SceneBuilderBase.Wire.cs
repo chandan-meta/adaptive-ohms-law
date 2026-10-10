@@ -9,13 +9,13 @@ using UnityEngine.Rendering.Universal;
 
 namespace OhmsLaw.Editor
 {
-    // Stage kit: the electron space (Scenes 5, 6, 12), built to Docs/Polish/References/Scene05_terminals_electrons_L04.png.
-    // A dark-blue void with a reflective, faintly gridded floor; a translucent conduit (the inside of the wire, r 0.6 m,
-    // 9.8 m along +X) slightly above eye level between two brushed-metal terminal blocks: − with a cyan-lit disc at the
-    // −X end, + with a red-lit disc at the +X end, each labelled in words too. The free electrons are a small sample of
-    // glowing "−" spheres inside the conduit only (none in the empty space around it), two of them with a short trail.
-    // Wattson stands lower-left on the floor at "Platform Point". Scene 12 reuses the set in nichrome grey-green with
-    // the ion lattice inside the conduit.
+    // Stage kit: the electron space (Scenes 5, 6, 12). Inside a copper wire: a cavern of soft, warm copper "atoms" (one
+    // static ParticleSystem, WireInterior places them) all round and beyond a translucent conduit (the inside of the wire,
+    // r 0.6 m, 9.8 m along +X) slightly above eye level between two brushed-metal terminal blocks: − with a cyan-lit disc
+    // at the −X end, + with a red-lit disc at the +X end, each labelled in words too; a dark glossy floor with a faint
+    // grid (Wattson's shadow), a warm copper haze for fog and void, two warm copper lights. The free electrons are a small sample of glowing
+    // "−" spheres inside the conduit only, two of them with a short trail. Wattson stands lower-left on the floor at
+    // "Platform Point". Scene 12's nichrome variant tints the set grey-green with the ion lattice inside the conduit.
     public abstract partial class SceneBuilderBase
     {
         // ------------------------------------------------------------------ the set
@@ -25,6 +25,8 @@ namespace OhmsLaw.Editor
         protected const float SpaceFloorY = -1.7f;                                                     // the floor, below the conduit axis
         protected const float WireFov = 68f;                                                           // "Wire Inside" vertical FOV (the panel crops the sides)
         const int ReflectedLayer = 4;                                                                  // built-in "Water" layer, unused elsewhere: what the floor's probe mirrors
+        const int FloorLayer = 2;   // built-in "Ignore Raycast": the floor is outside its own probe's capture (there it mirrored the default sky: a grey floor) and the look-around/tap raycasts
+        const uint FloorLight = 1u << 1;   // URP rendering layer "Light Layer 1", the floor's alone: only the key and the badge glows include it, so the copper lights and Wattson's fill skip the black glass (a light's culling mask does not exclude objects in URP)
         protected static readonly Vector3 WireOrigin = new Vector3(100, 0, 0);                        // far from the lab in Scene 12; the conduit axis passes through it
         protected static readonly Vector3 WireCamPos = WireOrigin + new Vector3(-2.6f, -0.7f, -8.7f);  // front-left, 1 m above the floor: − near-left, + far-right
         protected static readonly Vector3 WireCamLook = WireOrigin + new Vector3(-0.9f, -0.7f, -0.9f); // yaw 13°, level
@@ -34,7 +36,10 @@ namespace OhmsLaw.Editor
         protected static readonly Vector3 WireWattsonCam = PlatformPoint + new Vector3(-0.35f, 0.15f, -2.25f), WireWattsonLook = PlatformPoint + new Vector3(1.3f, 0.7f, 1.3f);
         protected static readonly Vector3 MinusBlock = WireOrigin + new Vector3(-5.4f, 0f, 0f), PlusBlock = WireOrigin + new Vector3(5.4f, -0.35f, 0f);
         protected static readonly Color CopperTint = new Color(0.72f, 0.38f, 0.2f), NichromeTint = new Color(0.55f, 0.56f, 0.5f);
-        protected static readonly Color SpaceBlue = new Color(0.043f, 0.086f, 0.188f);                 // #0B1630 fog, ambient, background
+        protected static readonly Color SpaceBlue = new Color(0.043f, 0.086f, 0.188f);                 // #0B1630 fog, ambient, background (nichrome mix)
+        // Inside the copper: fog, ambient and background are a warm copper-brown haze (gamma; under ACES it lands near #1B100E),
+        // so the far atom rows dissolve into a visible warm haze. The old navy mix rendered as black: a starfield.
+        static readonly Color CopperHaze = new Color(0.24f, 0.19f, 0.18f);
         protected static readonly Color ConduitBlue = new Color(0.31f, 0.82f, 1f);                     // #4FD1FF glass and grid
         protected static readonly Color ElectronTint = new Color(0.75f, 0.965f, 1f);                   // #BFF6FF
         protected static readonly Color MinusTint = ConduitBlue, PlusTint = new Color(1f, 0.27f, 0.21f); // terminal badges: cyan −, red +
@@ -68,11 +73,12 @@ namespace OhmsLaw.Editor
         protected WireInterior WireStage(Color tint, bool lattice, bool active = true, bool terminalsOn = false)
         {
             string hex = ColorUtility.ToHtmlStringRGB(tint);
-            bool nichrome = lattice; // Scene 12's wire: nichrome grey-green tints the glass, the void and the grid
+            bool nichrome = lattice; // Scene 12's wire: nichrome grey-green tints the glass, the void, the grid and the atoms
             Color glass = Color.Lerp(ConduitBlue, tint, nichrome ? 0.85f : 0f);
             glass.a = nichrome ? 0.22f : 0.12f;
-            Color space = Color.Lerp(SpaceBlue, tint * 0.45f, nichrome ? 0.7f : 0f);
+            Color space = nichrome ? Color.Lerp(SpaceBlue, tint * 0.45f, 0.7f) : CopperHaze; // the metal's own dark
             Color grid = Color.Lerp(ConduitBlue, tint, nichrome ? 0.85f : 0f);
+            Color atom = Color.Lerp(CopperTint, tint, nichrome ? 0.85f : 0f);
 
             var section = Node("Wire Section", null, WireOrigin);
             var wire = section.AddComponent<WireInterior>();
@@ -87,7 +93,7 @@ namespace OhmsLaw.Editor
             // the lab keeps the lab's atmosphere in its file.
             var was = (fog: RenderSettings.fog, mode: RenderSettings.fogMode, colour: RenderSettings.fogColor, density: RenderSettings.fogDensity,
                 ambientMode: RenderSettings.ambientMode, sky: RenderSettings.ambientSkyColor, flat: RenderSettings.ambientLight, background: camera.backgroundColor);
-            WireLights(section.transform, space, nichrome);
+            WireLights(section.transform, space, atom, nichrome);
             wire.fogColor = RenderSettings.fogColor;
             wire.fogDensity = RenderSettings.fogDensity;
             wire.ambient = RenderSettings.ambientLight;
@@ -98,13 +104,14 @@ namespace OhmsLaw.Editor
                 RenderSettings.ambientMode = was.ambientMode; RenderSettings.ambientSkyColor = was.sky; RenderSettings.ambientLight = was.flat; camera.backgroundColor = was.background;
             }
 
-            // The static set (floor, far slabs, conduit, terminals, cables) lives on its own layer: the floor's reflection
-            // probe captures only this, so nothing that moves (Wattson, electrons, rings) leaves a stale mirror image.
+            // The static set (conduit, terminals, cables) lives on its own layer: the floor's reflection probe captures only
+            // this, so nothing that moves (Wattson, electrons, rings) leaves a stale mirror image; the floor itself is on
+            // FloorLayer, so the probe never captures the floor mirroring the default sky (a grey floor in the mirror).
             var set = Node("Set", section.transform);
             var steel = Lit("Wire_Steel", new Color(0.36f, 0.42f, 0.52f), 0.9f, 0.5f);
             var trim = Lit("Wire_SteelDark", new Color(0.14f, 0.17f, 0.23f), 0.8f, 0.45f);
             WireFloor(set.transform, space, grid, nichrome);
-            WireSilhouettes(set.transform, space);
+            WireCavern(wire, section.transform, atom, nichrome);
 
             // The conduit: an open glass tube (premultiplied alpha keeps its highlights), two steel bands; WireInterior
             // scales the tube and every ring to the current radius (Scene 12 narrows it by at most 20 %).
@@ -119,17 +126,20 @@ namespace OhmsLaw.Editor
             // One style for both polarity markings: the same badge size, each on the face toward the lens at the
             // conduit's height, cyan − and red + (the glyph says which, so colour is never the only cue).
             var minus = WireTerminal(set.transform, "−", MinusBlock - WireOrigin, new Vector3(1.8f, 3.4f, 1.8f),
-                new Vector3(0, 0, -0.9f), Vector3.back, 0.42f, MinusTint, 2.2f, steel, trim);
+                new Vector3(0, 0, -0.9f), Vector3.back, 0.42f, MinusTint, 1.4f, steel, trim);
             var plus = WireTerminal(set.transform, "+", PlusBlock - WireOrigin, new Vector3(1.6f, 3.4f, 1.6f),
-                new Vector3(0, 0.35f, -0.8f), Vector3.back, 0.42f, PlusTint, 2.2f, steel, trim);
+                new Vector3(0, 0.35f, -0.8f), Vector3.back, 0.42f, PlusTint, 1.4f, steel, trim);
             minus.SetActive(terminalsOn);
             plus.SetActive(terminalsOn);
             var cableDark = Lit("Wire_CableDark", new Color(0.05f, 0.06f, 0.09f), 0.1f, 0.7f);
-            var cableRed = Lit("Wire_CableRed", new Color(0.75f, 0.08f, 0.06f), 0.1f, 0.55f, new Color(0.35f, 0.02f, 0.01f));
+            var cableRed = Lit("Wire_CableRed", new Color(0.75f, 0.08f, 0.06f), 0.1f, 0.55f, new Color(0.12f, 0.01f, 0f)); // a dim glow: it was the brightest thing on the right third
             Vector3 m = MinusBlock - WireOrigin, p = PlusBlock - WireOrigin;
             Polyline("Cable", set.transform, cableDark, 0.1f, false, false, m + new Vector3(0.2f, 1.78f, 0.4f), m + new Vector3(-0.6f, 2.25f, 0.5f), m + new Vector3(-2.0f, 2.45f, 0.9f), m + new Vector3(-3.6f, 2.0f, 1.6f), m + new Vector3(-4.6f, 0.9f, 2.4f));
-            Polyline("Cable", set.transform, cableRed, 0.1f, false, false, p + new Vector3(0.5f, 1.42f, 0.3f), p + new Vector3(1.3f, 1.75f, 0.1f), p + new Vector3(2.8f, 1.6f, -0.4f), p + new Vector3(4.4f, 0.9f, -1.2f), p + new Vector3(5.6f, -0.4f, -2.0f));
+            Polyline("Cable", set.transform, cableRed, 0.1f, false, false, p + new Vector3(0.5f, 1.42f, 0.3f), p + new Vector3(1.3f, 1.75f, 0.1f), p + new Vector3(2.8f, 1.6f, -0.4f), p + new Vector3(4.4f, 0.9f, -1.2f), p + new Vector3(6.2f, -2.4f, -2.4f)); // plugs into the floor (it ended in mid-air)
             foreach (var t in set.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = ReflectedLayer;
+            var floorPlane = set.transform.Find("Floor");
+            floorPlane.gameObject.layer = FloorLayer;
+            floorPlane.GetComponent<Renderer>().renderingLayerMask = FloorLight;
 
             // Each terminal is named in words as well as by its sign and colour: "− negative" under the − disc on the block's
             // front; "+ positive" on the + block's front beside the conduit's entry (its disc sits low on the side face,
@@ -161,6 +171,9 @@ namespace OhmsLaw.Editor
             Marker("Wire Focus Point", PlatformPoint + new Vector3(0.3f, 0.2f, 0));
             Vcam("Wire Inside", WireCamPos, WireCamLook, WireFov, refs["Platform Point"].transform, lensMedium);
             Vcam("Wire Wattson", WireWattsonCam, WireWattsonLook, 44, refs["Platform Point"].transform, lensMedium);
+            // Both terminals with their labels and the whole conduit inside the free frame (the dock takes the right 25 %,
+            // so the authored shot keeps them within |x| ≤ 0.65 of its width); Wattson lower-left in front of the − block.
+            Vcam("Wire Terminals", WireOrigin + new Vector3(0.2f, 0.2f, -12.2f), WireOrigin + new Vector3(0f, -0.35f, 0f), 54f, section.transform, lensMedium);
 
             // The effects the scene cues name, in place and hidden; a builder may re-place one with WireFx(name, position).
             foreach (var name in new[] { "letters assemble from charges", "field wave sweeps whole tunnel", "time-freeze (Ohm-niscope holds the carriers)",
@@ -183,7 +196,7 @@ namespace OhmsLaw.Editor
         // hides with the electron space); shown with its badge.
         void WireTerminalLabel(Transform section, string sign, string text, Color tint, Vector3 position, bool shown)
         {
-            var label = Card("Terminal Label " + sign, text, Color.Lerp(tint, Color.white, 0.35f), section, position - WireOrigin, WireCap(WorldText.Px.Small, position), WorldText.Look.Panel, shown, sparks: false);
+            var label = Card("Terminal Label " + sign, text, Color.Lerp(tint, Color.white, 0.35f), section, position - WireOrigin, WireCap(WorldText.Px.Medium, position), WorldText.Look.Panel, shown, sparks: false);
             Face(label);
         }
 
@@ -310,14 +323,16 @@ namespace OhmsLaw.Editor
 
             if (name.StartsWith("race into wire"))
             {
-                // Scene 4's dive streaks: they stream out of the wire surface past the lens. Forward = toward the camera.
+                // Scene 4's dive streaks: they stream out of the wire surface past the lens. Forward = toward the camera. Scene 4's
+                // colour and glow (its "Dive Streaks"), so the cut matches; thin and under 2x so they stay streaks under the bloom
+                // (at 5x and 1-3 cm wide they bloomed into white bands over most of the frame).
                 t.rotation = Quaternion.LookRotation(Vector3.back);
-                Emitter("Streaks", t, Vector3.zero, Glow("Glow_WireStreaks", Hdr(Color.Lerp(accent, palette.current, 0.3f), 5f)), ps =>
+                Emitter("Streaks", t, Vector3.zero, Glow("Glow_WireStreaks", Hdr(Color.Lerp(accent, palette.current, 0.6f), 1.6f)), ps =>
                 {
                     var main = ps.main;
                     main.startLifetime = new ParticleSystem.MinMaxCurve(0.25f, 0.6f);
                     main.startSpeed = new ParticleSystem.MinMaxCurve(4f, 9f);
-                    main.startSize = new ParticleSystem.MinMaxCurve(0.01f, 0.03f);
+                    main.startSize = new ParticleSystem.MinMaxCurve(0.005f, 0.014f);
                     main.maxParticles = 600;
                     var emission = ps.emission;
                     emission.rateOverTime = 320;
@@ -390,7 +405,7 @@ namespace OhmsLaw.Editor
                     main.startLifetime = 0.9f;
                     main.startSpeed = 0;
                     main.startSize = 2.4f;
-                    main.startColor = new Color(1, 1, 1, 0.45f); // a wash of cold light, not a white-out
+                    main.startColor = new Color(1, 1, 1, 0.2f); // a wash of cold light, not a white-out (Scene 6 plays it in the two-shot, where it fills the frame)
                     main.maxParticles = 2;
                     var emission = ps.emission;
                     emission.rateOverTime = 0;
@@ -522,12 +537,13 @@ namespace OhmsLaw.Editor
 
         // ------------------------------------------------------------------ the set's pieces
 
-        // Dark-blue void: fog and flat ambient in the space colour, the background a little lighter so the far slabs read as
-        // silhouettes; a cool directional key from the front-left (soft shadows: Wattson's contact shadow on the floor, the
-        // highlight along the glass; warm grey in nichrome), a warm fill on Wattson only (on the floor it was a hot spot in
-        // the subtitle band), the global ACES/bloom volume (bloom 1.0, light grain). The terminal glow lights live in the
-        // badges so they switch on with them.
-        void WireLights(Transform section, Color space, bool nichrome)
+        // Inside the metal: fog, flat ambient and the background in the warm copper haze, so the far atoms dissolve into it;
+        // a soft cool directional key from the front-left (soft shadows: Wattson's contact shadow on the floor, the highlight
+        // along the glass; warm grey in nichrome), two warm copper point lights behind the conduit (the cavern's own light on
+        // the blocks, not on the floor: there it put warm smears and a hot spot under the captions; the floor's own rendering
+        // layer keeps it off), a warm fill on Wattson only, the global ACES/bloom volume (bloom 1.0, light grain). The terminal
+        // glow lights live in the badges so they switch on with them; they and the key do light the floor.
+        void WireLights(Transform section, Color space, Color atom, bool nichrome)
         {
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Flat;
@@ -535,23 +551,33 @@ namespace OhmsLaw.Editor
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogColor = space;
-            RenderSettings.fogDensity = 0.07f;
-            camera.backgroundColor = space * 1.3f;
+            RenderSettings.fogDensity = 0.045f; // the far rows (20-30 m) dissolve into the haze; the terminals (8-13 m) keep 70-85 %
+            camera.backgroundColor = space;
             var root = Node("Lighting", section).transform;
             var key = Node("Space Key", root).AddComponent<Light>();
             key.type = LightType.Directional;
             key.transform.rotation = Quaternion.Euler(50, -20, 0);
             key.color = nichrome ? new Color(0.86f, 0.85f, 0.78f) : new Color(0.72f, 0.82f, 1f);
-            key.intensity = nichrome ? 0.4f : 0.55f;
+            key.intensity = nichrome ? 0.3f : 0.4f;
             key.shadows = LightShadows.Soft;
             key.shadowStrength = 0.75f;
+            key.GetUniversalAdditionalLightData().renderingLayers = 1u | FloorLight; // Default and the floor: Wattson's shadow on the glass
+            foreach (var (name, at, intensity) in new[] { ("Copper Light L", new Vector3(-7f, 4.5f, 7f), 7f), ("Copper Light R", new Vector3(8f, 3f, 10f), 5f) })
+            {
+                var copper = Node(name, root, at).AddComponent<Light>();
+                copper.type = LightType.Point;
+                copper.color = Color.Lerp(new Color(1f, 0.62f, 0.35f), atom, nichrome ? 0.8f : 0f);
+                copper.intensity = intensity;
+                copper.range = 22f;
+                copper.shadows = LightShadows.None;
+            }
             var warm = Node("Platform Light", root, PlatformPoint - WireOrigin + new Vector3(0.2f, 0.8f, -0.4f)).AddComponent<Light>();
             warm.type = LightType.Point;
             warm.color = new Color(1f, 0.8f, 0.55f);
             warm.intensity = 1.4f;
             warm.range = 4f;
             warm.shadows = LightShadows.None;
-            warm.cullingMask = ~(1 << ReflectedLayer); // Wattson, not the glossy floor
+            warm.cullingMask = ~(1 << ReflectedLayer); // Wattson, not the glossy floor (the floor's rendering layer keeps it off there)
             GlobalPost(root, "Electron_Global", bloom: 1.0f, vignette: 0.3f, exposure: 0.1f);
             Profile("Electron_Global", p => // less grain: it crawled over the dark void and the glows
             {
@@ -562,20 +588,20 @@ namespace OhmsLaw.Editor
             foreach (var volume in root.GetComponentsInChildren<Volume>(true)) volume.priority = 1; // beats a lab volume while the section is active
         }
 
-        // Glossy dark floor with a faint emissive 1 m grid, and a realtime reflection probe captured once when the section
-        // wakes (box-projected) so the floor mirrors the conduit and the terminals.
+        // Glossy dark floor with a faint emissive 1 m grid, and a reflection probe (box-projected, baked by the builder) so
+        // the floor mirrors the conduit and the terminals on the haze.
         void WireFloor(Transform section, Color space, Color grid, bool nichrome)
         {
             var texture = WireGridTexture();
             var floor = Mat("Wire_Floor" + (nichrome ? "_Nichrome" : ""), "Universal Render Pipeline/Lit", mat =>
             {
-                mat.SetColor("_BaseColor", Color.Lerp(new Color(0.03f, 0.055f, 0.11f), space, 0.3f));
+                mat.SetColor("_BaseColor", Color.Lerp(new Color(0.012f, 0.02f, 0.045f), space, 0.15f)); // black glass
                 mat.SetFloat("_Metallic", 0.15f);
                 mat.SetFloat("_Smoothness", 0.8f);
                 mat.SetTextureScale("_BaseMap", new Vector2(44, 44)); // the 44 m plane: one grid cell per metre
                 mat.EnableKeyword("_EMISSION");
                 mat.SetTexture("_EmissionMap", texture);
-                mat.SetColor("_EmissionColor", grid * 0.2f); // a faint grid, not a bright Tron floor under the action
+                mat.SetColor("_EmissionColor", grid * 0.04f); // the seams, faint: not a Tron floor under the action
                 mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             });
             Prim(PrimitiveType.Plane, "Floor", section, new Vector3(0, SpaceFloorY, 2f), new Vector3(4.4f, 1, 4.4f), floor);
@@ -587,8 +613,8 @@ namespace OhmsLaw.Editor
             probe.resolution = 256;
             probe.hdr = true;
             probe.boxProjection = true;
-            probe.size = new Vector3(40, 12, 40);
-            probe.center = new Vector3(0, SpaceFloorY + 6f - 0.6f, 2f); // the box stands on the floor
+            probe.size = new Vector3(48, 14, 48);
+            probe.center = new Vector3(0, SpaceFloorY + 7f - 1.5f - 0.6f, 2f); // the box reaches 1.5 m under the floor: with its bottom on the floor, the 1 m blend edge handed the floor to the default sky (a grey-blue plane)
             probe.cullingMask = 1 << ReflectedLayer; // the static set only
             probe.clearFlags = ReflectionProbeClearFlags.SolidColor;
             probe.backgroundColor = space;
@@ -597,12 +623,17 @@ namespace OhmsLaw.Editor
             probe.intensity = 0.9f;
         }
 
-        // Far, matte slabs in the fog: the faint architecture behind the set that gives the void depth.
-        void WireSilhouettes(Transform section, Color space)
+        // The copper lattice cavern: one static ParticleSystem of soft warm "atoms" (WireInterior.Cavern places them at
+        // Awake: a lattice with a small jitter, its rows visible, all round and beyond the conduit; none inside it, over the lens
+        // or on the stage in front of the set; denser far away), additive so they bloom a little and the haze swallows the
+        // far rows. Not on the reflected layer: the floor's probe mirrors the set, and a mirrored atom field under Wattson
+        // read as a second floor.
+        void WireCavern(WireInterior wire, Transform section, Color atom, bool nichrome)
         {
-            var slab = Lit("Wire_Silhouette", Color.Lerp(space, Color.white, 0.2f), 0.2f, 0.35f);
-            foreach (var (x, z, w, h) in new[] { (-9.5f, 10f, 2.2f, 5.4f), (-5.5f, 12.5f, 3.0f, 7.4f), (-1.2f, 11f, 1.4f, 4.2f), (3.5f, 13f, 2.6f, 6.6f), (8f, 10.5f, 2f, 5f), (12.5f, 12.5f, 3.4f, 8f) })
-                Prim(PrimitiveType.Cube, "Silhouette", section, new Vector3(x, SpaceFloorY + h / 2, z), new Vector3(w, h, w * 0.7f), slab);
+            wire.cavern = Particles("Copper Lattice", section, Glow("Glow_WireAtom" + (nichrome ? "_Nichrome" : ""), Hdr(Color.white, nichrome ? 0.9f : 1.25f)), 3000);
+            wire.cavern.GetComponent<ParticleSystemRenderer>().sortMode = ParticleSystemSortMode.None; // additive: order is irrelevant
+            wire.cavernTint = atom;
+            wire.cavernEye = WireCamPos - WireOrigin;
         }
 
         // A terminal: brushed-steel block standing on the floor with a dark cap and a glowing edge line, and its badge: a
@@ -624,13 +655,16 @@ namespace OhmsLaw.Editor
             var rim = WireMesh("Rim", badge.transform, Torus("WireBadgeRim", 0.05f), Lit("Wire_SteelBright", new Color(0.6f, 0.65f, 0.72f), 1f, 0.7f));
             rim.transform.localPosition = new Vector3(0, 0, 0.235f);
             rim.transform.localScale = Vector3.one * radius;
-            var disc = WireMesh("Face", badge.transform, WireDisc(), Lit("Wire_BadgeFace_" + hex, tint * 0.6f, 0f, 0.6f, Hdr(tint, 0.9f))); // saturated, not blown to white
+            // Saturated, not blown to white. The cyan − face is the darker one: lit by its own glow light, a 0.6 cyan went near-white
+            // under ACES and bloom and its white sign was lost on it (the red + keeps one bright channel, so its sign reads).
+            bool minus = sign == "−";
+            var disc = WireMesh("Face", badge.transform, WireDisc(), Lit("Wire_BadgeFace_" + hex, tint * (minus ? 0.3f : 0.6f), 0f, 0.6f, Hdr(tint, minus ? 0.5f : 0.9f)));
             disc.transform.SetLocalPositionAndRotation(new Vector3(0, 0, 0.245f), Quaternion.Euler(0, 180, 0)); // WireDisc faces −Z; the viewer is along +Z
             disc.transform.localScale = Vector3.one * (radius * 0.92f);
-            var glyph = Glow("Glow_WireGlyph", Hdr(Color.white, 2f), softTexture: false); // a bright sign on the coloured disc: never an electron's navy "−"
+            var glyph = Glow("Glow_WireGlyph", Hdr(Color.white, 1.2f), softTexture: false); // a bright sign on the coloured disc, under the bloom threshold: it read as a white blob at 2×
             Prim(PrimitiveType.Cube, "Glyph", badge.transform, new Vector3(0, 0, 0.255f), new Vector3(radius * 0.9f, radius * 0.2f, 0.02f), glyph);
             if (sign == "+") Prim(PrimitiveType.Cube, "Glyph", badge.transform, new Vector3(0, 0, 0.255f), new Vector3(radius * 0.2f, radius * 0.9f, 0.02f), glyph);
-            var halo = Prim(PrimitiveType.Quad, "Halo", badge.transform, new Vector3(0, 0, 0.2f), Vector3.one * (radius * 3.2f), Glow("Glow_WireBadgeHalo_" + hex, new Color(tint.r, tint.g, tint.b, 0.25f))); // behind the face: it no longer washes out the sign
+            var halo = Prim(PrimitiveType.Quad, "Halo", badge.transform, new Vector3(0, 0, 0.2f), Vector3.one * (radius * 3.2f), Glow("Glow_WireBadgeHalo_" + hex, new Color(tint.r, tint.g, tint.b, 0.16f))); // behind the face: it no longer washes out the sign
             halo.transform.localRotation = Quaternion.Euler(0, 180, 0);
             var glow = Node("Glow Light", badge.transform, new Vector3(0, 0, 0.7f)).AddComponent<Light>();
             glow.type = LightType.Point;
@@ -638,6 +672,7 @@ namespace OhmsLaw.Editor
             glow.intensity = light;
             glow.range = 7f;
             glow.shadows = LightShadows.None;
+            glow.GetUniversalAdditionalLightData().renderingLayers = 1u | FloorLight; // its colour streak on the glossy floor
             return Ref(badge);
         }
 

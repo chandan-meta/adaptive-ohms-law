@@ -17,6 +17,7 @@ namespace OhmsLaw
         RectTransform box;
         CanvasGroup group;
         TextMeshProUGUI speaker, body;
+        Image bolt;   // v5: a small bolt before WATTSON
         LayoutElement bodySize;
         object owner;
         bool shown;
@@ -55,10 +56,13 @@ namespace OhmsLaw
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
             box.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            speaker = UI.Label(box, "", LessonPanel.SpeakerFont, LessonPanel.Spark, TextAlignmentOptions.Center);
+            var who = LessonPanel.Row("Speaker", box, 6f, TextAnchor.MiddleCenter);
+            LessonPanel.Fixed(who, LessonPanel.SpeakerFont * 1.25f);
+            bolt = LessonPanel.Icon(who, "bolt", 14f, LessonPanel.Spark);
+            speaker = UI.Label(who, "", LessonPanel.SpeakerFont, LessonPanel.Spark, TextAlignmentOptions.Center);
             speaker.characterSpacing = 8f;
             speaker.fontStyle = FontStyles.Bold;
-            LessonPanel.Fixed(speaker.rectTransform, LessonPanel.SpeakerFont * 1.25f);
+            speaker.textWrappingMode = TextWrappingModes.NoWrap;
             body = UI.Label(box, "", LessonPanel.CaptionFont, LessonPanel.Paper, TextAlignmentOptions.Top);
             body.overflowMode = TextOverflowModes.Page;
             bodySize = LessonPanel.Fixed(body.rectTransform, LineHeight(1));
@@ -95,7 +99,7 @@ namespace OhmsLaw
             float one = body.GetPreferredValues(body.text, 99999f, 0f).x;
             bool wraps = one > maxText;
             float textWidth = wraps ? maxText : Mathf.Ceil(one) + 4f;
-            float speakerWidth = speaker.GetPreferredValues(speaker.text, 99999f, 0f).x;
+            float speakerWidth = speaker.GetPreferredValues(speaker.text, 99999f, 0f).x + (bolt.gameObject.activeSelf ? 20f : 0f);
             bodySize.preferredHeight = bodySize.minHeight = LineHeight(wraps ? 2 : 1);
             box.sizeDelta = new Vector2(Mathf.Max(textWidth, speakerWidth) + 2f * PadX, box.sizeDelta.y);
             box.anchoredPosition = new Vector2(free / 2f, LessonPanel.BottomInset);
@@ -112,6 +116,7 @@ namespace OhmsLaw
             {
                 speakerShown = speakerName;
                 speaker.text = (speakerName ?? "").ToUpperInvariant();
+                bolt.gameObject.SetActive(speaker.text.StartsWith("WATTSON"));
             }
             if (body.text != text)
             {

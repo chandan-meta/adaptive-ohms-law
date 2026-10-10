@@ -215,10 +215,23 @@ namespace OhmsLaw
             // Coming back restarts the scripted line that was interrupted, if there was one.
             resumeTime = SubtitleTrack.CurrentLine ? SubtitleTrack.LastLineStart : -1;
             Flow.SetPaused(ModuleFlow.PauseReason.Ask, true);
+            WideShot();
             agent.Engage(true);
             Panel.ShowConversation(true);
             ShowSuggestions();
             dirtyFrames = 2;
+        }
+
+        // A rebuilt scene has lost the conversation shot CinematicPolish gives Wattson (the study's wide shot in Scene 7, the
+        // bench's in the lab chapters): the same rule at run time, so an Ask during a close shot (Scene 7's "Study Aim",
+        // 1 m from the wire) never parks him a hand's width from the lens. Scenes without such a camera keep the old spot.
+        static void WideShot()
+        {
+            var wattson = WattsonController.Active;
+            if (!wattson || wattson.conversationCamera) return;
+            string wide = SceneManager.GetActiveScene().name.StartsWith("Scene07") ? "Cam Study Wide" : "Cam Bench Wide";
+            foreach (var cam in FindObjectsByType<Unity.Cinemachine.CinemachineCamera>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                if (cam.name == wide) { wattson.conversationCamera = cam; return; }
         }
 
         void Close()

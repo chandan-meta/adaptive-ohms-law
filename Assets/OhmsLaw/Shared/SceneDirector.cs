@@ -256,7 +256,7 @@ namespace OhmsLaw
 
             switch (verb)
             {
-                case "fade": if (Flow) Flow.FadeWhite(value); break;
+                case "fade": if (Flow) Flow.FadeWhite(value, words.Length > 2 && float.TryParse(words[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var fadeSeconds) ? fadeSeconds : -1f); break;   // "fade <alpha> [seconds]"
                 case "wire.field": wire.fieldOn = on; break;
                 case "wire.freeze": wire.frozen = on; break;
                 case "wire.count": wire.counting = on; break;
@@ -312,7 +312,7 @@ namespace OhmsLaw
         {
             if (!Panel) return;
             string mine = showLearnerPrediction && LearnerSession.prediction != "" ? "Your prediction: " + LearnerSession.PredictionText : "";
-            Panel.Info("reminder", LessonPanel.Quantities("If the potential difference increases, what happens to the current?"), mine); // coloured as in Scene 6
+            Panel.Info("reminder", LessonPanel.Quantities("If the voltage across the wire increases, what happens to the current?"), mine); // coloured as in Scene 6
         }
 
         // "boost" grows the object and brightens its glow and holds both; "pulse" (settle) peaks and returns to normal.

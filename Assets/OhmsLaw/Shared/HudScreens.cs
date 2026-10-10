@@ -37,18 +37,21 @@ namespace OhmsLaw
     // text laid over the 3D scene.
     public static class Vignettes
     {
-        static Sprite left, corner;
+        static Sprite left, corner, shine;
 
         public static Sprite Left => left ? left : left = Make("Vignette Left", 256, 4, (u, v) => u < 0.36f ? Mathf.Lerp(0.9f, 0.66f, u / 0.36f) : Mathf.Lerp(0.66f, 0f, Mathf.Clamp01((u - 0.36f) / 0.30f)));
         public static Sprite Corner => corner ? corner : corner = Make("Vignette Corner", 128, 128, (u, v) => { float d = Mathf.Sqrt(u * u + (1 - v) * (1 - v)); return 0.8f * Mathf.Clamp01(1f - d) * Mathf.Clamp01(1f - d) * 1.6f; });
+        // v5: the soft white highlight along a glass card's top edge (white, fading down).
+        public static Sprite Shine => shine ? shine : shine = Make("Glass Shine", 4, 32, (u, v) => 0.14f * v * v, true);
 
-        static Sprite Make(string name, int w, int h, System.Func<float, float, float> alpha)
+        static Sprite Make(string name, int w, int h, System.Func<float, float, float> alpha, bool white = false)
         {
             var texture = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, name = name };
             var pixels = new Color32[w * h];
+            byte tone = white ? (byte)255 : (byte)0;
             for (int y = 0; y < h; y++)
                 for (int x = 0; x < w; x++)
-                    pixels[y * w + x] = new Color32(4, 8, 16, (byte)Mathf.RoundToInt(Mathf.Clamp01(alpha((x + 0.5f) / w, (y + 0.5f) / h)) * 255f));
+                    pixels[y * w + x] = new Color32(white ? tone : (byte)4, white ? tone : (byte)8, white ? tone : (byte)16, (byte)Mathf.RoundToInt(Mathf.Clamp01(alpha((x + 0.5f) / w, (y + 0.5f) / h)) * 255f));
             texture.SetPixels32(pixels);
             texture.Apply(false, true);
             return Sprite.Create(texture, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f);
@@ -123,7 +126,7 @@ namespace OhmsLaw
             block.sizeDelta = new Vector2(700, 0);
             var fitter = block.gameObject.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-            LessonPanel.Card(block, 0.96f, 22f);   // its own surface: a board or a poster behind never mixes with the title
+            LessonPanel.Card(block, 1f, 22f);   // solid: a board or a poster behind never mixes with the title (4 % glass let lit chalk through)
             kicker = LessonPanel.Eyebrow(block, "", LessonPanel.Spark);
             title = LessonPanel.Text(block, "", 54f, LessonPanel.Paper);
             title.textWrappingMode = TextWrappingModes.NoWrap;
@@ -133,7 +136,7 @@ namespace OhmsLaw
 
             chip = UI.Rect("UI_ChapterChip", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(LessonPanel.Margin, -LessonPanel.TopInset), new Vector2(0, LessonPanel.ControlHeight));
             chipGroup = chip.gameObject.AddComponent<CanvasGroup>();
-            var fill = UI.Panel(chip, LessonPanel.Ink, true, LessonPanel.ControlHeight / 2f);
+            var fill = UI.Panel(chip, UI.Alpha(LessonPanel.Glass, LessonPanel.BarAlpha), true, LessonPanel.ControlHeight / 2f);
             fill.raycastTarget = true;
             var edge = UI.Stretch("Edge", chip);
             edge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
@@ -145,6 +148,7 @@ namespace OhmsLaw
             row.childControlWidth = row.childControlHeight = true;
             row.childForceExpandWidth = row.childForceExpandHeight = false;
             chip.gameObject.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            LessonPanel.Icon(chip, "bolt", 18f, LessonPanel.Spark);   // v5: the electric motif
             chipNumber = LessonPanel.Text(chip, "", 18f, LessonPanel.Paper, TextAlignmentOptions.MidlineLeft);
             chipNumber.textWrappingMode = TextWrappingModes.NoWrap;
             chipRail = Rail.Create(chip, true);
@@ -154,11 +158,14 @@ namespace OhmsLaw
             button.onClick.AddListener(() => { UiSounds.Play("click"); PauseMenu.Open(); });
             var hud = chip.gameObject.AddComponent<HudButton>();
             hud.fill = fill;
-            hud.fillColor = LessonPanel.Ink;
+            hud.fillColor = UI.Alpha(LessonPanel.Glass, LessonPanel.BarAlpha);
             hud.activeFill = hud.fillColor;
             hud.corner = LessonPanel.ControlHeight / 2f;
             Enter(-1);
         }
+
+        // The chip's right edge in the HUD root's px (the top readings strip keeps clear of it); 0 while it is hidden.
+        public static float ChipRight => Instance && Instance.chip && Instance.chip.gameObject.activeSelf ? Instance.chip.anchoredPosition.x + Instance.chip.rect.width : 0f;
 
         // A chapter starts (index 0-based; -1 outside the module hides the banner).
         public void Enter(int index)
@@ -199,7 +206,8 @@ namespace OhmsLaw
             cardGroup.alpha = hidden || !big ? 0f : cardAlpha;
             // After the title card has gone (they share the corner); an activity chapter's chip shows at once, titled for ~4.5 s.
             float chipAlpha = big ? Mathf.Clamp01((t - 4.5f) / 0.3f) : Mathf.Clamp01(t / 0.4f);
-            if (titled && t > 4.5f) ChipText(false);
+            // The top readings strip shares the row: the chip folds to its number as soon as the strip shows.
+            if (titled && (t > 4.5f || (LessonPanel.Instance && LessonPanel.Instance.TopStripShown))) ChipText(false);
             chipGroup.alpha = hidden ? 0f : chipAlpha;
             chipGroup.blocksRaycasts = !hidden && chipAlpha > 0.5f;
         }
@@ -587,7 +595,7 @@ namespace OhmsLaw
             lead.margin = new Vector4(0, 0, 120, 0);
             var actions = LessonPanel.Row("Actions", block, 14f);
             LessonPanel.Fixed(actions, 68f);
-            var start = LessonPanel.Pill("Start", actions, "START JOURNEY", StartCase, LessonPanel.Kind.Secondary, "play", 68f, 25f);
+            var start = LessonPanel.Pill("Start", actions, "START JOURNEY", StartCase, LessonPanel.Kind.Secondary, "bolt", 68f, 25f);   // v5: the bolt in a gold frame
             var state = start.GetComponent<HudButton>();
             state.fillColor = new Color(0.035f, 0.17f, 0.26f, 0.98f);
             state.outlineColor = new Color(1f, 0.77f, 0.42f);

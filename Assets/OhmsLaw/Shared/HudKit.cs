@@ -39,6 +39,8 @@ namespace OhmsLaw
                 "mic" => p => Mathf.Min(Mathf.Abs(Box(p, U(12, 8.75f), new Vector2(3f / 24f, 5.75f / 24f), 3f / 24f)) - 1.1f / 24f,
                                         Mathf.Min(Arc(p, U(12, 11.2f), 6.5f / 24f, 2.2f / 24f, 180f, 360f), Seg(p, U(12, 17.8f), U(12, 21), 1.1f))),
                 "send" => p => Mathf.Min(Seg(p, U(5, 12), U(18, 12), 1.3f), Mathf.Min(Seg(p, U(12.5f, 6), U(18.5f, 12), 1.3f), Seg(p, U(18.5f, 12), U(12.5f, 18), 1.3f))),
+                // v5 electric motif: a lightning bolt, two sheared blades meeting at the waist.
+                "bolt" => p => Mathf.Min(Tri(p, U(15, 2), U(5, 13.5f), U(12.5f, 13.5f)), Tri(p, U(9, 22), U(19, 10.5f), U(11.5f, 10.5f))),
                 _ => p => Box(p, new Vector2(0.5f, 0.5f), new Vector2(0.3f, 0.3f), 0.08f),
             };
             var texture = new Texture2D(Size, Size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, name = "Icon " + name };
@@ -181,6 +183,79 @@ namespace OhmsLaw
                 ring = UI.Outline(rect, LessonPanel.Spark, corner + 4f, 3f);
             }
             if (ring && ring.enabled != focused) ring.enabled = focused;
+        }
+    }
+
+    // v5: a slow "current" along a card's outline: four dashed cyan strokes just inside the hairline (tiled RawImages
+    // whose uvRect slides, so the dashes march clockwise); still under reduced motion. Sized to the card every frame.
+    public class CurrentEdge : MonoBehaviour
+    {
+        const float Period = 48f, Speed = 36f, Stroke = 2f;
+        static Texture2D dashes;
+        RawImage[] sides;
+        float corner, inset, phase;
+
+        public static CurrentEdge Add(RectTransform card, float corner, float inset = 2.5f)
+        {
+            var root = UI.Stretch("Current", card);
+            root.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+            var edge = root.gameObject.AddComponent<CurrentEdge>();
+            edge.corner = corner;
+            edge.inset = inset;
+            edge.sides = new RawImage[4];
+            for (int i = 0; i < 4; i++)
+            {
+                var side = UI.Rect("Side " + i, root, Vector2.zero, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero).gameObject.AddComponent<RawImage>();
+                side.texture = Dashes;
+                side.color = UI.Alpha(LessonPanel.Spark, 0.9f);
+                side.raycastTarget = false;
+                edge.sides[i] = side;
+            }
+            return edge;
+        }
+
+        static Texture2D Dashes
+        {
+            get
+            {
+                if (dashes) return dashes;
+                dashes = new Texture2D((int)Period, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear, name = "Dashes" };
+                var pixels = new Color32[(int)Period];
+                for (int x = 0; x < pixels.Length; x++)
+                {
+                    float d = Mathf.Min(x, 22 - x);   // a 22 px dash with 2 px soft ends, then a gap
+                    pixels[x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(255f * Mathf.Clamp01(d / 2f + 0.5f)));
+                }
+                dashes.SetPixels32(pixels);
+                dashes.Apply(false, true);
+                return dashes;
+            }
+        }
+
+        void OnEnable() { foreach (var s in sides) if (s) s.enabled = true; }
+        void OnDisable() { foreach (var s in sides) if (s) s.enabled = false; }
+
+        void Update()
+        {
+            var r = ((RectTransform)transform).rect;
+            if (r.width <= 0f) return;
+            if (!ReducedMotion.On) phase = (phase + Speed * Time.unscaledDeltaTime / Period) % 1f;
+            float w = r.width - 2f * corner, h = r.height - 2f * corner;
+            // Clockwise: top runs right, right side runs down, bottom runs left, left side runs up.
+            Side(0, new Vector2(0.5f, 1f), new Vector2(0f, -inset), 0f, w, -phase);
+            Side(1, new Vector2(1f, 0.5f), new Vector2(-inset, 0f), -90f, h, -phase);
+            Side(2, new Vector2(0.5f, 0f), new Vector2(0f, inset), 180f, w, -phase);
+            Side(3, new Vector2(0f, 0.5f), new Vector2(inset, 0f), 90f, h, -phase);
+        }
+
+        void Side(int i, Vector2 anchor, Vector2 at, float angle, float length, float uv)
+        {
+            var rect = sides[i].rectTransform;
+            rect.anchorMin = rect.anchorMax = anchor;
+            rect.anchoredPosition = at;
+            rect.sizeDelta = new Vector2(Mathf.Max(0f, length), Stroke);
+            rect.localRotation = Quaternion.Euler(0f, 0f, angle);
+            sides[i].uvRect = new Rect(uv, 0f, length / Period, 1f);
         }
     }
 

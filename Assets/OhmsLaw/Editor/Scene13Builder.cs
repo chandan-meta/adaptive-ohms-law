@@ -4,10 +4,10 @@ using UnityEngine;
 
 namespace OhmsLaw.Editor
 {
-    // Scene 13: the finale. The three pieces come back together in the panel, V, I and R resolve into V = IR and the
-    // name OHM'S LAW, with a warm musical resolution; Georg Ohm reappears beside the bench to take a bow, Wattson
-    // celebrates, the lab lights warm, and the composition holds. The panel then offers replay and exit; the teaching
-    // ends here (the optional Scene 14 video plays over the hold if one is configured).
+    // Scene 13: the finale. The three pieces come back together in the panel, V, I and R resolve into V = IR centre
+    // screen and the name OHM'S LAW, with a warm musical resolution; Georg Ohm reappears beside the bench to take a bow,
+    // Wattson celebrates, the lab lights warm, and the composition holds. The panel then offers replay and exit; the
+    // teaching ends here (the optional Scene 14 video plays over the hold if one is configured).
     public class Scene13Builder : SceneBuilderBase
     {
         public override string SceneId => "Scene13";
@@ -46,7 +46,8 @@ namespace OhmsLaw.Editor
             director.matchCutFrom = "Scene12_Resistance";
             director.rig = Rig(assembled: true, keyClosed: true, voltage: 5);
             director.rig.showPath = false;
-            Wattson(TrayPointC, Scene10Builder.StudyCamC); // Tray Point, where Scene 12 leaves him
+            MeterPlates(false); // the strip carries V, I and R through the finale: no plate reads through the hero glass
+            Wattson(Scene12Builder.RevealSide, Scene10Builder.StudyCamC); // where Scene 12 leaves him, above its ohm plate
             Vcam("Bench Study", Scene10Builder.StudyCamC, Scene10Builder.StudyLookC, Scene10Builder.StudyFov, refs["Bench Point"].transform, lensMedium);
             Vcam("Finale", FinaleCamC, FinaleLookC, 42f, refs["Bench Point"].transform, lensMedium);
             Marker("Front Point", FrontPoint);
@@ -93,17 +94,18 @@ namespace OhmsLaw.Editor
 
         protected override void Beats()
         {
-            // Match-cut from Scene 12: the data, R in the readings and V = IR in the panel.
+            // Match-cut from Scene 12: R in the readings strip and this wire's 5 Ω in the dock (the ohm plate goes with the cut).
             Shot("Bench Study");
             Ambience("RoomTone");
             Music("PadLab");
-            Cue("readings.r 1"); Cue("readings 1"); // the finale keeps only the three readings and the law: no table, no graph
-            Formula("V = I × R");
-            Gesture(WattsonController.Gesture.Talking);
+            Cue("readings.r 1"); Cue("readings.top 1"); // the finale keeps only the three readings and the law: no table, no graph
+            Formula("this wire:  5.0 V ÷ 1.00 A = 5.0 Ω"); // the ohm, as Scene 12 left it, in the dock (the bench stays clear)
+            Gesture(WattsonController.Gesture.Talking, moveTo: "Tray Point");
             Line("S13_L01");
 
             // The three pieces, one line each, then the relationship.
             Cue("formula.clear");
+            Cue("hero.clear");
             Gesture(WattsonController.Gesture.Point, point: "Panel Point");
             Formula("V   —   the push: potential difference");
             Line("S13_L02");
@@ -115,30 +117,31 @@ namespace OhmsLaw.Editor
             Line("S13_L05", 0.2);
             Gate("S13_BuildLaw", "the learner taps V, then I, then R: V = I × R builds in the panel");
             Cue("formula.clear");
-            Reveal("V = I × R", "");   // the same form the learner just built with the tiles
+            Cue("hero V = I × R|", "the law the learner just built, centre screen");
             Visual("The three pieces resolve into V = IR", 1.2);
 
             // The finale composition: the lab warms, Georg Ohm returns to take a bow, Wattson celebrates; the whole
-            // investigation is in one frame: the bench and its meters, the data and the law in the panel. Timed inside
-            // S13_L06 ("And today... we call it OHM'S LAW."): the camera pulls back on "we call it" (1.0 s) while Wattson
-            // comes forward, and the name, the sting, the sparks, Ohm and the module's theme land on "OHM'S LAW" (1.8 s).
-            // The meter plates go with Ohm's entrance: the readings stay in the panel, and Ohm stands behind the meters.
+            // investigation is in one frame: the bench and its meters, the readings strip and the law. Timed inside S13_L06
+            // ("And today... we call it OHM'S LAW."): the camera pulls back on "we call it" (1.0 s) while Wattson comes
+            // forward, and the name, the sting, the sparks and the module's theme land on "OHM'S LAW" (1.8 s). The name owns
+            // the screen for L06; then it gives way to the man it is named after: Ohm appears behind the bench (where the
+            // plate stood) as the summary starts.
             Shot("Finale", offset: 1.0);
             Gesture(WattsonController.Gesture.Talking, moveTo: "Front Point", offset: 1.0);
-            Reveal("OHM'S LAW", "", 1.8);
+            Cue("hero OHM'S LAW|", "the name, centre screen", 1.8);
             Sfx("Finale", 1.8);
             Music("bgm", 1.8);
-            Cue("rig.readouts 0", "", 1.8);
             Cue("fx Finale Glow", "", 1.8);
-            Cue("appear 0.9 Georg Ohm", "Georg Ohm reappears behind the bench, presenting", 1.8);
-            Cue("ohm.pose Present", "", 2.0);
-            Cue("ohm.look Main Camera", "", 2.0);
             Gesture(WattsonController.Gesture.Greet, offset: 1.8);
             Line("S13_L06", 0.1);
-            Visual("The lab warms; Ohm presents; Wattson greets the learner", 0.8);
+            Visual("The name holds centre screen; the lab warms", 0.8);
+            Cue("hero.clear", "the plate gives way to Ohm: the case-closed card carries the law at the end");
+            Cue("appear 0.9 Georg Ohm", "Georg Ohm reappears behind the bench, presenting");
+            Cue("ohm.pose Present", "", 0.2);
+            Cue("ohm.look Main Camera", "", 0.2);
             Line("S13_N01", 0.3);
             Gesture(WattsonController.Gesture.Idle);
-            Visual("The completed composition holds: bench, meters, graph and V = IR", 2.5);
+            Visual("The completed composition holds: bench, meters, Ohm and Wattson", 2.5);
             Cue("end", "the panel offers replay and exit; the module holds here");
         }
     }

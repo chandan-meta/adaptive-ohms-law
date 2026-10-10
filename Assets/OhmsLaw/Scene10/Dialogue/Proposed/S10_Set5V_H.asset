@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
   id: S10_Set5V_H
   speaker: WATTSON
-  text: Tap the 5 V button.
-  ttsText: Tap the 5 V button.
+  text: Slide the battery to 5 volts.
+  ttsText: Slide the battery to 5 volts.
   vo: {fileID: 8300000, guid: 614b9882892d99b4ea08cc6b1bf72377, type: 3}
-  fallbackDuration: 1.8
+  fallbackDuration: 2

@@ -111,7 +111,7 @@ namespace OhmsLaw.Editor
                 if (File.Exists(vo + "/" + line.id + ".wav") || File.Exists(vo + "/" + line.id + ".ogg")) actor++;
                 else if (voice != null)
                 {
-                    string stamp = Stamp(speech, voice);
+                    string stamp = Stamp(speech, VoiceFor(voice, speech));
                     if (fresh.Contains(line.id)) { real++; made++; }
                     else if (File.Exists(mp3) && StampOf(mp3) == stamp) real++;
                     else if (edge) failed++; // edge_bake.py reported it; see the warning above
@@ -181,6 +181,8 @@ namespace OhmsLaw.Editor
 
         static string TextHash(string speech) => Hash128.Compute(speech).ToString();
         static string Stamp(string speech, string voice) => TextHash(speech) + "@" + Hash128.Compute(voice);
+        // The edge voice is modulated per line (EdgeVoice.Modulation), so the stamp carries the line's own rate and pitch.
+        static string VoiceFor(string voice, string speech) => EdgeVoice.Is(voice) ? voice + "|" + string.Join("|", EdgeVoice.Modulation(speech)) : voice;
         static string StampOf(string path)
         {
             var importer = AssetImporter.GetAtPath(path); // a UnityEngine.Object: test it with its bool, never ?. / ??
@@ -261,7 +263,7 @@ namespace OhmsLaw.Editor
 
         // ------------------------------------------------------------------ edge-tts (neural voice, no key)
 
-        [Serializable] class EdgeLine { public string id, text, @out; }
+        [Serializable] class EdgeLine { public string id, text, @out, rate, pitch; }
         static bool edgeUnavailable; // set for the rest of a Run once edge_bake.py could not make a single clip
 
         // One edge-tts run for every line of the scene whose mp3 is missing or stale: the manifest goes to the temp folder,
@@ -274,13 +276,13 @@ namespace OhmsLaw.Editor
             {
                 if (File.Exists(vo + "/" + line.id + ".wav") || File.Exists(vo + "/" + line.id + ".ogg")) continue; // voice actor
                 string speech = PronunciationLexicon.ForSpeech(line.Spoken), mp3 = vo + "/" + line.id + ".mp3";
-                if (!File.Exists(mp3) || StampOf(mp3) != Stamp(speech, voice)) pending.Add((line.id, speech, mp3));
+                if (!File.Exists(mp3) || StampOf(mp3) != Stamp(speech, VoiceFor(voice, speech))) pending.Add((line.id, speech, mp3));
             }
             if (pending.Count == 0) return true;
 
             EditorUtility.DisplayProgressBar("Bake VO " + sceneId, $"edge-tts: speaking {pending.Count} line(s) as {EdgeVoice.Name}...", 0f);
             string manifest = Path.Combine(Path.GetTempPath(), "ohm_edge_" + sceneId + ".json");
-            File.WriteAllText(manifest, "[" + string.Join(",", pending.Select(p => JsonUtility.ToJson(new EdgeLine { id = p.id, text = p.speech, @out = Path.GetFullPath(p.mp3) }))) + "]",
+            File.WriteAllText(manifest, "[" + string.Join(",", pending.Select(p => { var (rate, pitch) = EdgeVoice.Modulation(p.speech); return JsonUtility.ToJson(new EdgeLine { id = p.id, text = p.speech, @out = Path.GetFullPath(p.mp3), rate = rate, pitch = pitch }); })) + "]",
                               new UTF8Encoding(false));
             string script = Path.Combine(Path.GetDirectoryName(Application.dataPath), "Tools", "edge_bake.py");
             var output = new StringBuilder();
@@ -297,7 +299,7 @@ namespace OhmsLaw.Editor
             }
             EditorUtility.DisplayProgressBar("Bake VO " + sceneId, $"edge-tts: importing {spoken.Count} clip(s)", 0f);
             foreach (var (id, speech, mp3) in pending)
-                if (spoken.Contains(id) && File.Exists(mp3)) { Import(mp3, Stamp(speech, voice)); fresh.Add(id); }
+                if (spoken.Contains(id) && File.Exists(mp3)) { Import(mp3, Stamp(speech, VoiceFor(voice, speech))); fresh.Add(id); }
             return ok || fresh.Count > 0;
         }
 
@@ -461,12 +463,27 @@ $s.Dispose()
         }
     }
 
-    // Microsoft's neural "Ana" (a bright, young voice) through the free edge-tts endpoint: Wattson's voice until an ElevenLabs key
-    // exists. Changing any constant changes the signature, so the next bake redoes every edge clip.
+    // Wattson's voice (2026-10-10): Microsoft's neural "Ryan" (en-GB, a warm, lively detective) through the free edge-tts endpoint,
+    // brightened a little, until an ElevenLabs key exists. Modulation(): each line gets its own rate and pitch from its shape, so
+    // questions lift, exclamations and short beats quicken, and long explanations slow down. Changing any constant changes the
+    // signature, so the next bake redoes every edge clip.
     public static class EdgeVoice
     {
-        public const string Name = "en-US-AnaNeural", Rate = "+10%", Pitch = "-4Hz";
+        public const string Name = "en-GB-RyanNeural", Rate = "+8%", Pitch = "+6Hz";
+        const int BaseRate = 8, BasePitch = 6;
         public static string Signature => "edge:" + Name + "|" + Rate + "|" + Pitch;
+        // Per-line modulation: (rate, pitch) strings edge-tts accepts. ponytail: four rules on punctuation and length; SSML prosody per phrase if a voice director wants more.
+        public static (string rate, string pitch) Modulation(string speech)
+        {
+            string t = (speech ?? "").Trim();
+            int rate = BaseRate, pitch = BasePitch;
+            if (t.EndsWith("?")) { pitch += 5; rate -= 2; }                       // a question lifts and leaves room
+            else if (t.EndsWith("!")) { rate += 6; pitch += 3; }                   // an exclamation quickens
+            else if (t.Length < 32) { rate += 4; pitch += 2; }                     // a short beat is snappy
+            if (t.Length > 110) rate -= 5;                                         // a long explanation slows down
+            if (t.Contains("...")) rate -= 2;                                      // a pause written in
+            return ((rate >= 0 ? "+" : "") + rate + "%", (pitch >= 0 ? "+" : "") + pitch + "Hz");
+        }
         public static bool Is(string voice) => voice != null && voice.StartsWith("edge:");
     }
 }

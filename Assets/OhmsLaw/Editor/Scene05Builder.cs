@@ -3,12 +3,14 @@ using UnityEngine;
 
 namespace OhmsLaw.Editor
 {
-    // Scene 5: Journey Inside the Wire. Opens on Scene 4's last frame (the copper test wire on Ohm's desk under the
-    // Ohm-niscope beam), one short push into the wire's surface through white, then the electron space on one steady
-    // camera, one idea at a time, each explained in the panel:
+    // Scene 5: Journey Inside the Wire. Opens on Scene 4's last frame (no white: Scene 4 cuts; the copper test wire on
+    // Ohm's desk under the Ohm-niscope beam), pushes into the wire's surface, a flash, and the dive carries on inside the
+    // copper lattice cavern: the entry camera keeps moving onto the "Wire Inside" shot while the streaks still stream.
+    // Then one idea at a time, each explained in the panel:
     //   A  free electrons in random motion, no overall flow;
-    //   B  the two ends named (− and +), a voltage applied between them, the drift that follows (random motion kept);
-    //   C  current: the charge crossing one section each second, counted live in the panel.
+    //   B  the two ends named (− and +) on a wide shot of both terminals, the voltage between them (the learner applies
+    //      it), the drift that follows (random motion kept);
+    //   C  current: the charge crossing one section each second, counted live in the panel; the question for Scene 6.
     // Ends on the frame Scene 6 match-cuts from (the prediction).
     public class Scene05Builder : SceneBuilderBase
     {
@@ -18,27 +20,27 @@ namespace OhmsLaw.Editor
 
         protected override void Dialogue()
         {
-            L("S05_L01", "These are electric charges.", 2.2f);
-            L("S05_L06", "And when electric charge flows...", 2.4f);
-            L("S05_L07", "...we call that electric current.", 2.4f);
+            // v5 "Live Wire" narration (Docs/Polish/V5_PLAN.md): the beats in order.
+            L("S05_V01", "Now you are inside the wire.", 2.2f, proposed: true);
+            L("S05_V02", "These glowing charges are electrons, and every one of them is negative.", 4.4f, proposed: true);
+            L("S05_V03", "Right now they just jiggle about at random. Lots of motion, but no overall flow in any direction.", 5.6f, proposed: true);
+            L("S05_V04", "Let's connect a battery across the wire. This end goes to the negative terminal.", 5.0f, proposed: true);
+            L("S05_V05", "And that end to the positive terminal.", 2.4f, proposed: true);
+            L("S05_V06", "Between the two ends there is now a difference in electric potential. That push across the wire is the voltage, written V.", 7.2f, proposed: true);
+            L("S05_V07", "Watch! The charges still jiggle, but now they all flow one way, from negative to positive. That steady flow is electron drift.", 7.4f, proposed: true); // two caption lines: the 3-line version paged mid-phrase
+            L("S05_V08", "Now pick one cross-section of the wire, this ring. Count how much charge passes through this area in one second.", 6.6f, proposed: true);
+            L("S05_V09", "This much charge, from negative to positive, through this area, every second. That rate of flow is the current, written I.", 7.4f, proposed: true);
+            L("S05_V10", "Voltage pushes. Current flows. So, detective: how do you think the two are related?", 5.4f, proposed: true);
+            // The handoff to the prediction (Scene 6).
             L("S05_L08", "And that's exactly the clue we need for your Christmas lights. The new battery changed the electrical conditions—but before we solve your mystery, we need to find out exactly how voltage and current are connected.", 12.0f);
             L("S05_L09", "Want to predict what we'll find?", 2.2f);
-            // The two ends, named as Wattson points at them.
-            L("S05_W02", "This end connects to the battery's negative terminal.", 2.8f, proposed: true);
-            L("S05_W03", "That end, to the positive terminal.", 2.2f, proposed: true);
-            // The redesign's lines: random motion first, then voltage as a potential difference, then the count.
-            L("S05_N01", "Free electrons, inside the copper wire. These electrons are already moving around. But there's no overall flow in one direction yet.", 6.0f, proposed: true);
-            L("S05_N02", "Now we apply a voltage: a difference in electric potential between the two ends.", 4.4f, proposed: true);
-            L("S05_N03", "That creates the electrical push that gives the electrons an overall direction. They still jiggle, but now they all drift together.", 6.0f, proposed: true);
-            L("S05_N04", "Watch this section. One, two, three... Now count how much charge passes in one second.", 6.0f, proposed: true);
-            L("S05_N05", "That rate of charge flow, the charge passing each second, is the current.", 4.4f, proposed: true);
         }
 
         protected override SceneAgentContext Agent() => Context(
             new[]
             {
                 "Everything from Scene 4: the Christmas-lights mystery, Georg Ohm, the words voltage and current, the Ohm-niscope.",
-                "Inside a metal the charge carriers are free electrons.",
+                "Inside a metal the charge carriers are free electrons, every one negative. The warm glow all round the conduit is the copper's own atoms: the electrons move between them.",
                 "Before a voltage is applied the electrons move randomly in every direction with no net drift.",
                 "A voltage is a potential difference between two points; applying it across the wire sets up an electric field that pushes the electrons. Symbol V, unit volt (V).",
                 "With the voltage applied the electrons keep their random motion and all drift together, from the − terminal end toward the + terminal end. Conventional current is drawn the other way, + to −.",
@@ -52,7 +54,7 @@ namespace OhmsLaw.Editor
 
         protected override void Stage()
         {
-            // The macro beat is Scene 4's study with its own lighting, grouped so the flash to white takes it all away.
+            // The macro beat is Scene 4's study with its own lighting, grouped so the cut to the inside takes it all away.
             var macro = Ref(Node("Macro"));
             Study().transform.SetParent(macro.transform, true);
             StudyLighting();
@@ -64,11 +66,20 @@ namespace OhmsLaw.Editor
             wire.fieldOn = false;
             director.wire = wire;
             WireDriftArrow();
-            WireBracket();
+            // The potential difference spans the wire: ticks at its two ends, just clear of the − and + blocks' faces (x −4.5 and
+            // +4.6; the right end stops short of the "+ positive" plate in the "Wire Terminals" shot).
+            WireBracket(WireOrigin + new Vector3(-4f, 0, -TunnelRadius - 0.04f), WireOrigin + new Vector3(4f, 0, -TunnelRadius - 0.04f));
             // v3 cinematic pass: a medium on the conduit for the drift (the push-in lands as the field goes up). Cause and
             // effect share the free frame: the drift arrow from its tail, the + terminal it drifts toward and its
             // "+ positive" label all sit left of the dock (the old, tighter lens put them under it).
             Vcam("Wire Drift", WireOrigin + new Vector3(-1.4f, -0.45f, -7.2f), WireOrigin + new Vector3(1.8f, -0.3f, 0f), 56f, refs["Electrons Point"].transform, lensMedium); // focus on the stream (Wattson is beside and behind this lens)
+            // The dive's entry: 3 m behind "Wire Inside" on its own axis; "wire.dive" moves it onto the inside pose. Its streaks
+            // stream out of the cavern past the lens for the first beat (world-placed, shown and hidden by the cues; the macro
+            // streaks stay with the desk). The tracking lens: motion blur for the push, no chromatic aberration (the dive lens
+            // split Wattson into RGB copies through V01, since the blend onto "Wire Inside" ends only after it starts).
+            Vector3 forward = (WireCamLook - WireCamPos).normalized, enter = WireCamPos - forward * 3f;
+            Vcam("Wire Enter", enter, WireCamLook, WireFov, refs["Platform Point"].transform, lensTracking);
+            WireFx("race into wire interior", enter + forward * 2.5f).transform.rotation = Quaternion.LookRotation(-forward);
             Wattson(PlatformPoint + new Vector3(-3.5f, 0.3f, 0.6f), WireCamPos); // glides to Platform Point: lower-left, on the floor
 
             // The panel's notes for this scene (the cues name them).
@@ -78,9 +89,9 @@ namespace OhmsLaw.Editor
             Note("current", "Current (I)", "The charge passing a section each second: I = ΔQ ÷ Δt. Unit: ampere (A).");
         }
 
-        // Scene 4's desk as it was at the flash: the same 1826 apparatus, the copper wire on its posts, the beam's hot
+        // Scene 4's desk as it was at the cut: the same 1826 apparatus, the copper wire on its posts, the beam's hot
         // spot, the shimmer of the lock-on, and the streaks racing out of the surface. Both macro cameras stand on
-        // Scene 4's dive axis; the push from A to B is short.
+        // Scene 4's dive axis ("Macro A" is SH11b Dive's end pose); the push from A to B is short.
         void MacroWire(Transform macro)
         {
             var group = Node("Macro Wire", macro).transform;
@@ -117,66 +128,74 @@ namespace OhmsLaw.Editor
 
         protected override void Beats()
         {
-            // One coherent entry: a short push into the wire's surface, the whoosh, white, and the inside with its own
-            // hum and a darker pad (the study's room tone goes with the flash).
+            // One continuous dive: Scene 4 cut here on the macro wire; the push into its surface with the streaks, a
+            // flash, and under it the cut to the cavern's entry camera, which keeps pushing onto "Wire Inside" while
+            // the streaks still stream and the flash clears; the hum from the cut, the darker pad with it.
             Shot("Macro A");
             Show("[VFX] race into wire surface");
             Sfx("Enter");
-            Visual("Macro copper wire under the Ohm-niscope beam; a short push in", 0.5);
+            Visual("Macro copper wire under the Ohm-niscope beam; the push in begins", 0.5);
             Shot("Macro B");
             Visual("Into the wire surface", 1.1);
-            Cue("fade 1", "flash to white");
-            Wait(0.5);
-            Shot("Wire Inside", cut: true);
+            Cue("fade 1 0.15", "a flash of white (0.15 s)");
+            Wait(0.2);
+            Shot("Wire Enter", cut: true);
             Show("Wire Section");
-            Hide("[VFX] race into wire surface");
             Hide("Macro");
+            Hide("[VFX] race into wire surface");
+            Show("[VFX] race into wire interior");
             Ambience("WireHum");
             Music("PadWire");
-            Cue("fade 0", "fade in inside the wire; electrons in random motion, no drift");
+            Cue("wire.dive 1.8", "the entry camera keeps moving: 3 m on, easing out onto Wire Inside", 0.05);
+            Cue("fade 0 0.5", "the flash clears on the cavern: warm copper atoms all round, the conduit ahead", 0.05);
+            Hide("[VFX] race into wire interior", 0.6);
+            Shot("Wire Inside", offset: 1.8);
             Gesture(WattsonController.Gesture.Idle, moveTo: "Platform Point");
-            Visual("Wattson glides in to his spot on the floor, lower-left", 1.5);
+            Visual("The dive settles inside the copper lattice; Wattson glides in to his spot on the floor, lower-left", 1.2);
+            Line("S05_V01");
 
-            // A: where we are, what the particles are, and that nothing flows yet.
+            // A: what the particles are, and that nothing flows yet.
             Gesture(WattsonController.Gesture.Point, point: "Electrons Point");
-            Line("S05_L01");
+            Line("S05_V02");
             Cue("callout show electrons");
-            Line("S05_N01");
             Cue("wire.trails 1", "two tracer electrons leave short trails: zig-zags that go nowhere overall");
-            Visual("Random motion: the trails zig-zag and go nowhere overall", 1.8);
+            Line("S05_V03");
+            Visual("Random motion: the trails zig-zag and go nowhere overall", 1.2);
 
-            // B: the two ends, then the voltage between them, then the drift that follows.
+            // B: both terminals in one wide shot as they are named and lit, the voltage between them (the learner
+            // applies it), then the drift that follows.
             Cue("callout hideall");
+            Shot("Wire Terminals");
             Gesture(WattsonController.Gesture.Point, point: "Card Terminal −");
             Show("Card Terminal −");
             Show("Card Terminal Label −");
             Sfx("Highlight");
-            Line("S05_W02", 0.2);
+            Line("S05_V04", 0.2);
             Gesture(WattsonController.Gesture.Point, point: "Card Terminal +");
             Show("Card Terminal +");
             Show("Card Terminal Label +");
             Sfx("Highlight");
-            Line("S05_W03");
+            Line("S05_V05");
             Gesture(WattsonController.Gesture.Point, point: "Bracket");
             Show("Bracket");
             Cue("callout show voltage");
-            Line("S05_N02", 0.1);
+            Line("S05_V06", 0.1);
             Gate("S05_ApplyVoltage", "the learner taps the + terminal: the voltage is applied, and the field goes up");
+            Hide("Bracket"); // it spans the whole wire: in the drift medium it would run off the frame under the arrow
             Shot("Wire Drift");
             Gesture(WattsonController.Gesture.RaiseGadget, gadget: true);
             Show("[VFX] field wave sweeps whole tunnel");
             Sfx("Highlight");
             Cue("wire.field 1", "field set up along the whole conduit at once; every electron starts drifting − → +, random motion kept", 0.3);
-            Line("S05_N03");
+            Show("Drift Arrow", 0.8);
+            Cue("callout show drift", "", 0.8);
+            Line("S05_V07");
             Hide("[VFX] field wave sweeps whole tunnel");
-            Hide("Bracket");
             Gesture(WattsonController.Gesture.Idle);
-            Show("Drift Arrow");
-            Cue("callout show drift");
-            Visual("The electrons keep jiggling and now all drift together; the arrow under the conduit says electron drift, − → +", 2.4);
+            Visual("The electrons keep jiggling and now all drift together; the arrow under the conduit says electron drift, − → +", 1.2);
 
-            // C: current, counted at the section in the panel: one, two, three ... and the completed second (wide again:
-            // Wattson points at the ring).
+            // C: current, counted at the section in the panel, and the completed second (wide again: Wattson points at
+            // the ring); then the question Scene 6 asks.
             Shot("Wire Inside");
             Gesture(WattsonController.Gesture.Point, point: "Cross Section");
             Show("Cross Section");
@@ -185,16 +204,16 @@ namespace OhmsLaw.Editor
             Cue("counter 1", "the panel's counter: charges through the section this second, the one-second ring");
             Cue("wire.ticks 1", "a soft tick for every counted charge");
             Cue("wire.count 1");
-            Line("S05_N04", 0.2);
-            Visual("A full second completes: the panel shows that second's count", 1.6);
-            Line("S05_L06");
-            Line("S05_L07");
+            Visual("The wide settles (1 s blend) with the ring lit, so the line and the labels start on the settled frame", 1.0);
+            Line("S05_V08", 0.2);
+            Visual("A full second completes: the panel shows that second's count", 1.2);
             Cue("callout show current");
-            Line("S05_N05");
+            Line("S05_V09");
 
             Gesture(WattsonController.Gesture.Talking);
             Line("S05_L08");
             Gesture(WattsonController.Gesture.Idle);
+            Line("S05_V10", 0.2);
             Line("S05_L09", 0.2);
             Cue("spotlight", "Ask Wattson pulses once");
             Wait(0.8);

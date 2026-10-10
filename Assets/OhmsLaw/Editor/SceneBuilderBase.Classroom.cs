@@ -326,7 +326,7 @@ namespace OhmsLaw.Editor
             ContactShadow(baseDisc.transform, new Vector2(0.26f, 0.26f));
         }
 
-        GameObject MeshPrim(string name, Transform parent, Mesh mesh, Material material, Vector3 position, Vector3 euler, Vector3 scale)
+        protected GameObject MeshPrim(string name, Transform parent, Mesh mesh, Material material, Vector3 position, Vector3 euler, Vector3 scale)
         {
             var go = Node(name, parent, position);
             go.transform.localRotation = Quaternion.Euler(euler);
@@ -422,12 +422,14 @@ namespace OhmsLaw.Editor
             rim.innerSpotAngle = 30f;
             rim.shadows = LightShadows.None;
 
-            var wash = Node("Board Wash", root, new Vector3(0f, 2.75f, 1.8f)).AddComponent<Light>();
+            // 1.6 m out from the wall, not 0.8: that close it lit the wall just over the board four times as hard as the board
+            // itself (a white patch at the top of Scene 13's finale). Same light on the board's centre, more even top to bottom.
+            var wash = Node("Board Wash", root, new Vector3(0f, 2.75f, 1.0f)).AddComponent<Light>();
             wash.type = LightType.Spot;
             wash.transform.rotation = Quaternion.LookRotation(BoardCentreC - wash.transform.position);
             wash.color = new Color(1f, 0.97f, 0.9f);
-            wash.intensity = 1.1f;
-            wash.range = 3.5f;
+            wash.intensity = 1.6f;
+            wash.range = 4.5f;
             wash.spotAngle = 120f; // wide and soft: no visible cone on the board
             wash.innerSpotAngle = 90f;
             wash.shadows = LightShadows.None;

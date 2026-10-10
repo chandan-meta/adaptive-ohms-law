@@ -16,7 +16,7 @@ namespace OhmsLaw.Editor
         protected override void Dialogue()
         {
             L("S06_L01", "Detective test.", 1.5f);
-            L("S06_L02", "If we increase the potential difference while everything else stays the same, what do you predict will happen to the current?", 6.5f);
+            L("S06_L02", "If we increase the voltage across the wire, with everything else the same, what happens to the current?", 5.6f);
             L("S06_L03", "Interesting. Remember your answer. Let's see if Ohm's experiment agrees with you.", 5.0f);
             // The reaction only says the answer back, without judging it: S06_L03 right after it asks the learner to
             // remember it and promises the test.
@@ -63,6 +63,7 @@ namespace OhmsLaw.Editor
             Music("PadWire");
             Gesture(WattsonController.Gesture.Greet);
             Visual("Wattson turns toward the learner", 0.6);
+            Shot("Wire Wattson"); // close on him for the greeting and the freeze: the magic the scene hangs on (in the wide it was a 130 px figure and the burst went unseen)
             Line("S06_L01");
 
             // First the freeze, and the counter goes with it (a held number beside a rising gauge would read as an answer);
@@ -72,11 +73,12 @@ namespace OhmsLaw.Editor
             Cue("wire.ticks 0"); Cue("wire.count 0"); Cue("counter 0");
             Show("[VFX] time-freeze (Ohm-niscope holds the carriers)");
             Sfx("Highlight");
-            Visual("The Ohm-niscope freezes the electrons; the counter is put away", 0.8);
-            Show("Battery Readout");
-            Cue("boost Card Terminal +", "Wattson raises the battery voltage: the + terminal brightens as its V gauge rises");
-            Sfx("VoltStep");
-            Visual("Voltage rises on the + terminal's gauge while the electrons stay frozen", 1.2);
+            Visual("The Ohm-niscope freezes the electrons in the two-shot: the cold pulse from his gadget, frost round the conduit, the charges turn ice-blue and stop drifting; the counter is put away", 1.2);
+            Shot("Wire Inside"); // back to the wide for the voltage rise and the question; the gauge pops in as the 1 s blend lands
+            Show("Battery Readout", 0.6);
+            Cue("boost Card Terminal +", "Wattson raises the battery voltage: the + terminal brightens as its V gauge rises", 0.6);
+            Sfx("VoltStep", 0.6);
+            Visual("Voltage rises on the + terminal's gauge while the electrons stay frozen", 1.4);
 
             Gesture(WattsonController.Gesture.Point, point: "Card Terminal +");
             Line("S06_L02", 0.2);
@@ -99,20 +101,21 @@ namespace OhmsLaw.Editor
             Ambience("off");
             Music("off");
             Visual("Ohm-niscope flash", 0.6);
-            Cue("fade 1", "fade to white");
-            Handoff("Scene06Complete", cut: false, afterSeconds: 0.7);
+            Cue("fade 1 0.3", "a white flash (0.3 s), like the way in");
+            Handoff("Scene06Complete", cut: true, afterSeconds: 0.35); // a cut under the white, no second fade: Scene 7's pull-back off the wire is seen
         }
 
-        // The + terminal's own readout: a slim level gauge on the floor just left of the block's front, its blue fill rising
-        // from 30 % to 80 % over 1.4 s when it is shown (a legacy Animation clip, so the show cue restarts it), marked "V"
-        // above its slot. It stands clear of the "+ positive" label (on the block's corner it hid the "+").
+        // The + terminal's own readout: a level gauge standing on top of the + block (front-left of its cap), its blue fill
+        // rising from 30 % to 80 % over 1.4 s when it is shown (a legacy Animation clip, so the show cue restarts it), marked
+        // "V" above its slot. Up there it has clear space over the conduit's + end, away from the "+ positive" label and the
+        // stream, at 1.5x: on the floor it was 45 x 130 px, the smallest thing in the frame, crowding the label.
         void BatteryReadout()
         {
-            const float width = 0.44f, height = 1.5f, depth = 0.3f, face = -0.05f;
+            const float width = 0.44f, height = 1.5f, depth = 0.3f, face = -0.05f, scale = 1.5f;
             const float slotWidth = 0.2f, slotHeight = 1.1f, slotY = -0.12f, edge = 0.012f;
-            Vector3 corner = PlusBlock + new Vector3(-1.4f, 0, -0.8f);
-            var gauge = Node("Battery Readout", null, new Vector3(corner.x, SpaceFloorY + height / 2, corner.z));
+            var gauge = Node("Battery Readout", null, PlusBlock + new Vector3(-0.35f, 1.8f + scale * height / 2, -0.35f)); // the block's cap top is 1.8 m over its centre
             gauge.transform.rotation = Quaternion.Euler(0, 45, 0);
+            gauge.transform.localScale = Vector3.one * scale;
             var pop = gauge.AddComponent<PopIn>();
             pop.duration = 0.4f;
             pop.overshoot = 1.15f;

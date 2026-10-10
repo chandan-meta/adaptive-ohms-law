@@ -19,11 +19,14 @@ MonoBehaviour:
   - "Everything from Scenes 5 to 11: voltage (V, volt), current (I, ampere), the
     five readings, V \u221D I for the nichrome wire at constant temperature, the
     straight-line graph through the origin."
-  - 'The panel compared two wires of the same length, thickness and temperature at
-    the same voltage: copper lets more current through, nichrome opposes the flow
-    more. Resistance limits the current; the charges are not destroyed.'
+  - 'The 3D comparison showed two wires of the same length, thickness and temperature
+    at the same voltage: inside a metal the atoms sit in a lattice and the free electrons
+    thread through it; in copper they slip past with few collisions (big current),
+    in nichrome they scatter and lose headway (less current). Each collision hands
+    energy to the lattice as heat. Resistance limits the current; the charges are
+    not destroyed.'
   - The material of a conductor opposes the flow of current. That opposition is electrical
-    resistance, symbol R.
+    resistance, symbol R. Nichrome has the higher resistance.
   - "For the nichrome wire XY, V/I is the same for every reading (1.0 \xF7 0.20 =
     5, 2.0 \xF7 0.40 = 5, ...). V \u221D I means V = kI, so V/I = k, and that constant
     k is the resistance R: V = IR."

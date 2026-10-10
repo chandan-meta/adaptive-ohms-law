@@ -18,7 +18,9 @@ MonoBehaviour:
   covered:
   - 'Everything from Scene 4: the Christmas-lights mystery, Georg Ohm, the words
     voltage and current, the Ohm-niscope.'
-  - Inside a metal the charge carriers are free electrons.
+  - 'Inside a metal the charge carriers are free electrons, every one negative. The
+    warm glow all round the conduit is the copper''s own atoms: the electrons move
+    between them.'
   - Before a voltage is applied the electrons move randomly in every direction with
     no net drift.
   - A voltage is a potential difference between two points; applying it across the

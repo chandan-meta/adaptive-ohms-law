@@ -94,6 +94,7 @@ namespace OhmsLaw
             // The 3D view composes into the part of the screen the panel leaves free.
             var cam = Camera.main;
             if (cam && !cam.GetComponent<PanelFraming>()) cam.gameObject.AddComponent<PanelFraming>();
+            if (cam && !cam.GetComponent<LookAround>()) cam.gameObject.AddComponent<LookAround>();   // v5: a drag on the 3D view looks around the shot
             var sceneDirector = Director ? Director.GetComponent<SceneDirector>() : null;
             if (Panel) Panel.ResetForScene("", sceneDirector ? sceneDirector.DockWidth : 0f);
             int chapter = ChapterIndex;
@@ -132,6 +133,9 @@ namespace OhmsLaw
         }
 
         public bool IsPaused(PauseReason reason) => (paused & reason) != 0;
+
+        // The white fade covers the screen: the scene was entered through a fade (or the module just started), not a cut.
+        public bool Covered => fade && fade.color.a > 0.5f;
 
         // The learner pressed PAUSE. The gates run outside the Timeline, so their lines, timers and inputs read this.
         public static bool UserPaused => Instance && Instance.IsPaused(PauseReason.User);
@@ -258,13 +262,13 @@ namespace OhmsLaw
             if (!string.IsNullOrEmpty(scene14Video)) yield return FadeTo(0);
         }
 
-        // White fade for scene beats (Timeline cue "fade 1" / "fade 0").
-        public Coroutine FadeWhite(float alpha) => FadeTo(alpha);
+        // White fade for scene beats (Timeline cue "fade 1" / "fade 0", "fade 1 0.15" for a flash); seconds < 0 = fadeSeconds.
+        public Coroutine FadeWhite(float alpha, float seconds = -1f) => FadeTo(alpha, seconds);
 
-        Coroutine FadeTo(float alpha)
+        Coroutine FadeTo(float alpha, float seconds = -1f)
         {
             if (fading != null) StopCoroutine(fading);
-            return fading = StartCoroutine(Fade(alpha));
+            return fading = StartCoroutine(Fade(alpha, seconds > 0f ? seconds : fadeSeconds));
         }
 
         // Reduced motion: the flash goes to a warm off-white instead of hard white, read every frame so the HUD toggle takes
@@ -272,11 +276,11 @@ namespace OhmsLaw
         static readonly Color SoftWhite = new Color(0.86f, 0.84f, 0.80f);
         static Color FadeColor => ReducedMotion.On ? SoftWhite : Color.white;
 
-        IEnumerator Fade(float alpha)
+        IEnumerator Fade(float alpha, float seconds)
         {
             fade.raycastTarget = true;
             float from = fade.color.a;
-            for (float t = 0; t < 1; t += Time.unscaledDeltaTime / fadeSeconds)
+            for (float t = 0; t < 1; t += Time.unscaledDeltaTime / seconds)
             {
                 fade.color = UI.Alpha(FadeColor, Mathf.Lerp(from, alpha, t));
                 yield return null;

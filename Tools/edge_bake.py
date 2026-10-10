@@ -1,6 +1,6 @@
 """Speaks a manifest of lines with one of Microsoft's free neural voices through edge-tts, four lines at a time.
 Usage: python Tools/edge_bake.py <manifest.json> [--voice=en-US-AnaNeural] [--rate=+10%] [--pitch=-4Hz]
-The manifest is a UTF-8 JSON array of {"id", "text", "out"}; each "out" (an absolute .mp3 path) is written only when its
+The manifest is a UTF-8 JSON array of {"id", "text", "out"[, "rate", "pitch"]} (a line's own rate/pitch override the flags); each "out" (an absolute .mp3 path) is written only when its
 line succeeded. One line per result on stdout, "OK <id>" or "FAIL <id> <reason>"; exit code 0 only when every line succeeded.
 Called by Assets/OhmsLaw/Editor/BakeBlockoutVO.cs when the Wattson proxy has no ElevenLabs key (`pip install edge-tts`)."""
 import argparse
@@ -19,7 +19,7 @@ async def speak(line, args, gate):
     for attempt in range(RETRIES):
         try:
             async with gate:
-                tts = edge_tts.Communicate(line["text"], args.voice, rate=args.rate, pitch=args.pitch)
+                tts = edge_tts.Communicate(line["text"], args.voice, rate=line.get("rate") or args.rate, pitch=line.get("pitch") or args.pitch)
                 data = b"".join([m["data"] async for m in tts.stream() if m["type"] == "audio"])
             if not data:
                 raise RuntimeError("no audio received")

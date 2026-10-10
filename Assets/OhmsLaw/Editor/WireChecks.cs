@@ -28,9 +28,18 @@ namespace OhmsLaw.Editor
             var root = Temp("Wire Check (temporary)", null); // hidden, never saved: the open scene is left as it was
             try
             {
-                // Scenes 5-6: random motion first, then the field.
+                // Scenes 5-6: random motion first, then the field. The cavern's atoms are placed on the same Awake.
                 var wire = Make(root.transform, "Copper");
+                wire.cavern = Temp("Copper Lattice", wire.transform).AddComponent<ParticleSystem>();
                 Awake(wire);
+                var atoms = new ParticleSystem.Particle[wire.cavern.main.maxParticles];
+                int placed = wire.cavern.GetParticles(atoms);
+                float axis = atoms.Take(placed).Where(a => Mathf.Abs(a.position.x) < wire.length / 2).Select(a => new Vector2(a.position.y, a.position.z).magnitude).DefaultIfEmpty(99f).Min();
+                float lens = atoms.Take(placed).Select(a => Vector3.Distance(a.position, wire.cavernEye)).DefaultIfEmpty(99f).Min();
+                int front = atoms.Take(placed).Count(a => a.position.z < -1f && a.position.y < 1.5f && a.position.x > -9f && a.position.x < 8f);
+                Check(placed > 1500 && placed <= 3000, $"cavern: about 2700 atoms ({placed})");
+                Check(axis > wire.tunnelRadius + 1f && lens > 2.5f, $"cavern: none inside the conduit (nearest {axis:0.00} m from the axis) or over the lens (nearest {lens:0.0} m)");
+                Check(front == 0, $"cavern: the stage in front of the set is clear up to 1.5 m, so labels and Wattson read on the haze ({front} atoms there)");
                 var home = Field<Vector3[]>(wire, "home").ToArray();
                 Steps(wire, 3f, null);
                 var after = Field<Vector3[]>(wire, "home");

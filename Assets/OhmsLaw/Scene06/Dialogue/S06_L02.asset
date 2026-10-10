@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
   id: S06_L02
   speaker: WATTSON
-  text: If we increase the potential difference while everything else stays the same,
-    what do you predict will happen to the current?
-  ttsText: If we increase the potential difference while everything else stays the
-    same, what do you predict will happen to the current?
+  text: If we increase the voltage across the wire, with everything else the same,
+    what happens to the current?
+  ttsText: If we increase the voltage across the wire, with everything else the same,
+    what happens to the current?
   vo: {fileID: 8300000, guid: d863974ddbe4dc743b382ca5b739f4df, type: 3}
-  fallbackDuration: 6.5
+  fallbackDuration: 5.6

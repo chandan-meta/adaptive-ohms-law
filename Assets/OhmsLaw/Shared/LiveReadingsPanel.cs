@@ -8,10 +8,13 @@ namespace OhmsLaw
     // Live readings in the lesson panel's Readings block: V and I (and R once Scene 12 has introduced it) with units,
     // read from CircuitRig.Active every frame, so a voltage button, a cue or an Ask Wattson action shows at once. When a
     // reading changes it gets a small arrow and a soft tint that fades (no blinking; no tint with ReducedMotion), and
-    // the line under it keeps the previous value ("was 1.0 V").
+    // the line under it keeps the previous value ("was 1.0 V"). v5: on the top strip (LessonPanel.ReadingsOnTop) the
+    // values read 54 px in fixed-width cells (wide enough for "1.00 A" and its change arrow, ~230 px), and the table
+    // never sends the card aside.
     public class LiveReadingsPanel : MonoBehaviour
     {
         const float ValueFont = 36f, NoteFont = 18f, Pad = 14f, VPad = 4f, ValueRow = 42f, NoteRow = 24f;
+        const float TopValueFont = 54f, TopValueRow = 62f, TopCell = 240f;
         const float ChangeSeconds = 1.4f;
 
         public bool showResistance;
@@ -24,7 +27,7 @@ namespace OhmsLaw
         readonly TextMeshProUGUI[] values = new TextMeshProUGUI[CellCount], notes = new TextMeshProUGUI[CellCount];
         float volts = float.NaN, amps, wasVolts, wasAmps, changedAt = -10f;
         int dirVolts, dirAmps;
-        bool hasWas;
+        bool hasWas, seen;
         string shown = "";
 
         static Color VoltageColor => UI.Theme ? UI.Theme.voltage : new Color(0.25f, 0.66f, 1f);
@@ -37,8 +40,10 @@ namespace OhmsLaw
             var lesson = LessonPanel.Instance;
             lesson.Clear("Readings");
             var block = lesson.Block("Readings");
-            var root = UI.Rect("Live Readings", block, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(0, 2 * VPad + ValueRow + NoteRow));
-            LessonPanel.Fixed(root, 2 * VPad + ValueRow + NoteRow);
+            bool top = lesson.ReadingsOnTop;
+            float valueFont = top ? TopValueFont : ValueFont, valueRow = top ? TopValueRow : ValueRow;
+            var root = UI.Rect("Live Readings", block, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(0, 2 * VPad + valueRow + NoteRow));
+            LessonPanel.Fixed(root, 2 * VPad + valueRow + NoteRow);
             var row = root.gameObject.AddComponent<HorizontalLayoutGroup>();
             row.padding = new RectOffset(0, 0, (int)VPad, (int)VPad);
             row.childControlWidth = row.childControlHeight = true;
@@ -49,8 +54,9 @@ namespace OhmsLaw
             for (int c = 0; c < CellCount; c++)
             {
                 var cell = panel.cells[c] = UI.Rect(((Cell)c).ToString(), root, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
-                panel.values[c] = Text(cell, ValueFont, BaseColor(c), 0f, ValueRow);
-                panel.notes[c] = Text(cell, NoteFont, LessonPanel.Muted, -(ValueRow), NoteRow);
+                if (top) { var size = cell.gameObject.AddComponent<LayoutElement>(); size.preferredWidth = size.minWidth = TopCell; }
+                panel.values[c] = Text(cell, valueFont, BaseColor(c), 0f, valueRow);
+                panel.notes[c] = Text(cell, NoteFont, LessonPanel.Muted, -valueRow, NoteRow);
             }
             lesson.Show("Readings", true);
             return panel;
@@ -79,8 +85,11 @@ namespace OhmsLaw
             if (!block.TryGetComponent(out CanvasGroup group)) group = block.gameObject.AddComponent<CanvasGroup>();
             // v3: while the data card is up the meters' own readouts and the highlighted row already say it, so the card
             // steps aside (and the dock fits a 720p screen); so it does when the dock is too crowded for the graph.
+            // On the top strip the card waits for the plates once (the baseline), then stays when they go: Scene 13's
+            // finale hides the meters' plates and keeps the strip.
             var lesson = LessonPanel.Instance;
-            bool visible = rig.readoutsShown && !(lesson && (lesson.Showing("Table") || lesson.SteppedAside("Readings")));
+            seen |= rig.readoutsShown;
+            bool visible = lesson && lesson.ReadingsOnTop ? seen : rig.readoutsShown && !(lesson && (lesson.InDock("Table") || lesson.SteppedAside("Readings")));
             element.ignoreLayout = !visible;
             group.alpha = visible ? 1f : 0f;
             if (!visible) return;

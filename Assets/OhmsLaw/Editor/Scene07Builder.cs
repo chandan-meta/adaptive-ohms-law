@@ -48,6 +48,7 @@ namespace OhmsLaw.Editor
             Wattson(WattsonStudyC, StudyWideCamC);
             TwoCluesBoard(shown: false);
             Vcam("Study Hero", HeroCam, HeroLook, HeroFov, refs["Apparatus Point"].transform, lensMedium);
+            Marker("Cam Study Hero Goal", HeroCam + (HeroLook - HeroCam).normalized * 0.2f); // v5: the hero shot pushes in 0.2 m along its own axis (framing kept)
             Callout("galvanometer", refs["torsion galvanometer"], CalloutDef.Anchor.TopRight);
             Callout("notebook", refs["notebook"], CalloutDef.Anchor.TopCentre);
             Callout("source", refs["Thermoelectric Source"], CalloutDef.Anchor.MidLeft);
@@ -106,7 +107,8 @@ namespace OhmsLaw.Editor
             // One close look at the apparatus: his method, with the galvanometer and the notebook noted in the panel.
             Cue("ohm.look", "back to his work");
             Shot("Study Hero", cut: true);
-            Gesture(WattsonController.Gesture.Point, look: "notebook", point: "torsion galvanometer");
+            Cue("glide 12 Cam Study Hero", "v5: a slow push in on the apparatus for the whole method beat (it held still for 13 s)");
+            Gesture(WattsonController.Gesture.Talking, look: "torsion galvanometer"); // v5: no arm reaching into the hero frame
             Show(NeedleSwing);
             Cue("callout show galvanometer");
             Visual("Ohm's experiment loop: picks a short copper wire, places it, changes the source, watches the galvanometer, writes a reading", 0.4);

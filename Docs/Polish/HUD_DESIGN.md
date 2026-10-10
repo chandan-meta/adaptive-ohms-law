@@ -37,9 +37,16 @@ smaller text); "Larger text" adds 15 %. Landscape only.
 
 ## Colour tokens
 
+v5 "Live Wire" (2026-10-10): every card is translucent **glass** with an electric motif; the tokens below are the current ones.
+
 | Token | Value | Use |
 |---|---|---|
-| Ink | `#0A1120` | cards 94 %, caption 80 %, control bar 86 % (72 % folded), pause scrim (navy-black) 66 % |
+| Glass | `#081A2B` at 72 % | every card (`LessonPanel.Card`), the caption bar, the hero, stage, pop-up and battery strip; control bar, chip and hint at 93 % (78 % folded); the hero plate 95 %, the chapter banner solid |
+| Plate | Ink `#0A1120` at 75 %, inset 4 px | under each card's content: UI alpha blends in linear light, so 72 % alone reads mid-grey over the lab's white bench; with the plate ~7 % of the scene reaches the text (paper ~6:1, muted ~4.5:1 over the bench and the white poster) |
+| Hairline | spark at 45 %, 1 px | card edges (was white 10 %); the active turn card adds a marching cyan dashed "current" (`CurrentEdge`), still under reduced motion |
+| Shine | white 14 % → 0 over 26 px | the soft highlight along a card's top edge |
+| Bolt | `Icons.Get("bolt")` | the turn badge, chapter chip, Ask ring badge, caption speaker, battery knob, hero frame, START JOURNEY (gold frame) |
+| Ink | `#0A1120` | the plate, pause scrim (navy-black) 66 % |
 | Raised | `#141D30` | option rows, steps, tiles, the text field; hover `#1D2944` |
 | Paper | `#F7F5EF` | text, primary buttons, a chosen option (17.3:1 on ink) |
 | Body | `#D3DAE6` | clue text |

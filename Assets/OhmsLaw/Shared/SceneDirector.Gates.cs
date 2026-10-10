@@ -47,6 +47,9 @@ namespace OhmsLaw
                 case "S10_Set3V": yield return SetVoltage(gate, 3); break;
                 case "S10_Set4V": yield return SetVoltage(gate, 4); break;
                 case "S10_Set5V": yield return SetVoltage(gate, 5); break;
+                // v5 quick checks: the 3 V wager (recorded, judged by the ammeter at S10_After3V) and which wire resists more.
+                case "S10_Predict3V": yield return QuickCheck(gate, "At 3 volts, what will the ammeter read?", new[] { "A. 0.40 A", "B. 0.60 A", "C. 0.80 A" }, 1, Concepts.Relationship, "S10_Predict3V_Q", _ => "S10_Predict3V_R", judge: false); break;
+                case "S12_WhichResists": yield return QuickCheck(gate, "Same voltage. Which wire has the higher resistance?", new[] { "A. Copper", "B. Nichrome" }, 1, Concepts.Resistance, "S12_QC", letter => "S12_QC_R_If_S12_WhichResists_" + letter, judge: true); break;
                 // v3: the four chapters that used to be watched only now each ask for one meaningful action.
                 case "S05_ApplyVoltage": yield return ApplyVoltage(); break;
                 case "S11_DrawLine": yield return DrawLine(); break;
@@ -107,18 +110,40 @@ namespace OhmsLaw
         }
 
         // Puts the panel up while `spoken` plays (cut short if the learner answers first); autoAnswer waits for the line.
-        IEnumerator Pick(MCQPanel panel, DialogueLine spoken)
+        IEnumerator Pick(MCQPanel panel, DialogueLine spoken, int autoPick = 0)
         {
             var saying = spoken ? StartCoroutine(Say(spoken)) : null;
-            yield return panel.WaitForPick(0, () => spoken && Speaking == spoken);
+            yield return panel.WaitForPick(autoPick, () => spoken && Speaking == spoken);
             StopSaying(saying, spoken);
+        }
+
+        // A graded quick check ("[QC]" eyebrow): the question line is spoken while the options are up (cut short by a
+        // pick), the pick is recorded ("<gate> <letter> Correct|Incorrect") under its concept, and Wattson says the line
+        // `reaction(letter)` names. judge: mark the pick right or wrong at once; a prediction (judge false) leaves the
+        // verdict to the bench and only locks the answer in. autoAnswer picks the correct option.
+        IEnumerator QuickCheck(InteractionGate gate, string question, string[] options, int correct, string concept, string ask, System.Func<string, string> reaction, bool judge)
+        {
+            Turn("Quick check.", null, options.Length > 2 ? "Tap an answer or press 1, 2 or 3." : "Tap an answer or press 1 or 2.");
+            var panel = new MCQPanel("[QC]" + question, options);
+            yield return Pick(panel, Line(gate, ask), correct);
+            Play("Select");
+            string letter = LearnerSession.Letter(panel.Picked);
+            var grade = panel.Picked == correct ? Grade.Correct : Grade.Incorrect;
+            LearnerSession.answers.Add($"{gate.gateId} {letter} {grade}");
+            LearnerSession.Record(concept, grade);
+            panel.Select(panel.Picked);
+            if (judge) { panel.Mark(panel.Picked, grade == Grade.Correct ? MCQPanel.RightMark : MCQPanel.WrongMark); React(grade); }
+            if (Panel) Panel.Done(!judge ? "Locked in." : grade == Grade.Correct ? "Correct." : "Not quite.");
+            yield return Wait(1.0f);
+            panel.Close();
+            yield return Say(Line(gate, reaction(letter)));
         }
 
         // Scene 6: the prediction is stored, never judged here. Each option gets its own reaction.
         IEnumerator Prediction(InteractionGate gate)
         {
             Turn("Make your prediction.", null, "Tap an answer or press 1, 2 or 3. The experiment will decide.");
-            var panel = new MCQPanel("If we increase the potential difference while everything else stays the same, what will happen to the current?",
+            var panel = new MCQPanel("If we increase the voltage across the wire, with everything else the same, what happens to the current?", // S06_L02's words
                 new[] { "A. Increase", "B. Decrease", "C. Stay the same" });
             yield return panel.WaitForPick(0);
             Play("Select");
@@ -152,7 +177,8 @@ namespace OhmsLaw
             void OnWrong(string which) { if (Panel) Panel.ShowHint(which == "voltmeter" ? "That's the voltmeter: find the A." : "That's the ammeter: find the V."); }
             IEnumerator Hints()
             {
-                yield return TapHint(part == "ammeter" ? rig.ammeter : rig.voltmeter, () => rig.SelectedPart == part || rig.IsPlaced(part), Vector2.down);
+                // The part's origin is its base: from the upper left the fingertip lands on the meter's face, not the bench edge.
+                yield return TapHint(part == "ammeter" ? rig.ammeter : rig.voltmeter, () => rig.SelectedPart == part || rig.IsPlaced(part), new Vector2(-0.6f, 0.8f));
                 if (!rig.IsPlaced(part)) yield return TapHint(part == "ammeter" ? rig.ammeterSlot : rig.voltmeterSlot, () => rig.IsPlaced(part), Vector2.down);
             }
             rig.Selected += OnSelected;
@@ -262,10 +288,33 @@ namespace OhmsLaw
             if (Panel) { Panel.Attention("Graph", false); Panel.Done("Line drawn."); }
         }
 
-        // Scene 12: the learner swaps the wire: copper shows alone, a tap brings nichrome in beside it.
+        // Scene 12: the learner swaps the wire. With the 3D sample up (WireSample, opened by the "show Wire Sample" cue)
+        // copper shows alone and the swap pops nichrome in under it; the dock inset still works where a scene cues it.
         IEnumerator SwapWire()
         {
-            if (!inset) yield break;
+            var sample = WireSample.Active;
+            if (!sample) { if (inset) yield return SwapInset(); yield break; }
+            sample.ShowNichrome(false);
+            Turn("Change the wire material.", null, "Same voltage, same length: tap Swap in nichrome.");
+            bool done = false;
+            var home = Panel ? Panel.Fresh("MCQ", null, 12f) : null;
+            if (home) LessonPanel.Pill("Swap", home, "Swap in nichrome", () => done = true, LessonPanel.Kind.Primary, null, 56f, 20f)
+                .GetComponent<UnityEngine.UI.HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
+            float waited = 0;
+            while (!done)
+            {
+                if (!Held) waited += Dt;
+                if (HudKeys.ConsumeAct() || (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay)) done = true;
+                yield return null;
+            }
+            if (Panel) Panel.Clear("MCQ");
+            sample.ShowNichrome(true);
+            Play("Reveal");
+            if (Panel) Panel.Done("Nichrome in: less current.");
+        }
+
+        IEnumerator SwapInset()
+        {
             inset.ShowNichrome(false);
             Turn("Change the wire material.", null, "Same voltage, same length: tap Swap in nichrome.");
             bool done = false;

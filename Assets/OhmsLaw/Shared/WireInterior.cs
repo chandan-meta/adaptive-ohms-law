@@ -49,6 +49,12 @@ namespace OhmsLaw
         public Color fogColor, ambient, background;
         public float fogDensity = 0.07f;
 
+        [Header("Copper lattice cavern (static, placed once at Awake)")]
+        [Tooltip("Soft 'atoms' on a jittered grid all round and beyond the conduit: the inside of the metal. None when unset.")] public ParticleSystem cavern;
+        public Color cavernTint = new Color(0.72f, 0.38f, 0.2f);
+        [Tooltip("Grid spacing, metres; the count follows it (1.9 m gives about 2500).")] public float cavernSpacing = 1.9f;
+        [Tooltip("The 'Wire Inside' lens, local: no atom within 2.5 m of it, and the cavern is dense far from it, sparse near.")] public Vector3 cavernEye = new Vector3(-2.6f, -0.7f, -8.7f);
+
         [Header("Parts")]
         public ParticleSystem carriers;
         public ParticleSystem lattice;
@@ -64,7 +70,7 @@ namespace OhmsLaw
         const float TrailStep = 0.06f;  // seconds between trail points
         const int TrailPoints = 16;     // about one second of path
         static readonly int BaseColor = Shader.PropertyToID("_BaseColor"), EmissionColor = Shader.PropertyToID("_EmissionColor");
-        static readonly Color FrostTint = new Color(0.6f, 0.72f, 0.9f), IonTint = new Color(0.62f, 0.66f, 0.56f);
+        static readonly Color FrostTint = new Color(0.42f, 0.6f, 1f), IonTint = new Color(0.62f, 0.66f, 0.56f); // frost: an ice blue the cyan-white carriers visibly shift to
 
         Vector3[] home, offset, velocity, position;   // home: the electron's place in the stream (drifts); offset: its random motion
         float[] flash, size, alpha;
@@ -158,6 +164,43 @@ namespace OhmsLaw
                 lattice.SetParticles(ions, 0);
                 if (!lattice.isPlaying) lattice.Play();
             }
+            Cavern();
+        }
+
+        // The cavern's atoms: a hexagonal-ish lattice (every other row shifted half a step) with only a small jitter, so its
+        // rows and planes stay visible and run off to their vanishing points (a crystal, not a starfield), over a box from
+        // behind the lens to 24 m beyond the conduit; a clear channel round the conduit and its terminal blocks, nothing in
+        // the corridor the cameras use (x −7..7.5, z < −5), and a clear "stage" in front of the set up to 1.5 m (the labels,
+        // Wattson and the floor line read on the haze, not through atoms); sparse near the lens and dense far from it, so
+        // the volume reads deep and the fog dissolves the far rows. Placed once with a fixed seed, so every run and the
+        // editor check see the same cavern.
+        // ponytail: a fixed box, corridor and stage; a builder that moves the cameras elsewhere adjusts them here.
+        void Cavern()
+        {
+            if (!cavern) return;
+            var rng = new System.Random(5);
+            float s = cavernSpacing, row = s * 0.87f;
+            var atoms = new System.Collections.Generic.List<ParticleSystem.Particle>();
+            float Jitter() => ((float)rng.NextDouble() - 0.5f) * s * 0.12f;
+            for (int j = 0; j * row <= 11f; j++)
+                for (float x = -20f; x <= 20f; x += s)
+                    for (float z = -14f; z <= 24f; z += s)
+                    {
+                        var p = new Vector3(x + (j % 2) * s / 2 + Jitter(), -1.0f + j * row + Jitter(), z + Jitter());
+                        if (Mathf.Abs(p.x) < length / 2 + 2.5f && new Vector2(p.y, p.z).magnitude < tunnelRadius + 2f) continue;
+                        if (p.z < -5f && p.x > -7f && p.x < 7.5f) continue;
+                        if (p.z < -1f && p.y < 1.5f && p.x > -9f && p.x < 8f) continue;
+                        float far = Mathf.InverseLerp(5f, 20f, Vector3.Distance(p, cavernEye));
+                        if (rng.NextDouble() > Mathf.Lerp(0.55f, 1f, far)) continue;
+                        float t = (float)rng.NextDouble();
+                        var colour = cavernTint * Mathf.Lerp(0.75f, 1.25f, t);
+                        colour.a = Mathf.Lerp(0.5f, 0.85f, (float)rng.NextDouble());
+                        atoms.Add(new ParticleSystem.Particle { position = p, startSize = Mathf.Lerp(0.5f, 0.75f, t), startColor = colour, remainingLifetime = 1e6f, startLifetime = 1e6f });
+                    }
+            var main = cavern.main;
+            if (main.maxParticles < atoms.Count) main.maxParticles = atoms.Count;
+            if (!cavern.isPlaying) cavern.Play(); // first: Play() on a stopped system (the edit-mode check) restarts it and would drop the atoms set before it
+            cavern.SetParticles(atoms.ToArray(), atoms.Count);
         }
 
         void OnEnable()

@@ -50,12 +50,13 @@ namespace OhmsLaw.Editor
             ("What does a voltmeter measure?", "A voltmeter measures the potential difference, the voltage, between two points. In our circuit it will tell us the push across the two ends of the nichrome wire, X and Y, in volts."),
             ("Why not use Ohm's old instruments?", "We could, but Ohm's torsion galvanometer needed a steady hand and a lot of patience, and his thermoelectric source gave only a tiny push. Today's ammeter and voltmeter give clear numbers straight away, so we can see the relationship much more clearly."));
 
-        // Under the study's warm fill the near-white bench top clips to a white slab, so it appears in a darker copy of its
-        // material and the "look" crossfade lerps it to the classroom top (SceneDirector.Lab.cs LabLook.tinted).
+        // Under the study's warm fill (and the gadget's flare) the near-white bench top clips to a white slab, so it appears in
+        // a darker, matte copy of its material and the "look" crossfade lerps it to the classroom top (SceneDirector.Lab.cs
+        // LabLook.tinted). Not a "Classroom_" name: CinematicPolish would swap in its older, glossier copy.
         void StudyBenchTop(SceneDirector.LabLook classroom)
         {
             var top = Lit("Classroom_BenchTop", new Color(0.86f, 0.87f, 0.89f), 0f, 0.55f);
-            var studyTop = Lit("Classroom_BenchTop_Study", new Color(0.5f, 0.5f, 0.52f), 0f, 0.45f);
+            var studyTop = Lit("Study_BenchTop", new Color(0.5f, 0.5f, 0.52f), 0f, 0.2f);
             var tinted = new List<Renderer>();
             foreach (var renderer in refs["Bench"].GetComponentsInChildren<Renderer>(true))
             {
@@ -91,6 +92,16 @@ namespace OhmsLaw.Editor
             StudyBenchTop(classroom);
             director.matchCutFrom = "Scene07_BackToOhm";
             ClassroomApparatus();
+            // The farewell and the room's change from the front-left, closer, 20 degrees round the bench: "glide 3.4 Cam Bench
+            // Orbit" sweeps it onto Bench Wide's pose (the goal) at under 6 deg/s with the composer keeping the bench framed;
+            // the 1 s blend into Bench Wide then lands exactly on Scene 9's first frame. (The base Shot() caps a two-camera
+            // blend at 1 s, so the sweep is a glide of one camera instead.)
+            // ponytail: the glide is a straight chord, not a true arc (the camera dips ~0.1 m toward the bench mid-way);
+            // a CinemachineSplineDolly on a 3-point spline if the dip shows in the frames.
+            var benchPoint = refs["Bench Point"].transform;
+            Vector3 orbitStart = Quaternion.Euler(0f, 20f, 0f) * new Vector3(0f, 0f, BenchWideCamC.z * 0.8f) + Vector3.up * (BenchWideCamC.y - 0.1f);
+            Vcam("Bench Orbit", orbitStart, BenchWideLookC, BenchWideFov, benchPoint, lensClassroom, track: benchPoint);
+            Marker("Cam Bench Orbit Goal", BenchWideCamC);
             Wattson(WattsonStudyC, StudyWideCamC);
             // Scene 7 ends with the two clues on the slate and the three measurement pages on the notebook: same first
             // frame here, without their pop-in. They stay until the study goes.
@@ -170,6 +181,16 @@ namespace OhmsLaw.Editor
             Burst("Dust Cups", null, CupsStudyC + Vector3.up * 0.05f, cyan, new Vector3(0.42f, 0.1f, 0.14f), 60, 0.12f, swirl: 2.2f);
             Burst("Dust Desk", null, OhmDeskC + Vector3.up * 0.06f, cyan, new Vector3(1.7f, 0.12f, 0.7f), 170, 0.15f, swirl: 1.0f);
             Burst("Dust Voltmeter", null, refs["VOLTMETER"].transform.position + Vector3.up * 0.12f, cyan, new Vector3(0.26f, 0.22f, 0.36f), 60, 0.12f, swirl: 2.2f);
+            SwapSparks("AMMETER", ApparatusC + Vector3.up * 0.1f);
+            SwapSparks(Source, SourceStudyC + Vector3.up * 0.08f);
+            SwapSparks(Wire, (TestWiresStudyC + WireStudyC) / 2 + Vector3.up * 0.04f);
+            SwapSparks(Key, CupsStudyC + Vector3.up * 0.05f);
+            SwapSparks("VOLTMETER", refs["VOLTMETER"].transform.position + Vector3.up * 0.12f);
+            // The time wave: a ring of electric light standing over the bench, turned to the orbit camera, that grows out past
+            // the walls as the room changes ("appear 1.8 Time Wave", 0 to 3.4 m, then hidden). Lying on the floor it was only
+            // a sliver under the bench; the sparks of the Room Wave fly out in the same plane.
+            var electric = new Color(0.31f, 0.82f, 1f);
+            Ref(MeshPrim("Time Wave", null, Torus("TimeWave", 0.03f, 64, 8), Glow("Glow_TimeWave", Hdr(electric, 4f), softTexture: false), new Vector3(0f, 0.95f, 0f), new Vector3(0f, 20f, 0f), Vector3.one * 3.4f)).SetActive(false);
             var wire = refs[Wire].transform;
             Burst("Spark X", null, wire.TransformPoint(new Vector3(-0.35f, 0.01f, 0f)), palette.current, Vector3.one * 0.08f, 30);
             Burst("Spark Y", null, wire.TransformPoint(new Vector3(0.35f, 0.01f, 0f)), palette.current, Vector3.one * 0.08f, 30);
@@ -200,13 +221,13 @@ namespace OhmsLaw.Editor
             var roomFx = Ref(Node(RoomFx, null, new Vector3(0f, 0.03f, 0f)));
             Shimmer(roomFx.transform, loop: false);
             roomFx.SetActive(false);
-            var wave = Ref(Emitter("Room Wave", null, new Vector3(0f, 0.03f, 0f), Glow("Glow_RoomWave", Hdr(cyan, 3f)), ps =>
+            var wave = Ref(Emitter("Room Wave", null, new Vector3(0f, 0.95f, 0f), Glow("Glow_RoomWave", Hdr(electric, 3f)), ps =>
             {
                 var main = ps.main;
                 main.loop = false;
                 main.duration = 1f;
                 main.startLifetime = new ParticleSystem.MinMaxCurve(1.3f, 1.5f);
-                main.startSpeed = new ParticleSystem.MinMaxCurve(2.4f, 2.8f);
+                main.startSpeed = new ParticleSystem.MinMaxCurve(1.0f, 1.4f);
                 main.startSize = new ParticleSystem.MinMaxCurve(0.02f, 0.05f);
                 main.maxParticles = 420;
                 main.simulationSpace = ParticleSystemSimulationSpace.World;
@@ -217,10 +238,22 @@ namespace OhmsLaw.Editor
                 var shape = ps.shape;
                 shape.shapeType = ParticleSystemShapeType.Circle;
                 shape.radius = 0.7f;
-                shape.radiusThickness = 0f;            // from the rim, outward along the floor
-                shape.rotation = new Vector3(90f, 0f, 0f);
+                shape.radiusThickness = 0f;            // from the rim, outward in the time wave's plane
+                shape.rotation = new Vector3(0f, 20f, 0f);
             }).gameObject);
             wave.SetActive(false);
+        }
+
+        // A spark burst (Scene 4's Sparks kit, slow and short-lived so it stays on the instrument instead of scattering over
+        // the room) where an instrument swaps in; "fx Sparks <name>" plays it.
+        void SwapSparks(string name, Vector3 at)
+        {
+            var node = Ref(Node("Sparks " + name, null, at));
+            var main = Sparks(node.transform, palette.wattsonAccent, 0.1f).main;
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.15f, 0.7f);
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.6f);
+            main.gravityModifier = 0.15f;
+            node.SetActive(false);
         }
 
         // Scene 4's soft shimmer on the effects bus, quiet under the voice, playing whenever its "[VFX]" object is shown.
@@ -271,6 +304,7 @@ namespace OhmsLaw.Editor
             Sfx("Transform");
             foreach (var prop in old) Cue("vanish 0.7 " + prop);
             Cue("appear 0.7 " + modern, "", 0.25);
+            Cue("fx Sparks " + modern, "", 0.25);
             Cue("callout show " + callout, "", 0.8);
             Visual(string.Join(" + ", old) + " → " + modern + ", in its own place", 1.0);
         }
@@ -296,6 +330,8 @@ namespace OhmsLaw.Editor
 
             // Attention on the apparatus: in to Ohm's desk while L01 plays; Wattson flies to his spot beside it, in frame.
             Shot("Study Desk");
+            Cue("vanish 0.5 Board Voltage", "the slate's headlines would sit cropped under the chapter chip in this frame"); // the question stays
+            Cue("vanish 0.5 Board Current");
             Gesture(WattsonController.Gesture.Talking, moveTo: "Transform Point");
             Line("S08_L01");
 
@@ -331,6 +367,7 @@ namespace OhmsLaw.Editor
             Cue("appear 0.5 Parts Tray", "", 0.65);
             Cue("fx Dust Voltmeter", "", 1.0);
             Cue("appear 0.6 VOLTMETER", "the voltmeter joins, in the tray", 1.1);
+            Cue("fx Sparks VOLTMETER", "", 1.1);
             Sfx("Place", 1.1);
             Cue("callout show voltmeter", "", 1.6);
             Show("Lead Key → Source", 1.45);
@@ -343,23 +380,39 @@ namespace OhmsLaw.Editor
             Line("S08_P01");
             Cue("callout hideall", "notes fade before the pull-back", -0.3);
 
-            // Ohm goes back to his time: in the wide, Wattson waves him off as he dissolves into gold dust.
-            Shot("Bench Wide");
-            Gesture(WattsonController.Gesture.Greet, look: "Georg Ohm"); // stays below the slate's chalk; Wattson Home (Scene 9's start) sits over it until the easel goes
+            // Ohm goes back to his time, from the front-left and closer (the orbit camera's start): Wattson waves him off, Ohm
+            // turns to the class, bows his head to the copper wire he takes back with him, and dissolves into gold dust.
+            Shot("Bench Orbit");
+            Cue("vanish 0.6 Study Easel", "the slate goes as the camera moves: from here it would stand cropped at the frame's left edge");
+            Gesture(WattsonController.Gesture.Greet); // waves Ohm off facing the class (looking at Ohm turned his back to the lens)
+            Cue("ohm.look Main Camera", "Ohm turns to the class");
+            Wait(0.7);
+            Cue("ohm.look", "his eyes drop to the copper wire he takes back with him");
+            Cue("ohm.pose Examine", "a small bow: the dip (the hand wire shows only while he is down)");
+            Cue("ohm.pose Present", "and up again, to the class", 0.7);
+            Cue("ohm.look Main Camera", "", 0.7);
             Wait(1.0);
-            Cue("fx Ohm Farewell Dust", "", 0.8);
-            Sfx("Reveal", 0.8);
-            Cue("vanish 1.0 Georg Ohm", "Ohm dissolves back to 1826", 1.0);
+            Cue("fx Ohm Farewell Dust", "", 0.2);
+            Sfx("Reveal", 0.2);
+            Cue("vanish 1.0 Georg Ohm", "Ohm dissolves back to 1826", 0.4);
             Line("S08_P02", 0.2);
 
-            // The room, with the camera on it the whole time: the study becomes the classroom lab, sweeping out from the bench.
+            // The room, with the camera on it the whole time: Wattson's gadget starts it, and the study becomes the classroom
+            // lab, sweeping out from the bench.
+            Gesture(WattsonController.Gesture.Transform, point: "Bench Point", gadget: true);
+            Wait(Act);
             Show(RoomFx);
             Sfx("LabSweep");
             Ambience("RoomTone", 1.0);
             Cue("look 2.8 classroom", "light, ambient, fog, background, post and reflections crossfade to the classroom");
+            Cue("glide 3.4 Cam Bench Orbit", "the camera sweeps 20 degrees round the bench and pulls back onto Bench Wide's pose");
+            Shot("Bench Wide", offset: 3.0);                                     // blends in over the glide's last second: Scene 9's first frame
+            Cue("appear 1.8 Time Wave", "the time wave: a ring of light grows out from the bench, past the walls");
+            Hide("Time Wave", 2.0);
+            Cue("fade 0.12 0.1", "a brief exposure lift at the wave"); // ponytail: a 12 % white veil stands in for an exposure override; a Volume weight ramp if it reads as a fade
+            Cue("fade 0 0.8", "", 0.25);
             Cue("fx Room Wave");
-            Cue("vanish 0.6 Study Easel");
-            Gesture(WattsonController.Gesture.Idle, moveTo: "Wattson Home"); // with the slate gone, over to where Scene 9 starts him
+            Gesture(WattsonController.Gesture.Idle, moveTo: "Wattson Home", offset: 0.6); // after the thrust, over to where Scene 9 starts him
             Cue("spread 1.2 Classroom Floor", "", 0.1);
             Cue("retract 0.9 Study Back", "", 0.35);
             Cue("rise 1.0 Classroom Back", "", 0.55);

@@ -80,7 +80,8 @@ namespace OhmsLaw
             ModuleFlow.Instance.SetPaused(ModuleFlow.PauseReason.Hold, false);
         }
 
-        public void Complete() => ModuleFlow.Instance.CompleteScene();
+        // No white: Scene 5 opens on this frame (its "Macro A" stands where SH11b Dive ends) and carries the dive on.
+        public void Complete() => ModuleFlow.Instance.Cut();
 
         void Update()
         {

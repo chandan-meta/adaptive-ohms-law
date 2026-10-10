@@ -45,8 +45,9 @@ namespace OhmsLaw
         // Column colours follow the concept palette: V blue, I amber, V/I coral.
         static Color Column(int c) => UI.Theme ? (c == 0 ? UI.Theme.voltage : c == 1 ? UI.Theme.current : UI.Theme.resistance) : Color.white;
         static Color CellText(int c) => LessonPanel.Paper;   // values in paper; the column heads carry the V / I / R colours
-        // Highlights are neutral: amber means current only, and a red block reads as an error (the V / I head keeps the red).
-        static Color RowHighlight => new Color(1f, 1f, 1f, 0.12f);
+        // Highlights are the HUD's guidance spark, faint on the glass (amber means current only, a red block reads as an
+        // error, and a white wash blends in linear light into an opaque-looking grey pill); the values stay paper.
+        static Color RowHighlight => UI.Alpha(LessonPanel.Spark, 0.16f);
         static Color ColumnGlow => RowHighlight;
         static float X(int column) { float x = 0; for (int c = 0; c < column; c++) x += Columns[c]; return x; }
 

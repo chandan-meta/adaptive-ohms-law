@@ -234,6 +234,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 0
   gain: 1
+  bgm: {fileID: 0}
+  playOnStart: 1
+  loopBGM: 1
 --- !u!1 &1381042547004870203
 GameObject:
   m_ObjectHideFlags: 0
@@ -468,6 +471,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 1
   gain: 1
+  bgm: {fileID: 0}
+  playOnStart: 1
+  loopBGM: 1
 --- !u!1 &2616478524109875796
 GameObject:
   m_ObjectHideFlags: 0
@@ -525,7 +531,7 @@ MonoBehaviour:
   - {fileID: 5917189542754127493}
   flare: {fileID: 5497263873566374806}
   flash: {fileID: 4701898586858038965}
-  flarePeak: 6
+  flarePeak: 2.5
   timeScale: 1
 --- !u!1 &3438985104319094395
 GameObject:
@@ -851,6 +857,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 0
   gain: 1
+  bgm: {fileID: 0}
+  playOnStart: 1
+  loopBGM: 1
 --- !u!1 &6125675735052187156
 GameObject:
   m_ObjectHideFlags: 0
@@ -6172,6 +6181,8 @@ MonoBehaviour:
   bank: 14
   motionScale: 1
   moveTime: 0.22
+  furniture: []
+  conversationCamera: {fileID: 0}
   visual: {fileID: 2463591928162092241}
   rightShoulder: {fileID: 4485932781222704795}
   rightElbow: {fileID: 974222396753424633}

@@ -30,7 +30,10 @@ namespace OhmsLaw
             block = lesson.Block("MCQ");
             panel = LessonPanel.Stack("MCQ Panel", block, 10f);
 
-            LessonPanel.Eyebrow(panel, "Your prediction").gameObject.name = "Eyebrow";   // the agent reads "Label" as the question
+            // v5: a question tagged "[QC]" is a quick check, not a prediction (the tag never reaches the screen or the agent).
+            bool quick = questionText != null && questionText.StartsWith("[QC]");
+            if (quick) questionText = questionText.Substring(4).TrimStart();
+            LessonPanel.Eyebrow(panel, quick ? "Quick check" : "Your prediction").gameObject.name = "Eyebrow";   // the agent reads "Label" as the question
             question = LessonPanel.Text(panel, LessonPanel.Quantities(questionText), QuestionFont, LessonPanel.Paper);
             var gap = UI.Rect("Gap", panel, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
             LessonPanel.Fixed(gap, 4f);

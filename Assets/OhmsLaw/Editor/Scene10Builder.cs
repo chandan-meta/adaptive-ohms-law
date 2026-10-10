@@ -2,10 +2,11 @@ using UnityEngine;
 
 namespace OhmsLaw.Editor
 {
-    // Scene 10: the experiment, guided from the panel. Five voltage buttons; "Set the voltage to 1 V." ... "5 V."; each
-    // setting is observed on the meters, recorded into the panel's table and plotted on its graph; then the first two
-    // rows are compared: double the voltage, double the current. The panel widens for the data; the bench stays in the
-    // free part of the frame on the Bench Study shot.
+    // Scene 10: the experiment, guided from the panel. The battery slider at the bottom of the screen; "Set the voltage
+    // to 1 V." ... "5 V."; each setting is observed on the meters (the live readings top-centre), recorded into the
+    // dock's table and plotted on the graph beside it (the empty graph is there from the start); after 2 V the learner
+    // predicts the 3 V reading and the ammeter judges it; then the first two rows are compared: double the voltage,
+    // double the current, as a centre-screen reveal. The bench stays in the free part of the frame on Bench Study.
     public class Scene10Builder : SceneBuilderBase
     {
         public override string SceneId => "Scene10";
@@ -28,14 +29,19 @@ namespace OhmsLaw.Editor
             L("S10_L11", "Now we're getting somewhere.", 2.0f);
             // The steps (each gate's _GO line) and the one hint a wrong setting earns.
             L("S10_Set2V_GO", "One volt, and the ammeter reads 0.20 amperes. Now set the voltage to 2 volts.", 4.6f, proposed: true);
-            L("S10_Set3V_GO", "Now 3 volts.", 1.6f, proposed: true);
             L("S10_Set4V_GO", "And 4 volts.", 1.6f, proposed: true);
             L("S10_Set5V_GO", "Last one: 5 volts.", 1.8f, proposed: true);
-            L("S10_Set1V_H", "Tap the 1 V button in the panel.", 2.4f, proposed: true);
-            L("S10_Set2V_H", "Tap the 2 V button.", 1.8f, proposed: true);
-            L("S10_Set3V_H", "Tap the 3 V button.", 1.8f, proposed: true);
-            L("S10_Set4V_H", "Tap the 4 V button.", 1.8f, proposed: true);
-            L("S10_Set5V_H", "Tap the 5 V button.", 1.8f, proposed: true);
+            L("S10_Set1V_H", "Slide the battery to 1 volt.", 2.0f, proposed: true);
+            L("S10_Set2V_H", "Slide the battery to 2 volts.", 2.0f, proposed: true);
+            L("S10_Set3V_H", "Slide the battery to 3 volts.", 2.0f, proposed: true);
+            L("S10_Set4V_H", "Slide the battery to 4 volts.", 2.0f, proposed: true);
+            L("S10_Set5V_H", "Slide the battery to 5 volts.", 2.0f, proposed: true);
+            // The 3 V prediction: asked after the 2 V row, judged by the ammeter after the 3 V row.
+            L("S10_Predict3V_Q", "Detective's wager: at three volts, what will the ammeter read?", 3.6f, proposed: true);
+            L("S10_Predict3V_R", "Locked in. Set three volts and let the ammeter judge.", 3.2f, proposed: true);
+            L("S10_After3V_If_S10_Predict3V_B", "Spot on. Three volts, zero point six amperes: the pattern holds.", 4.0f, proposed: true);
+            L("S10_After3V_If_S10_Predict3V_A", "The ammeter says zero point six, not zero point four. The current climbed with the voltage.", 5.0f, proposed: true);
+            L("S10_After3V_If_S10_Predict3V_C", "Zero point six, not zero point eight: it rises in step, not faster.", 4.0f, proposed: true);
             // The callback to the Scene 6 prediction, keyed on what the learner picked.
             L("S10_Callback_If_S06_Prediction_A", "Back in the wire you predicted the current would rise. Your data agrees.", 4.0f, proposed: true);
             L("S10_Callback_If_S06_Prediction_B", "You predicted the current would drop. The data says it rises. Good detectives update.", 4.8f, proposed: true);
@@ -60,9 +66,12 @@ namespace OhmsLaw.Editor
             ClassroomSet(modernBench: true, audience: false);
             Wattson(KeyPointC, StudyCamC); // Scene 9's last frame: Wattson at the key, Bench Study
             director.matchCutFrom = "Scene09_BuildCircuit";
-            director.rig = Rig(assembled: true, keyClosed: true, voltage: CircuitRig.KeyClosedDefaultVolts);
+            // Start low: the source at 0 V (Scene 9 closes the key at 0.5 V; the "rig.voltage 0" cue turns it down on a
+            // match-cut), so the slider's knob, its label and the meters all read zero before the first step.
+            director.rig = Rig(assembled: true, keyClosed: true, voltage: 0);
             director.rig.showPath = false;
-            director.rig.readoutsShown = false; // the plates come up with the 1 V baseline
+            director.rig.readoutsShown = false; // as Scene 9 left it; the plates and the strip come up once the needles sit at zero
+            MeterPlates(true);
             Marker("Source Side", SourceSide);
             Vcam("Bench Study", StudyCamC, StudyLookC, StudyFov, refs["Bench Point"].transform, lensMedium);
         }
@@ -72,36 +81,53 @@ namespace OhmsLaw.Editor
             Shot("Bench Study"); // match-cut: Scene 9's last frame (circuit complete, key closed, voltage carried over)
             Ambience("RoomTone");
             Music("PadLab");
-            Cue("table.rows 0", "the empty observation table (V and I) in the panel; the panel widens");
-            Cue("readings 1", "live V / I in the panel");
-            Cue("rig.slider 1", "the five voltage buttons");
+            Cue("rig.voltage 0", "start low: the source turns down to zero");
+            Show("Meter Plates");
+            Cue("table.rows 0", "the empty observation table (V and I) in the dock; the dock widens");
+            Cue("graph.axes 1", "the empty V-I graph beside it: points plot as the rows record");
+            Cue("readings.top 1", "live V / I, top-centre of the screen");
+            Cue("rig.slider 1", "the battery slider, bottom-centre");
+            // The live readings from the first step: the meters' plates and the top strip (0.0 V, 0.00 A) once the needles
+            // have settled at zero, so nothing reads "was 0.5 V".
+            Cue("rig.readouts 1", "the digital plates and the readings strip appear: 0.0 V, 0.00 A", 0.6);
             Shot("Bench Study");
             Gesture(WattsonController.Gesture.Point, point: "cells / controllable DC source", moveTo: "Source Side");
             Visual("The camera settles on the whole bench; Wattson flies in behind the source and points at it", 1.0);
             Line("S10_L01", 0.1);
-            Gate("S10_Set1V", "Panel: 'Set the voltage to 1 V.' (buttons above 1 V dim). Once it holds: 'Observe the current reading.', row 1 records from the live meters with a confirmation chime, point 1 plots.",
+            Gate("S10_Set1V", "Panel: 'Set the voltage to 1 V.' (slider steps above 1 V dim). Once it holds: 'Observe the current reading.', row 1 records from the live meters with a confirmation chime, point 1 plots.",
                 "S10_Set1V_H");
-            Cue("rig.readouts 1", "the digital plates appear at the baseline: 1.0 V, 0.20 A");
             Gesture(WattsonController.Gesture.Point, point: "AMMETER");
             Gate("S10_Set2V", "Panel: 'Set the voltage to 2 V.' → observe → row 2 records, point 2 plots.", "S10_Set2V_GO", "S10_Set2V_H");
-            Gate("S10_Set3V", "Panel: 'Set the voltage to 3 V.' → observe → row 3, point 3.", "S10_Set3V_GO", "S10_Set3V_H");
+
+            // The wager: before the 3 V step the learner predicts the reading (recorded, not judged yet). He points at the
+            // question (Thinking's spinning gadget blooms into a white streak under the chapter chip).
+            Gesture(WattsonController.Gesture.Point, point: "Panel Point");
+            Gate("S10_Predict3V", "Quick check (MCQ, [QC]): 'At 3 volts, what will the ammeter read?' A 0.40 A · B 0.60 A · C 0.80 A. Recorded under Relationship, no mark; Wattson: 'Locked in.'",
+                "S10_Predict3V_Q", "S10_Predict3V_R");
+            Gesture(WattsonController.Gesture.Point, point: "AMMETER");
+            Gate("S10_Set3V", "Panel: 'Set the voltage to 3 V.' → observe → row 3, point 3.", "S10_Set3V_H");
+            Gate("S10_After3V", "Say gate: the ammeter's verdict on the wager (B spot on / A climbed / C in step, not faster).",
+                "S10_After3V_If_S10_Predict3V_A", "S10_After3V_If_S10_Predict3V_B", "S10_After3V_If_S10_Predict3V_C");
             Gate("S10_Set4V", "Panel: 'Set the voltage to 4 V.' → observe → row 4, point 4.", "S10_Set4V_GO", "S10_Set4V_H");
             Gate("S10_Set5V", "Panel: 'Set the voltage to 5 V.' → observe → row 5, point 5.", "S10_Set5V_GO", "S10_Set5V_H");
-            Cue("rig.slider 0", "the voltage buttons go: the data holds the attention now");
+            Cue("rig.slider 0", "the slider goes: the data holds the attention now");
 
-            // Look at the data: a pause to read it, then the first two rows side by side.
+            // Look at the data: a pause to read it, then the first two rows side by side, and the doubling centre screen.
             Gesture(WattsonController.Gesture.Idle);
             Line("S10_L06");
             Line("S10_L07", 1.2);
             Gesture(WattsonController.Gesture.Point, point: "Panel Point");
             Cue("table.highlight 0 1", "rows 1 and 2 highlight");
             Line("S10_L09");
+            // The doubling lands centre screen on "It also doubled" and holds through the callback; the meters' plates step
+            // aside with it (behind the glass they would read through; the strip keeps the numbers).
+            Cue("hero V × 2  →  I × 2|double the voltage, double the current", "the doubling lands on 'It also doubled'", 3.4);
+            Hide("Meter Plates", 3.4);
             Line("S10_L10", 0.2);
-            Formula("1 V → 0.20 A     2 V → 0.40 A");
-            Formula("V × 2   →   I × 2", 0.5); // staggered: cues at one Timeline time fire in no fixed order
-            Visual("The doubling, written out in the panel", 1.4);
+            Visual("The doubling, centre screen", 1.4);
             Gate("S10_Callback", "Say gate: the Scene 6 prediction called back (A rose / B dropped / C no change).",
                 "S10_Callback_If_S06_Prediction_A", "S10_Callback_If_S06_Prediction_B", "S10_Callback_If_S06_Prediction_C");
+            Cue("hero.clear", "the plate goes on 'Now we're getting somewhere.'");
             Gesture(WattsonController.Gesture.Greet);
             Line("S10_L11", 0.2);
             Cue("handoff", "SceneHandoffState: table rows + camera");

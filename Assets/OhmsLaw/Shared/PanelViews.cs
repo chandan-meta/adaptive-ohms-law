@@ -2,6 +2,8 @@ using System.Globalization;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace OhmsLaw
@@ -73,73 +75,148 @@ namespace OhmsLaw
         }
     }
 
-    // ------------------------------------------------------------------ voltage buttons
+    // ------------------------------------------------------------------ the battery slider
 
-    // Five equal steps, 1 V to 5 V, in the Volt block. The director wires them to the rig. Each reads its state: done (a
-    // check over its left edge, muted: its row is recorded), now (paper and ink at full alpha in every state: the source is
-    // there), next (spark outline, pulsing: the one to tap), later (36 %: above the cap, or not the learner's turn; a tap
-    // says why). The step count ("3 OF 5") is the turn card's.
+    // v5: the battery slider, 0-5 V in whole volts, in the HUD's bottom-centre strip (LessonPanel.VoltStrip); the class
+    // keeps the name and fields of the five buttons it replaces, and the director wires it the same way. The ticks carry
+    // the step states: done (a check, muted: its row is recorded), now (paper: the source is there), next (spark, pulsing:
+    // the one to set), later (36 %: above the cap, or not the learner's turn; a tap says why). The track takes a tap, the
+    // bolt knob a drag, the keyboard ← / →. Every request goes through `set` (whole volts, the cap: LearnerVoltage).
     public class VoltageButtons : MonoBehaviour
     {
         public System.Func<float, float> set;   // request -> applied
         public System.Func<bool> open;          // the learner may change the voltage now
         public System.Func<float> current, max;
 
-        readonly Button[] buttons = new Button[5];
-        readonly HudButton[] huds = new HudButton[5];
-        readonly TextMeshProUGUI[] words = new TextMeshProUGUI[5];
-        readonly Image[] checks = new Image[5];
+        const int Steps = 5;
+        const float RowHeight = 78f, Knob = 40f, TrackInset = 24f, TrackTop = 18f, TrackHeight = 10f;
+
+        Slider slider;
+        Image track;
+        CanvasGroup knobGroup;
+        TextMeshProUGUI value;
+        readonly Image[] ticks = new Image[Steps + 1], checks = new Image[Steps + 1];
+        readonly TextMeshProUGUI[] labels = new TextMeshProUGUI[Steps + 1];
+        float hintAt = -9f;
+        bool live;   // open and not paused, this frame
 
         public static VoltageButtons Create()
         {
             var lesson = LessonPanel.Instance;
-            var block = lesson.Fresh("Volt", null, 12f);
-            var view = block.gameObject.AddComponent<VoltageButtons>();
-            LessonPanel.Eyebrow(block, "Set the battery");
-            var row = LessonPanel.Row("Row", block, 8f);
-            row.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = true;
-            LessonPanel.Fixed(row, 62f);
-            for (int i = 0; i < 5; i++)
+            var root = lesson.VoltStrip();
+            var view = root.gameObject.AddComponent<VoltageButtons>();
+            var head = LessonPanel.Row("Head", root, 10f);
+            LessonPanel.Fixed(head, 24f);
+            LessonPanel.Icon(head, "bolt", 18f, LessonPanel.Spark);
+            LessonPanel.Eyebrow(head, "Set the battery", LessonPanel.Spark).gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+            view.value = LessonPanel.Text(head, "", 22f, LessonPanel.Paper, TextAlignmentOptions.MidlineRight);
+            view.value.textWrappingMode = TextWrappingModes.NoWrap;
+
+            // The slider row: the track and its fill, a tick and a label per volt, the bolt knob.
+            var row = UI.Rect("Slider", root, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(0, RowHeight));
+            LessonPanel.Fixed(row, RowHeight);
+            row.gameObject.AddComponent<Image>().color = Color.clear;   // the row is the hit area: a tap on the track sets too
+            view.slider = row.gameObject.AddComponent<Slider>();
+            view.slider.transition = Selectable.Transition.None;
+            view.slider.minValue = 0f;
+            view.slider.maxValue = Steps;
+            view.slider.wholeNumbers = true;
+            var trackRect = UI.Rect("Track", row, new Vector2(0, 1), new Vector2(0, 1), new Vector2(TrackInset, -TrackTop), new Vector2(-2f * TrackInset, TrackHeight));
+            trackRect.anchorMax = new Vector2(1, 1);
+            view.track = UI.Panel(trackRect, new Color(1f, 1f, 1f, 0.16f), true, TrackHeight / 2f);
+            view.track.raycastTarget = false;
+            var fillRect = UI.Stretch("Fill", UI.Stretch("Fill Area", trackRect));
+            UI.Panel(fillRect, LessonPanel.VoltColor, true, TrackHeight / 2f).raycastTarget = false;
+            for (int i = 0; i <= Steps; i++)
             {
-                float volts = i + 1;
-                var button = LessonPanel.Pill(volts + " V", row, volts.ToString("0") + " V", () => { if (view.set != null && (view.open == null || view.open())) view.set(volts); }, LessonPanel.Kind.Raised, null, 62f, 21f);
-                var size = button.GetComponent<LayoutElement>();
-                size.flexibleWidth = 1f;
-                size.preferredWidth = 0f; // the row shares its width equally, whatever the label
-                var line = button.GetComponent<HorizontalLayoutGroup>();
-                line.childAlignment = TextAnchor.MiddleCenter;
-                line.padding = new RectOffset(6, 6, 0, 0);
-                line.spacing = 6f;
-                view.checks[i] = LessonPanel.Icon(button.transform, "check", 16f, LessonPanel.Spark);
-                view.checks[i].GetComponent<LayoutElement>().ignoreLayout = true; // over the left edge: the label stays centred
-                view.checks[i].rectTransform.anchoredPosition = new Vector2(16f, 0f);
-                view.buttons[i] = button;
-                view.huds[i] = button.GetComponent<HudButton>();
-                view.huds[i].activeOutline = LessonPanel.Paper;
-                view.huds[i].disabledTap = () => lesson.ShowHint(view.open != null && view.open() ? "One step at a time." : "Wait for your turn.");
-                view.words[i] = button.GetComponentInChildren<TextMeshProUGUI>();
+                float u = (float)i / Steps;
+                var tick = UI.Rect("Tick " + i, trackRect, new Vector2(u, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(14, 14));
+                view.ticks[i] = tick.gameObject.AddComponent<Image>();
+                view.ticks[i].sprite = UI.Circle();
+                view.ticks[i].raycastTarget = false;
+                view.checks[i] = LessonPanel.Icon(tick, "check", 12f, LessonPanel.Ink);
+                view.checks[i].rectTransform.anchorMin = view.checks[i].rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+                var label = UI.Rect("Label " + i, trackRect, new Vector2(u, 0), new Vector2(0.5f, 1), new Vector2(0, -10), new Vector2(60, 22));
+                view.labels[i] = UI.Label(label, i + " V", 16f, LessonPanel.Muted);
+                view.labels[i].fontStyle = FontStyles.Bold;
+                view.labels[i].textWrappingMode = TextWrappingModes.NoWrap;
             }
-            lesson.Show("Volt", true);
+            var handleArea = UI.Stretch("Handle Area", row);
+            handleArea.offsetMin = new Vector2(TrackInset, 0);
+            handleArea.offsetMax = new Vector2(-TrackInset, 0);
+            // The Slider stretches the handle across the row's height: Knob - RowHeight keeps a Knob px disc, centred on the track.
+            var handle = UI.Rect("Knob", handleArea, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, RowHeight / 2f - TrackTop - TrackHeight / 2f), new Vector2(Knob, Knob - RowHeight));
+            var knob = handle.gameObject.AddComponent<Image>();
+            knob.sprite = UI.Circle();
+            knob.color = LessonPanel.Paper;
+            var bolt = UI.Rect("Icon", handle, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(22, 22)).gameObject.AddComponent<Image>();
+            bolt.sprite = Icons.Get("bolt");
+            bolt.color = LessonPanel.Ink;
+            bolt.raycastTarget = false;
+            view.knobGroup = handle.gameObject.AddComponent<CanvasGroup>();
+            view.slider.fillRect = fillRect;
+            view.slider.handleRect = handle;
+            view.slider.targetGraphic = knob;
+            view.slider.onValueChanged.AddListener(view.Changed);
+            // A tap while it is not the learner's turn says so (the slider itself is off then).
+            var tap = root.gameObject.AddComponent<EventTrigger>();
+            LessonPanel.On(tap, EventTriggerType.PointerClick, () => { if (!view.live) view.Hint("Wait for your turn."); });
             return view;
+        }
+
+        // The slider's rule (pure, for the HUD self-check): the whole-volt value to apply for a request, or NaN when
+        // nothing changes, with the hint that says why not (not the learner's turn, or above the cap).
+        public static float Rule(float request, float now, float cap, bool live, out string hint)
+        {
+            hint = null;
+            if (!live) { hint = "Wait for your turn."; return float.NaN; }
+            if (request > cap + 0.001f) { hint = "One step at a time."; return float.NaN; }
+            float want = Mathf.Clamp(Mathf.Round(request), 0f, Steps);
+            return Mathf.Approximately(want, now) ? float.NaN : want;
+        }
+
+        // A value from the knob, the track, the arrows.
+        void Changed(float volts)
+        {
+            float now = current != null ? current() : 0f, cap = max != null ? max() : Steps;
+            float want = Rule(volts, now, cap, live, out string hint);
+            if (hint != null) { slider.SetValueWithoutNotify(Mathf.Min(now, cap)); Hint(hint); return; }
+            if (!float.IsNaN(want) && set != null) set(want);
+        }
+
+        void Hint(string text)
+        {
+            if (Time.unscaledTime - hintAt < 1f) return;   // a drag past the cap asks every frame
+            hintAt = Time.unscaledTime;
+            if (LessonPanel.Instance) LessonPanel.Instance.ShowHint(text);
         }
 
         void Update()
         {
-            float now = current != null ? current() : 0f, cap = max != null ? max() : 5f;
-            bool enabled = open != null && open() && !ModuleFlow.UserPaused;
+            float now = current != null ? current() : 0f, cap = max != null ? max() : Steps;
+            live = open != null && open() && !ModuleFlow.UserPaused;
+            if (slider.interactable != live) slider.interactable = live;
+            if (!Mathf.Approximately(slider.value, now)) slider.SetValueWithoutNotify(now);
+            // Whole volts read "2 V"; the key's 0.5 V reads "0.5 V" (rounded to "1 V" it sat over a knob at 0).
+            value.text = now.ToString(Mathf.Approximately(now, Mathf.Round(now)) ? "0" : "0.0", CultureInfo.InvariantCulture) + " V";
             float pulse = ReducedMotion.On ? 1f : 0.55f + 0.45f * Mathf.Sin(Time.unscaledTime * 4f);
-            for (int i = 0; i < 5; i++)
+            track.color = new Color(1f, 1f, 1f, live ? 0.2f : 0.12f);
+            knobGroup.alpha = live ? 1f : 0.7f;
+            for (int i = 0; i <= Steps; i++)
             {
-                float volts = i + 1;
-                bool selected = Mathf.Approximately(now, volts), above = volts > cap + 0.001f;
-                bool recorded = !selected && LearnerSession.tableRows >= volts;
-                bool next = enabled && !selected && !above && Mathf.Approximately(volts, cap);
-                buttons[i].interactable = (enabled && !above) || selected; // the source's own value never dims
-                huds[i].active = selected;
-                huds[i].outlineColor = next ? UI.Alpha(LessonPanel.Spark, pulse) : LessonPanel.ControlLine;
-                words[i].color = selected ? LessonPanel.Ink : recorded ? LessonPanel.Muted : LessonPanel.Paper;
+                bool selected = Mathf.Approximately(now, i), above = i > cap + 0.001f;
+                bool recorded = i > 0 && !selected && LearnerSession.tableRows >= i;
+                bool next = live && !selected && !above && Mathf.Approximately(i, cap);
+                ticks[i].color = selected ? LessonPanel.Paper : next ? UI.Alpha(LessonPanel.Spark, pulse) : recorded ? UI.Alpha(LessonPanel.Spark, 0.85f) : new Color(1f, 1f, 1f, above ? 0.36f : 0.55f);
+                labels[i].color = selected ? LessonPanel.Paper : next ? LessonPanel.Spark : above ? new Color(1f, 1f, 1f, 0.36f) : LessonPanel.Muted;
                 if (checks[i].gameObject.activeSelf != recorded) checks[i].gameObject.SetActive(recorded);
             }
+            // ← and → step the battery while it is the learner's turn (the Slider steps itself while it holds the selection).
+            var keys = Keyboard.current;
+            var events = EventSystem.current;
+            if (keys == null || !live || AskWattsonUI.IsOpen || (events && events.currentSelectedGameObject == slider.gameObject)) return;
+            if (keys.leftArrowKey.wasPressedThisFrame && now > 0.5f) Changed(Mathf.Round(now) - 1f);
+            if (keys.rightArrowKey.wasPressedThisFrame && now < Steps - 0.5f) Changed(Mathf.Round(now) + 1f);
         }
     }
 
@@ -250,9 +327,16 @@ namespace OhmsLaw
             var block = lesson.Fresh("Schematic", new RectOffset(12, 12, 8, 8));
             float scale = (LessonPanel.Inner(false) - 24f) / Size.x;
             var area = Draw.Box(block, Size, scale);
+            lesson.Show("Schematic", true);
+            return CreateOn(area);
+        }
+
+        // v5: the same live schematic on any RectTransform (a world-space board's canvas, Scene 9): the drawing is laid
+        // out in Size px from the area's top-left corner, so give the area that size and scale it to fit.
+        public static CircuitSchematic CreateOn(RectTransform area)
+        {
             var view = area.gameObject.AddComponent<CircuitSchematic>();
             view.Build(area);
-            lesson.Show("Schematic", true);
             return view;
         }
 
@@ -282,8 +366,9 @@ namespace OhmsLaw
             Draw.Bar(area, new Vector2(X, wireY), new Vector2(Y, wireY), 10, new Color(0.78f, 0.72f, 0.58f));
             Draw.Disc(area, new Vector2(X, wireY), 14, chalk);
             Draw.Disc(area, new Vector2(Y, wireY), 14, chalk);
-            Draw.Label(area, "X", new Vector2(X - 26, wireY - 24), 26, chalk, new Vector2(30, 28));
-            Draw.Label(area, "Y", new Vector2(Y + 26, wireY - 24), 26, chalk, new Vector2(30, 28));
+            // X and Y under the wire's ends, just outside the voltmeter's leads (where the bench's badges sit); the name above.
+            Draw.Label(area, "X", new Vector2(X - 22, wireY + 22), 26, chalk, new Vector2(30, 28));
+            Draw.Label(area, "Y", new Vector2(Y + 22, wireY + 22), 26, chalk, new Vector2(30, 28));
             Draw.Label(area, "nichrome wire", new Vector2((X + Y) / 2, wireY - 24), 26, new Color(1, 1, 1, 0.7f), new Vector2(220, 28));
             L(new Vector2(Y, wireY), new Vector2(KeyX, wireY));
             // Key on the right side: a gap whose lever swings shut.

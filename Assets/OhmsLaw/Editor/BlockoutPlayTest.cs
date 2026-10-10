@@ -30,6 +30,10 @@ namespace OhmsLaw.Editor
         // time, so a gate's hold or a 2x run moves the frame with the beat. A rule whose events are missing shoots nothing.
         static readonly (string scene, string after, string what, float delay)[] Captures =
         {
+            ("Scene04", "", "shot SH04a Over Shoulder", 2.4f),       // v5: Ohm glances up at Wattson (Scene04_OhmAttend, SH04 + 1.2 s)
+            ("Scene08", "", "shot Bench Orbit", 1.4f),               // v5: the farewell, Ohm's bow to the class
+            ("Scene10", "", "hero V × 2  →  I × 2|double the voltage, double the current", 1.5f), // v5: the doubling, centre screen
+            ("Scene12", "", "show Wire Sample", 2.5f),               // v5: the 3D copper-vs-nichrome pop-up
             ("Scene05", "", "show Card Terminal Label +", 1.0f),     // both terminals lit and labelled
             ("Scene05", "", "show Drift Arrow", 1.0f),               // the drift confirmed after S05_Drift
             ("Scene08", "", "appear 0.7 AMMETER", 0.4f),             // the transformation: each swap mid-way (old out, new in)
