@@ -37,10 +37,11 @@ build followed is `Docs/Polish/V5_PLAN.md`; the review findings are `Logs/v5_rev
   check (the cavern count read 0 in edit mode), fixed and re-run: all pass (2679 atoms, none inside the wire or over the lens).
 - **Review round:** ten reviewers, one per chapter, scored the frames against this brief at 3–3.5 / 5 and filed 76 findings
   (`Logs/v5_reviews.txt`); four fixers applied them (`Logs/v5_fixes.txt`), the whole project compiles clean after them.
-- **Not yet verified:** the fixed build has not been replayed. The editor was closed after it rebuilt Scene 4, so Scenes
-  5–13 in the repository still come from the build before the review round, and S05_V07's new wording has no clip yet.
-  One run of `bash Tools/v5_verify.sh` with the Ohm's Law editor open rebuilds them, re-bakes that line, re-applies the
-  polish, runs every self-check and replays the module.
+- **Fixed build, 2026-10-12:** Scene 4 and Scenes 5–13 rebuilt from the fixed builders, S05_V07 re-baked, polish
+  re-applied; self-checks 492 pass, 0 fail (Ohm Pose 21, Wattson Pose 119, Wattson Actions 144, Lab Continuity 155,
+  Voice Pipeline 20, Wire Electrons 18, HUD v5 11, Wire Sample 4); hands-free play test of the whole module at 1920×1080
+  with the Ask probe, **recorded at 1x: RESULT PASS**, 616 s of video and audio in sync. The recording (720p, three parts)
+  is `Logs/Blockout/recording/ohms_law_v5_part1..3.mp4`; the full video `ohms_law_v5_gameplay_720p.mp4`.
 
 ## Not done, or limited
 

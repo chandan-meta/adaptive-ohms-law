@@ -14,10 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
   id: S05_V07
   speaker: WATTSON
-  text: 'Watch! Every charge still jiggles, but now they all flow the same way: from
-    the negative end towards the positive end. That steady flow is electron drift.'
-  ttsText: 'Watch! Every charge still jiggles, but now they all flow the same way:
-    from the negative end towards the positive end. That steady flow is electron
-    drift.'
+  text: Watch! The charges still jiggle, but now they all flow one way, from negative
+    to positive. That steady flow is electron drift.
+  ttsText: Watch! The charges still jiggle, but now they all flow one way, from negative
+    to positive. That steady flow is electron drift.
   vo: {fileID: 8300000, guid: 5a492d096fdb8ed4fbd3d5fb0ccbe27b, type: 3}
-  fallbackDuration: 9
+  fallbackDuration: 7.4

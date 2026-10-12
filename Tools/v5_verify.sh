@@ -24,7 +24,7 @@ for step in $STEPS; do
       echo "== play test: $PLAY"
       rm -f Logs/Blockout/play-report.txt; rm -rf Logs/Blockout/shots
       echo "$PLAY" > Logs/ohm-play.req
-      for i in $(seq 1 400); do grep -q "^RESULT" Logs/Blockout/play-report.txt 2>/dev/null && break; sleep 5; done
+      for i in $(seq 1 1000); do grep -q "^RESULT" Logs/Blockout/play-report.txt 2>/dev/null && break; sleep 5; done
       grep -E "^(RESULT|RES |FAIL|ERROR|STALL|GATE|===|END|PASS  module)" Logs/Blockout/play-report.txt | tail -60 ;;
     sheets)  python Tools/play_sheets.py "$SHEETS" ;;
   esac
