@@ -1,0 +1,10 @@
+Mixkit Sound Effects Free License (https://mixkit.co/license/), applies to the Mixkit sound effects in this folder
+(not Mixkit stock music, which was not downloaded). Items: Small electric glitch 2595, Electric buzz glitch 2596,
+Electric whoosh 2600, Electronics power up 2599, Electricity static power up 2602, Electric charge hum 332, Static
+electric crackles 2597, Futuristic electricity sparks 2138, Intense electricity hum 2593, Low electricity humming 2592,
+Magic sparkle whoosh 2350, Fairy magic sparkle 2638, Magic wand sparkle 2352, Magical light moving 3082, Magic transition
+sweep presentation 869, Magic sparkle poof hit 2407, Fantasy game success notification 2633, Cinematic whoosh fast
+transition 1492, Cinematic tunnel reverb woosh 2608, Fast sci fi transition sweep 2408, Technology alert transition 3111.
+Downloaded 2026-10-14 from https://assets.mixkit.co/active_storage/sfx/<id>/<id>.wav. Read the licence page for the
+current terms before redistributing the raw files; the licence permits use inside projects such as games but not
+redistribution of the sound files on their own.

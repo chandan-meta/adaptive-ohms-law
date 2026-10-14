@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 namespace OhmsLaw.Editor
@@ -242,6 +243,16 @@ namespace OhmsLaw.Editor
                 shape.rotation = new Vector3(0f, 20f, 0f);
             }).gameObject);
             wave.SetActive(false);
+
+            // The lab reveal's low impact under the look's sweep (the "look" cue rule plays SFX_Magic_Sweep): a one-shot on the
+            // effects bus at gain 0.4 (the sfx cue carries no gain), fired by "show Lab Impact" with the look and hidden
+            // again with the room effects so a replay fires it afresh. Loaded by path: the library asset is built after this.
+            var impact = Audio("Lab Impact", null, AudioBus.Kind.Sfx);
+            impact.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Root + "/Audio/SFX/CameraTransitions/SFX_Impact_Low.ogg");
+            impact.playOnAwake = true;
+            impact.GetComponent<AudioBus>().gain = 0.4f;
+            impact.gameObject.SetActive(false);
+            Ref(impact.gameObject);
         }
 
         // A spark burst (Scene 4's Sparks kit, slow and short-lived so it stays on the instrument instead of scattering over
@@ -298,13 +309,15 @@ namespace OhmsLaw.Editor
 
         // One old prop becomes its modern equivalent where it stands: dust swirls round it, the old prop shrinks out while
         // the new one grows in (they overlap, so something solid is always there), and its label comes up.
+        // Audio: the cue rules carry the magic (fx → crackles, vanish → SFX_Magic_Poof, appear → SFX_Magic_Gather); the
+        // builder adds only the instrument's click as the modern one grows in. (An explicit Transform here doubled the Poof.)
         void Becomes(string dust, string[] old, string modern, string callout)
         {
             Cue("fx " + dust);
-            Sfx("Transform");
             foreach (var prop in old) Cue("vanish 0.7 " + prop);
             Cue("appear 0.7 " + modern, "", 0.25);
             Cue("fx Sparks " + modern, "", 0.25);
+            Sfx("SFX_Apparatus_Click", 0.25);
             Cue("callout show " + callout, "", 0.8);
             Visual(string.Join(" + ", old) + " → " + modern + ", in its own place", 1.0);
         }
@@ -354,8 +367,7 @@ namespace OhmsLaw.Editor
             // the voltmeter joins; Ohm steps back and presents it (Scene08_modern_apparatus_presented).
             Gesture(WattsonController.Gesture.Transform, point: "Bench Point", gadget: true);
             Wait(Act);
-            Cue("fx Dust Desk");
-            Sfx("Transform");
+            Cue("fx Dust Desk");                                                // audio: the dressing's vanish rule plays the Poof once (an explicit Transform doubled it)
             for (int i = 0; i < Dressing.Length; i++) Cue("vanish 0.5 " + Dressing[i], "", i * 0.04);
             Hide("Study Desk", 0.35);
             Show("Bench", 0.35);
@@ -401,16 +413,16 @@ namespace OhmsLaw.Editor
             // lab, sweeping out from the bench.
             Gesture(WattsonController.Gesture.Transform, point: "Bench Point", gadget: true);
             Wait(Act);
-            Show(RoomFx);
-            Sfx("LabSweep");
+            Show(RoomFx);                                                       // audio: the cast carries Wattson's magic (WP-W) and the wave's Gather (appear rule); the sweep itself plays at the look below
             Cue("appear 1.8 Time Wave", "the time wave: a ring of light grows out from the bench, past the walls");
             Cue("fade 0.12 0.1", "a brief exposure lift at the wave"); // ponytail: a 12 % white veil stands in for an exposure override; a Volume weight ramp if it reads as a fade
             Cue("fade 0 0.8", "", 0.25);
             Cue("fx Room Wave");
             Wait(0.6);                                                          // the ring stands over the bench on its own before the room answers (audit: it showed for one frame)
             Ambience("RoomTone", 1.0);
-            Music(Scene10Builder.LabTheme(sounds));                             // the lab's own bed from the reveal on (WP-A's PadLabTheme; PadLab until it ships)
+            Music(Scene10Builder.LabTheme(sounds));                             // the lab's own bed from the reveal on (PadLabTheme → the Wattson theme through the library alias)
             Cue("look 2.8 classroom", "light, ambient, fog, background, post and reflections crossfade to the classroom");
+            Show("Lab Impact");                                                 // audio: SFX_Impact_Low at gain 0.4 under the look rule's SFX_Magic_Sweep (the old explicit LabSweep 0.6 s earlier doubled it)
             Cue("glide 3.4 Cam Bench Orbit", "the camera sweeps 20 degrees round the bench and pulls back onto Bench Wide's pose");
             Shot("Bench Wide", offset: 3.0);                                     // blends in over the glide's last second: Scene 9's first frame
             Hide("Time Wave", 2.0);                                             // 2.6 s after it appeared: full size for the look's first 0.8 s
@@ -428,6 +440,7 @@ namespace OhmsLaw.Editor
             Hide("Historical Lab", 2.9);
             Hide("Ohm Apparatus", 2.9);
             Hide(RoomFx, 2.9);
+            Hide("Lab Impact", 2.9);
             Visual("Ohm's study sweeps away from the bench into today's classroom lab", 1.2);
             Gesture(WattsonController.Gesture.Talking);
             Line("S08_L02", 0.2);

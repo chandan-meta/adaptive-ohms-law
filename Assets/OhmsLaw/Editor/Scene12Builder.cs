@@ -85,7 +85,7 @@ namespace OhmsLaw.Editor
             // Match-cut from Scene 11: the same data in the dock and V ∝ I centre screen.
             Shot("Bench Study");
             Ambience("RoomTone");
-            Music(Scene10Builder.LabTheme(sounds));
+            Music("BGM_Wattson_Magical_Discovery"); // audio: Scene 11's discovery theme continues (a no-op on the match-cut; the bed on a fresh load)
             Cue("table.rows 5"); Cue("readings.top 1"); Cue("panel Table 0", "as Scene 11 left it: the graph in the dock", 0.05);
             Cue("graph.axes 1"); Cue("graph.plot 5"); Cue("graph.line 2");
             Cue("hero V ∝ I|directly proportional, for this wire at constant temperature", "as Scene 11 left it");
@@ -104,11 +104,14 @@ namespace OhmsLaw.Editor
             Show("Wire Highlight");
             Sfx("Highlight");
             Visual("The camera pulls back to the test wire; it highlights; Wattson flies to the pop-up's side", 1.0);
-            // His magic opens it: the gadget zaps the wire and the magnified view pops up beside him.
+            // His magic opens it: the gadget zaps the wire and the magnified view pops up beside him. Audio: the cast's wand
+            // sparkle (SFX_Wattson_Magic) is WP-W's gesture hook on Transform, so nothing is cued for it here; the pop-up's
+            // own hit stays (Transform → SFX_Magic_Poof) and the mystery bed takes over for the inside of the metals.
             Gesture(WattsonController.Gesture.Transform, point: "NICHROME WIRE — XY", gadget: true);
             Wait(WattsonController.TransformActionDelay);
             Show("Wire Sample"); // the 3D pop-up card opens centre screen: copper alone, cut away, lattice ions and 24 electrons, swaying
             Sfx("Transform");
+            Music("BGM_Conductor_Mystery");
             Visual("The pop-up: a copper segment, magnified, its electrons threading the lattice", 0.8);
             Gesture(WattsonController.Gesture.Point, point: "NICHROME WIRE — XY");
             Line("S12_R01");
@@ -132,6 +135,7 @@ namespace OhmsLaw.Editor
             Cue("readings.top 1");
             Gesture(WattsonController.Gesture.Point, point: "Panel Point", moveTo: "Tray Point");
             Line("S12_L06", 0.2);
+            Music("BGM_Wattson_Magical_Discovery"); // audio: back to the discovery theme on "You've already measured it"
             Line("S12_L07");
             Cue("panel Table 1", "the learner's table returns");
             Cue("readings.top 0", "the strip makes room: the stage's plate reaches the top of the free frame", 0.05);
@@ -172,8 +176,7 @@ namespace OhmsLaw.Editor
 
             // The ohm, centre screen.
             Cue("formula.clear");
-            Cue("hero Ω|the ohm, unit of resistance", "centre-screen reveal");
-            Sfx("Omega");
+            Cue("hero Ω|the ohm, unit of resistance", "centre-screen reveal"); // audio: the hero rule's SFX_Scientific_Discovery (the explicit Omega sting doubled it)
             Gesture(WattsonController.Gesture.Greet, moveTo: "Reveal Side"); // above the wide ohm plate, not behind it
             Line("S12_L14");
             Line("S12_N02", 0.2);

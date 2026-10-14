@@ -41,6 +41,9 @@ namespace OhmsLaw.Editor
         [MenuItem("Ohm's Law/Polish/Apply wire chamber (Scenes 5, 6)")]
         public static void ApplyWire() => Apply(new[] { 5, 6 });
 
+        [MenuItem("Ohm's Law/Polish/Apply study + lab (Scenes 7-13)")]
+        public static void ApplyFrom7() => Apply(new[] { 7, 8, 9, 10, 11, 12, 13 }); // never 5/6: the user hand-edits the wire scenes
+
         [MenuItem("Ohm's Law/Polish/Apply lab (Scenes 8-13)")]
         public static void ApplyLab() => Apply(new[] { 8, 9, 10, 11, 12, 13 });
 

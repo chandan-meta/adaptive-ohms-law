@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace OhmsLaw
@@ -266,13 +267,15 @@ namespace OhmsLaw
         }
     }
 
-    // Very quiet interface sounds (hover tick, click, open, close), synthesised once at runtime: no asset, always under
-    // the narration, on the effects bus so the volume setting covers them.
+    // Quiet interface sounds (hover tick, click, open, close, done, hint, stamp, wrong, start, correct): the audio
+    // library's "ui.<name>" clip at its level (a library clip name plays straight through), else a clip synthesised once
+    // at runtime. Always under the narration, on the UI group of the effects bus so the volume setting covers them.
     public static class UiSounds
     {
         static readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
         static AudioSource source;
         static float lastHover;
+        static int verdictFrame = -1;
 
         public static void Attach(GameObject host)
         {
@@ -289,15 +292,27 @@ namespace OhmsLaw
         public static void Play(string name)
         {
             if (!source) return;
-            if (name == "hover") { if (Time.unscaledTime - lastHover < 0.08f) return; lastHover = Time.unscaledTime; }
-            if (!clips.TryGetValue(name, out var clip)) clips[name] = clip = Make(name);
+            if (name == "hover")
+            {
+                // Never on touch (a finger has no hover), one tick per 80 ms under a mouse.
+                if (Mouse.current == null || Time.unscaledTime - lastHover < 0.08f) return;
+                lastHover = Time.unscaledTime;
+            }
+            // "correct" / "wrong" are the verdict on an answer (MCQPanel.Mark): the Done() chime of the same frame stays quiet under it.
+            if (name == "correct" || name == "wrong") verdictFrame = Time.frameCount;
+            else if (name == "done" && verdictFrame == Time.frameCount) return;
+            string key = "ui." + name;
+            var clip = AudioLibrary.ClipOrNull(key);
+            if (!clip) { key = name == "correct" ? "SFX_Correct_Answer" : name; clip = AudioLibrary.ClipOrNull(key); }
+            if (clip) { source.PlayOneShot(clip, AudioLibrary.GainOf(key)); return; }
+            if (!clips.TryGetValue(name, out clip)) clips[name] = clip = Make(name);
             source.PlayOneShot(clip, name == "hover" ? 0.35f : 0.8f);
         }
 
         static AudioClip Make(string name)
         {
             const int rate = 44100;
-            float seconds = name switch { "hover" => 0.03f, "click" => 0.06f, "done" => 0.26f, "stamp" => 0.3f, "hint" => 0.12f, _ => 0.14f };
+            float seconds = name switch { "hover" => 0.03f, "click" => 0.06f, "done" or "correct" or "start" => 0.26f, "stamp" => 0.3f, "hint" => 0.12f, "wrong" => 0.2f, _ => 0.14f };
             int n = Mathf.RoundToInt(rate * seconds);
             var data = new float[n];
             var noise = new System.Random(3);
@@ -309,7 +324,9 @@ namespace OhmsLaw
                     "hover" => 1900f,
                     "click" => Mathf.Lerp(1300f, 750f, u),
                     "open" => Mathf.Lerp(520f, 980f, u),
-                    "done" => u < 0.45f ? 880f : 1318.5f,           // a rising fifth: the action landed
+                    "done" or "correct" => u < 0.45f ? 880f : 1318.5f, // a rising fifth: the action landed
+                    "start" => Mathf.Lerp(660f, 1100f, u),           // a confirming sweep up
+                    "wrong" => u < 0.5f ? 392f : 311f,               // a gentle falling third: not quite
                     "stamp" => Mathf.Lerp(150f, 70f, u),             // a soft thud under the CASE CLOSED stamp
                     "hint" => 660f,
                     _ => Mathf.Lerp(980f, 520f, u), // close

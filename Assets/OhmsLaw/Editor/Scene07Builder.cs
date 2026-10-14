@@ -93,6 +93,7 @@ namespace OhmsLaw.Editor
             Gesture(WattsonController.Gesture.Point, point: "Georg Ohm");
             Cue("ohm.look Wattson", "Ohm glances up at Wattson while he speaks");
             Visual("Pull back to the room: Ohm works at his desk (loop), the slate beside it, Wattson beside the group", 0.8);
+            Sfx("SFX_Magic_Settle"); // audio: the pull-back settles on the study (a glass tick; the boards' chime follows 0.5 s later)
             Show("Board Voltage");
             Show("Board Current", 0.5);
             Sfx("Highlight", 0.5);
@@ -112,6 +113,7 @@ namespace OhmsLaw.Editor
             Show(NeedleSwing);
             Cue("callout show galvanometer");
             Visual("Ohm's experiment loop: picks a short copper wire, places it, changes the source, watches the galvanometer, writes a reading", 0.4);
+            Sfx("SFX_Apparatus_Click"); // audio: Ohm changes the source as L05 starts (with the first needle swing); the callout's chime was 0.4 s earlier
             Line("S07_L05");
             foreach (var (page, at) in new[] { ("Page 1", 0.0), ("Page 2", 1.1), ("Page 3", 2.1) })
             {

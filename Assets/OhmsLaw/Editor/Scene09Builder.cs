@@ -196,6 +196,7 @@ namespace OhmsLaw.Editor
             Shot("Bench Study", offset: 3.8);
             Line("S09_L05", 0.2);
             Gate("S09_PlaceAmmeter", "Panel: 'Select the ammeter.' then 'Click the highlighted position to place it.' (tap the meter, tap the glowing slot; or drag it there). Snaps with a placement sound; the series path lights, the X → Y pulse runs, the board's A lights. AutoPlace / autoAnswer fly it in.");
+            Sfx("SFX_Condition_Reached", 0.3); // audio: the placement confirmed, 0.5 s after the gate's own Place sound, as the series path lights
             Visual("The ammeter snaps in: the series path lights, the X → Y pulse starts", 0.8);
             Gesture(WattsonController.Gesture.Point, point: "AMMETER");
             Line("S09_L06");
@@ -211,6 +212,7 @@ namespace OhmsLaw.Editor
             Line("S09_L07", 0.2);
             Show("[VFX] X and Y pulse");
             Gate("S09_PlaceVoltmeter", "Panel: 'Select the voltmeter.' then 'Click the highlighted position to place it.' Its leads reach X and Y; the board's V and its parallel leads light.");
+            Sfx("SFX_Condition_Reached", 0.3); // audio: the placement confirmed as the leads reach X and Y
             Hide("[VFX] X and Y pulse");
             Cue("callout hideall");
             Cue("retract 0.5 Parts Tray", "the empty tray folds away, so the last frame matches Scene 10's bench");
@@ -223,7 +225,8 @@ namespace OhmsLaw.Editor
             Line("S09_L09", 0.2);
             Gate("S09_CloseKey", "Panel: 'Close the switch to complete the circuit.' Tap the key (tap-hand hint): the lever closes with a clack, the needles move at the small default voltage, the loop on the board warms to amber (conventional current, + → −).");
             Hide("[VFX] Key pulse");
-            Ambience(Scene10Builder.Bed(sounds, "CircuitHum", "RoomTone")); // current flows: the circuit hums (WP-A's loop; the room tone until it ships). Scene 10 opens at 0 V, on RoomTone again.
+            // Audio: the key's clack is the gate's own Switch sound, and the current's hum is the runtime ElectricalAudio component
+            // (it follows the rig's current, fading out at 0 V), so no "ambience CircuitHum" bed here: the room tone carries on.
             Gesture(WattsonController.Gesture.Talking);
             Line("S09_L10");
             // The twist gets its picture once current flows: the board's loop is amber with its "+ → −" note, and the

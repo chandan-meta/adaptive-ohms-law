@@ -542,7 +542,7 @@ namespace OhmsLaw
         {
             closing = true;
             fade.interactable = false;
-            UiSounds.Play("open");
+            UiSounds.Play("start");   // UI_Confirm: the case begins (Start and Continue alike)
             for (float t = 0; t < 1; t += Time.unscaledDeltaTime / 0.2f)
             {
                 curtain.color = new Color(0.018f, 0.028f, 0.048f, Mathf.SmoothStep(0, 1, t));

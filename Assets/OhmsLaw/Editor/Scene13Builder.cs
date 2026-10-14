@@ -1,5 +1,3 @@
-using System.Linq;
-using UnityEditor;
 using UnityEngine;
 
 namespace OhmsLaw.Editor
@@ -65,10 +63,8 @@ namespace OhmsLaw.Editor
             ohm.SetActive(false);
             Ref(ohm);
             FinaleGlow();
-
-            // The module's own theme (Scene 4's bgm.mp3) returns under the finale: "music bgm" crossfades the lab pad into it.
-            var theme = AssetDatabase.LoadAssetAtPath<AudioClip>(Shared + "/Art/bgm.mp3");
-            if (theme) director.sounds = director.sounds.Append(theme).ToArray();
+            // The module's theme under the finale is the library's BGM_Professor_Ohm_Laboratory (the title bed), cued at L01 in
+            // Beats; the old Scene 4 bgm.mp3 is no longer appended to the bank.
         }
 
         // Warm sparks rising from the bench as the law gets its name (a one-shot the fx cue plays; thinned under reduced motion).
@@ -101,7 +97,7 @@ namespace OhmsLaw.Editor
             // Match-cut from Scene 12: R in the readings strip and this wire's 5 Ω in the dock (the ohm plate goes with the cut).
             Shot("Bench Study");
             Ambience("RoomTone");
-            Music(Scene10Builder.LabTheme(sounds));
+            Music("BGM_Professor_Ohm_Laboratory"); // audio: the warm theme returns on S13_L01 (2.5 s crossfade out of the discovery theme) and holds to the end card
             Cue("readings.r 1"); Cue("readings.top 1"); // the finale keeps only the three readings and the law: no table, no graph
             Formula("this wire:  5.0 V ÷ 1.00 A = 5.0 Ω"); // the ohm, as Scene 12 left it, in the dock (the bench stays clear)
             Gesture(WattsonController.Gesture.Talking, moveTo: "Tray Point");
@@ -127,14 +123,14 @@ namespace OhmsLaw.Editor
             // The finale composition: the lab warms, Georg Ohm returns to take a bow, Wattson celebrates; the whole
             // investigation is in one frame: the bench and its meters, the readings strip and the law. Timed inside S13_L06
             // ("And today... we call it OHM'S LAW."): the camera pulls back on "we call it" (1.0 s) while Wattson comes
-            // forward, and the name, the sting, the sparks and the module's theme land on "OHM'S LAW" (1.8 s). The name owns
-            // the screen for L06; then it gives way to the man it is named after: Ohm appears behind the bench (where the
-            // plate stood) as the summary starts.
+            // forward, and the name, the stings and the sparks land on "OHM'S LAW" (1.8 s): the hero rule's SFX_Scientific_Discovery
+            // as the attack, SFX_Magic_Success 0.2 s behind it as the swell (the theme has been under it since L01; the end
+            // card's SFX_Final_Success is the "end" rule's, so no Finale sting here). The name owns the screen for L06; then it
+            // gives way to the man it is named after: Ohm appears behind the bench (where the plate stood) as the summary starts.
             Shot("Finale", offset: 1.0);
             Gesture(WattsonController.Gesture.Talking, moveTo: "Front Point", offset: 1.0);
             Cue("hero OHM'S LAW|", "the name, centre screen", 1.8);
-            Sfx("Finale", 1.8);
-            Music("bgm", 1.8);
+            Sfx("SFX_Magic_Success", 2.0);
             Cue("fx Finale Glow", "", 1.8);
             Gesture(WattsonController.Gesture.Greet, offset: 1.8);
             Line("S13_L06", 0.1);

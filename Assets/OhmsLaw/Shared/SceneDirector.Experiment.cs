@@ -62,7 +62,7 @@ namespace OhmsLaw
                 }
                 case "sfx": Play(rest); return true;
                 case "ambience": Bed(ambience, rest, 1.5f); return true;
-                case "music": Bed(music, rest, 2.5f); return true;
+                case "music": Bed(music, rest, 2.0f); return true;
                 case "end": if (Flow) Flow.EndOfModule(); return true;
                 case "hero":
                 {

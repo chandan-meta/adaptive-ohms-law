@@ -29,6 +29,12 @@ namespace OhmsLaw
         [Range(0f, 1f)]
         public float gain = 1f;
 
+        [Tooltip("The clip's own level from the audio library (its Gain), under the bus gain: fades move gain, trim stays with the clip and carries with it into the next scene.")]
+        [Range(0f, 1f)] public float trim = 1f;
+
+        [Tooltip("Mixer group by name (Music, Ambience, SFX, UI, Character, Electrical, Voice). Empty: by kind. A group the mixer lacks falls back to SFX.")]
+        public string group;
+
         [Header("Background Music (music bus only)")]
         [Tooltip("Played by a music bus when the scene starts, e.g. Assets/OhmsLaw/Shared/Art/bgm.mp3. With Play On Start off the bus only carries the clip: Scene 4's music bus holds the title bed (PadIntro) this way for ModuleFlow.")]
         public AudioClip bgm;
@@ -45,13 +51,19 @@ namespace OhmsLaw
         static AudioMixer mixer;
         static readonly Dictionary<string, AudioMixerGroup> groups = new Dictionary<string, AudioMixerGroup>();
 
+        // The mixer group by name (exact name first); one the mixer lacks (Character / Electrical before the audio library
+        // was built) falls back to SFX, so a bus or a library clip asking for it still routes somewhere sensible.
         public static AudioMixerGroup Group(string name)
         {
+            if (string.IsNullOrEmpty(name)) name = "SFX";
             if (groups.TryGetValue(name, out var group) && group) return group;
             if (!mixer) mixer = Resources.Load<AudioMixer>("OhmsLawMix");
             if (!mixer) return null;
             var found = mixer.FindMatchingGroups(name);
-            return groups[name] = found.Length > 0 ? found[0] : null;
+            group = found.Length > 0 ? found[0] : null;
+            foreach (var g in found) if (g.name == name) { group = g; break; }
+            if (!group && name != "SFX") group = Group("SFX");
+            return groups[name] = group;
         }
 
         static readonly List<AudioBus> carried = new List<AudioBus>();
@@ -94,7 +106,7 @@ namespace OhmsLaw
         {
             // Existing learner sliders and narration ducking remain the gain owners. The mixer adds edit-time routing.
             if (!source.outputAudioMixerGroup)
-                source.outputAudioMixerGroup = Group(kind == Kind.Voice ? "Voice" : kind == Kind.Music ? "Music" : name.ToLowerInvariant().Contains("ambien") || source.loop ? "Ambience" : "SFX");
+                source.outputAudioMixerGroup = Group(!string.IsNullOrEmpty(group) ? group : kind == Kind.Voice ? "Voice" : kind == Kind.Music ? "Music" : name.ToLowerInvariant().Contains("ambien") || source.loop ? "Ambience" : "SFX");
             if (PlaysMusic && playOnStart) PlayBGM();
         }
 
@@ -118,7 +130,8 @@ namespace OhmsLaw
             {
                 source.clip = from.source.clip;
                 source.loop = true;
-                source.volume = gain * Get(kind);
+                trim = from.trim;
+                source.volume = gain * trim * Get(kind);
                 source.Play();
                 source.timeSamples = from.source.timeSamples;
             }
@@ -134,12 +147,13 @@ namespace OhmsLaw
 
         void Update()
         {
-            if (source) source.volume = gain * Get(kind);
+            if (source) source.volume = gain * trim * Get(kind);
         }
 
         public void PlayBGM()
         {
             if (!source || !PlaysMusic) return;
+            trim = AudioLibrary.GainOf(bgm.name); // a library clip plays at its library level (1 for any other clip)
             source.clip = bgm;
             source.loop = loopBGM;
             source.Play();

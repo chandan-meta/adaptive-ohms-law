@@ -1,0 +1,5 @@
+Licensed CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/), as stated on each OpenGameArt page on 2026-10-14:
+- Intro Music by RonyDkid: https://opengameart.org/content/intro-music-0 (game_2.mp3)
+- Magic Puzzle In-Game 1 by MintoDog: https://opengameart.org/content/magic-puzzle-in-game-1 (magic_puzzle_in-game_1_bpm110.ogg)
+- Dark Sci-Fi Audio Pack by SRG774: https://opengameart.org/content/dark-sci-fi-audio-pack (airy_0, pulse_0, sector_0, victory_5, hover_0 .ogg)
+- Claimed by the Void by vitalezzz: https://opengameart.org/content/claimed-by-the-void (claimed_by_the_void_loop.mp3)

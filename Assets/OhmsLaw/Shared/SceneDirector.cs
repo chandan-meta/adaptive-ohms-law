@@ -193,32 +193,49 @@ namespace OhmsLaw
 
         // ------------------------------------------------------------------ sound
 
-        AudioClip Sound(string name) => sounds.FirstOrDefault(c => c && c.name == name);
+        // A clip by name: the audio library first (the old bank names are its aliases: "PadWire" is BGM_Conductor_Airy,
+        // "Select" is SFX_Part_Select), with the clip's level and mixer group; else the scene's own serialized bank.
+        AudioClip Sound(string name) => Sound(name, out _, out _);
 
-        // One-shot from the bank, pitched (1 = as recorded). A missing clip is silent, never an error.
-        // A pitched one-shot needs a source of its own: PlayOneShot follows its source's pitch for as long as the clip plays,
-        // so setting it and putting it back in one call played every VoltStep and Plot at 1. A pitched call takes an idle
-        // source cloned beside `sfx` (same bus kind and gain, so the learner's slider and the ducker apply as usual) and
-        // leaves the pitch on it until the clip ends; plain calls keep using `sfx` itself.
-        public void Play(string name, float pitch = 1f)
+        AudioClip Sound(string name, out float gain, out string group)
         {
-            var clip = Sound(name);
+            var clip = AudioLibrary.ClipOrNull(name);
+            gain = clip ? AudioLibrary.GainOf(name) : 1f;
+            group = clip ? AudioLibrary.GroupOf(name) : null;
+            return clip ? clip : sounds.FirstOrDefault(c => c && c.name == name);
+        }
+
+        // One-shot by name, pitched (1 = as recorded), at `volume` x the library's level for the clip. A missing clip is
+        // silent, never an error.
+        // A pitched one-shot needs a source of its own: PlayOneShot follows its source's pitch for as long as the clip plays,
+        // so setting it and putting it back in one call played every VoltStep and Plot at 1. So does a clip on another
+        // mixer group (UI, Character, Electrical): the group is the source's. Either takes an idle source cloned beside
+        // `sfx` (same bus kind and gain, so the learner's slider and the ducker apply as usual) and keeps its pitch and
+        // group until the clip ends; plain calls on the SFX group keep using `sfx` itself.
+        public void Play(string name, float pitch = 1f, float volume = 1f)
+        {
+            var clip = Sound(name, out float gain, out string group);
             if (!clip || !sfx) return;
-            var source = Mathf.Approximately(pitch, 1f) ? sfx : pitched.Find(s => s && !s.isPlaying);
+            var mixer = group != null ? AudioBus.Group(group) : null;
+            if (!mixer) mixer = sfx.outputAudioMixerGroup;
+            var source = Mathf.Approximately(pitch, 1f) && mixer == sfx.outputAudioMixerGroup ? sfx : pitched.Find(s => s && !s.isPlaying);
             if (!source)
             {
-                if (pitched.Count < 4) { source = Clone(sfx); pitched.Add(source); AudioDucker.RescanSoon(); }
-                else source = pitched[0]; // all four busy: the first takes the new pitch mid-clip, no worse than before
+                if (pitched.Count < 6) { source = Clone(sfx); pitched.Add(source); AudioDucker.RescanSoon(); }
+                else source = pitched[0]; // all busy: the first takes the new pitch mid-clip, no worse than before
             }
             source.pitch = pitch;
-            source.PlayOneShot(clip);
+            if (source != sfx) source.outputAudioMixerGroup = mixer;
+            source.PlayOneShot(clip, volume * gain);
         }
 
         readonly List<AudioSource> pitched = new List<AudioSource>();
 
-        static AudioSource Clone(AudioSource of)
+        // A source beside `of` with its group and bus (kind, built gain). `name` for a bed's twin, which shares the bed's
+        // name so AudioBus carries whichever of the two plays into the next scene under it.
+        static AudioSource Clone(AudioSource of, string name = null)
         {
-            var go = new GameObject(of.name + " pitched");
+            var go = new GameObject(name ?? of.name + " pitched");
             go.SetActive(false); // the bus reads its gain in Awake
             go.transform.SetParent(of.transform, false);
             var source = go.AddComponent<AudioSource>();
@@ -229,50 +246,75 @@ namespace OhmsLaw
             {
                 var mine = go.AddComponent<AudioBus>();
                 mine.kind = bus.kind;
-                mine.gain = bus.gain;
-                source.volume = bus.gain * AudioBus.Get(bus.kind);
+                mine.gain = bus.NominalGain > 0f ? bus.NominalGain : bus.gain; // the built level, not a fade's
+                source.volume = mine.gain * AudioBus.Get(bus.kind);
             }
             else source.volume = of.volume;
             go.SetActive(true);
             return source;
         }
 
-        readonly Dictionary<AudioSource, Coroutine> fades = new Dictionary<AudioSource, Coroutine>();
+        // A looping bed (ambience or music) has two sources: the serialized one and a twin made on first use under the
+        // same name, so AudioBus carries whichever plays into the next scene (the other is stopped by then). A change of
+        // bed starts the new clip on the idle source and raises it while the playing one lowers, equal power, over the
+        // whole crossfade: never a dip to silence. The same clip again is a no-op, so a replayed cue never restarts the
+        // bed; "off" lowers the playing one alone. The clip's library level goes on the bus as trim, under the fade.
+        class BedPair { public AudioSource a, b, active; public AudioClip target; public Coroutine fade; }
+        readonly Dictionary<AudioSource, BedPair> beds = new Dictionary<AudioSource, BedPair>();
 
-        // A looping bed (ambience or music) crossfades to the named clip, or out ("off"). Idempotent: the same clip again
-        // is left playing, so a replayed cue never restarts the bed.
         void Bed(AudioSource source, string name, float seconds)
         {
             if (!source) return;
-            var clip = name == "off" || name == "" ? null : Sound(name);
-            if (source.clip == clip && (clip == null || source.isPlaying)) return;
-            if (fades.TryGetValue(source, out var running) && running != null) StopCoroutine(running);
-            fades[source] = StartCoroutine(Crossfade(source, clip, seconds));
+            float gain = 1f;
+            var clip = name == "off" || name == "" ? null : Sound(name, out gain, out _);
+            if (!beds.TryGetValue(source, out var bed)) // a bed carried in from the last scene is already playing on it
+                beds[source] = bed = new BedPair { a = source, active = source.isPlaying && source.clip ? source : null, target = source.isPlaying ? source.clip : null };
+            if (bed.target == clip) return;
+            bed.target = clip;
+            if (bed.fade != null) StopCoroutine(bed.fade);
+            var from = bed.active;
+            AudioSource to = null;
+            if (clip)
+            {
+                if (!bed.b) { bed.b = Clone(source, source.name); bed.b.transform.SetParent(source.transform.parent, false); bed.b.loop = true; }
+                to = from == bed.a ? bed.b : bed.a;
+            }
+            bed.active = to;
+            bed.fade = StartCoroutine(Crossfade(bed, from, to, clip, gain, seconds));
         }
 
-        IEnumerator Crossfade(AudioSource source, AudioClip to, float seconds)
+        IEnumerator Crossfade(BedPair bed, AudioSource from, AudioSource to, AudioClip clip, float trim, float seconds)
         {
-            var bus = source.GetComponent<AudioBus>();
-            float gain = bus ? bus.NominalGain : 1f; // replay during a fade must not permanently lower the next bed
-            if (source.isPlaying && source.clip)
+            var outBus = from ? from.GetComponent<AudioBus>() : null;
+            var inBus = to ? to.GetComponent<AudioBus>() : null;
+            float outFrom = outBus ? outBus.gain : 0f, inFrom = 0f, inTo = inBus ? inBus.NominalGain : 1f;
+            if (to)
             {
-                for (float t = 0; t < 1; t += Time.unscaledDeltaTime / Mathf.Max(0.05f, seconds * 0.5f))
-                {
-                    if (bus) bus.gain = gain * (1 - t);
-                    yield return null;
-                }
-                source.Stop();
+                // Still lowering this very clip (a replay turned back): it just comes back up, never restarts.
+                if (to.clip != clip || !to.isPlaying) { if (inBus) inBus.gain = 0f; to.volume = 0f; to.clip = clip; to.loop = true; to.Play(); }
+                if (inBus) { inBus.trim = trim; inFrom = inBus.gain; }
             }
-            if (bus) bus.gain = 0f;
-            source.clip = to;
-            if (to) { source.loop = true; source.Play(); }
-            for (float t = 0; t < 1 && to; t += Time.unscaledDeltaTime / Mathf.Max(0.05f, seconds * 0.5f))
+            for (float t = 0; t < 1; t += Time.unscaledDeltaTime / Mathf.Max(0.05f, seconds))
             {
-                if (bus) bus.gain = gain * t;
+                float a = t * Mathf.PI * 0.5f;
+                if (outBus) outBus.gain = outFrom * Mathf.Cos(a);
+                if (inBus) inBus.gain = Mathf.Lerp(inFrom, inTo, Mathf.Sin(a));
                 yield return null;
             }
-            if (bus) bus.gain = gain;
-            fades.Remove(source);
+            if (from) { from.Stop(); if (outBus) outBus.gain = 0f; }
+            if (inBus) inBus.gain = inTo; // at its built level: AudioBus carries it into the next scene
+            bed.fade = null;
+        }
+
+        // The library's cue rule for this cue (the first whose prefix matches, outside its cooldown): its clip at the
+        // rule's gain x the clip's level, on the clip's group, through the pooled one-shots. Scenes 5 and 6 get their
+        // sounds this way without a rebuild ("wire.field 1", "show Drift Arrow", "counter 1" ...). Not in the frame of a
+        // jump (REPLAY, SKIP, Ask Wattson's resume): every cue re-fired between would sound at once.
+        void CueSound(string command)
+        {
+            if (Time.frameCount - ModuleFlow.JumpFrame <= 1) return;
+            var rule = AudioLibrary.Instance ? AudioLibrary.Instance.Rule(command, Time.unscaledTime) : null;
+            if (rule != null) Play(rule.clip, 1f, rule.gain);
         }
 
         // ------------------------------------------------------------------ Timeline cues
@@ -335,6 +377,7 @@ namespace OhmsLaw
                 case "note": break; // visual beat description for Docs/FLOW.md
                 default: if (!AreaCue(verb, words, rest, value, on)) Debug.LogWarning($"{sceneId}: unknown cue '{command}'", this); break;
             }
+            CueSound(command);
         }
 
         void SetActive(string name, bool on) { var go = Ref(name); if (go) go.SetActive(on); }

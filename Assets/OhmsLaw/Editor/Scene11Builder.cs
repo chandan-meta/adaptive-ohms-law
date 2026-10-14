@@ -48,7 +48,7 @@ namespace OhmsLaw.Editor
             // Match-cut from Scene 10: the same data in the dock (the cues rebuild it), rows 1-2 still highlighted.
             Shot("Bench Study");
             Ambience("RoomTone");
-            Music(Scene10Builder.LabTheme(sounds));
+            Music("BGM_Conductor_Pulse"); // audio: Scene 10's bed continues (a no-op on the match-cut; the bed on a fresh load) until the V ∝ I hero
             Cue("table.rows 5");
             Cue("table.highlight 0 1");
             Cue("readings.top 1");
@@ -78,6 +78,7 @@ namespace OhmsLaw.Editor
             Cue("panel Table 0", "the table steps aside: the graph stays in the dock", -3.3);
             Cue("hero V ∝ I|directly proportional, for this wire at constant temperature", "centre-screen reveal; stays through the handoff", -3.0);
             Sfx("Rise", -3.0);
+            Music("BGM_Wattson_Magical_Discovery", -3.0); // audio: the discovery theme returns on V ∝ I (2.5 s crossfade out of the Pulse bed), under the rise and the hero rule's sting
             Visual("V ∝ I glows centre screen", 1.0);
             Gesture(WattsonController.Gesture.Point, point: "Panel Point"); // not Thinking: its spinning gadget blooms to a white swirl
             Line("S11_L05", 0.2);

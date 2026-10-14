@@ -184,29 +184,78 @@ namespace OhmsLaw.Editor
                 spoken.duration = line.vo.length;
             }
 
-            // --- Sound effects (two tracks so close-together effects never crossfade) and music
-            var sfxTracks = new[] { timeline.CreateTrack<AudioTrack>(null, "SFX A"), timeline.CreateTrack<AudioTrack>(null, "SFX B") };
-            foreach (var track in sfxTracks) director.SetGenericBinding(track, s.sfx);
-            var busyUntil = new double[2];
-            void Sfx(string name, double time)
+            // --- Sound effects and music from the audio library (Audio_Plan.md, work package 4). Every clip plays at its library
+            // gain (which levels the clips against each other) times the cue's own level; the synthesized bank is the fallback
+            // for a library clip that is missing. Effects take as many lanes as they overlap, so none ever crossfades or slips.
+            var sfxTracks = new List<AudioTrack>();
+            var busyUntil = new List<double>();
+            void Sfx(string name, double time, float level = 1f)
             {
-                int lane = busyUntil[0] <= time ? 0 : 1;
-                var clip = sfxTracks[lane].CreateClip(sfx[name]);
-                clip.start = Math.Max(time, busyUntil[lane]);
-                clip.duration = sfx[name].length;
-                busyUntil[lane] = clip.end;
+                var clip = Library(name, out float gain);
+                if (!clip && !sfx.TryGetValue(name, out clip)) return;
+                int lane = busyUntil.FindIndex(until => until <= time);
+                if (lane < 0)
+                {
+                    lane = sfxTracks.Count;
+                    var track = timeline.CreateTrack<AudioTrack>(null, "SFX " + (char)('A' + lane));
+                    director.SetGenericBinding(track, s.sfx);
+                    sfxTracks.Add(track);
+                    busyUntil.Add(0);
+                }
+                var placed = sfxTracks[lane].CreateClip(clip);
+                placed.displayName = name;
+                placed.start = time;
+                placed.duration = clip.length;
+                ClipVolume(placed, gain * level);
+                busyUntil[lane] = placed.end + 0.05;
             }
+
             var musicTrack = timeline.CreateTrack<AudioTrack>(null, "Music");
             director.SetGenericBinding(musicTrack, s.music);
-            var music = musicTrack.CreateClip(sfx["PadLab"]);
-            music.start = 0;
-            music.duration = total;
-            music.easeInDuration = 0.8; // START closes the title: ModuleFlow fades its PadIntro bed out over 0.6 s while this one comes up
-            ((AudioPlayableAsset)music.asset).loop = true;
-            // The title bed rides on the music bus without playing from it: ModuleFlow plays PadIntro on a bus of its own
-            // while the title screen holds this Timeline at 0 (a music bus's bgm with Play On Start off only carries the clip).
+            TimelineClip Bed(AudioClip clip, string label, double from, double to, double clipIn, float volume)
+            {
+                var bed = musicTrack.CreateClip(clip);
+                bed.displayName = label;
+                bed.start = from;
+                bed.duration = to - from;
+                bed.clipIn = clipIn;
+                ((AudioPlayableAsset)bed.asset).loop = true;
+                ClipVolume(bed, volume);
+                return bed;
+            }
+            // Professor Ohm's laboratory theme under the arrival (START fades the title bed, the same track, out over 0.6 s while
+            // this one comes up over 1.5 s), in from bar 4: the track runs at 70 bpm with its downbeats at 0.85 + n x 3.43 s, and
+            // 11.13 s opens its calm steady passage (-18 dB, well before the louder section at 35 s), so it never sounds like the
+            // title starting over. At SH02 a 2 s crossfade hands over to Wattson's theme, whose second downbeat (110 bpm,
+            // downbeats at 0.52 + n x 2.18 s) lands on his entrance.
+            var laboratory = Library("BGM_Professor_Ohm_Laboratory", out float laboratoryGain);
+            if (!laboratory) laboratory = sfx["PadLab"];
+            var discovery = Library("BGM_Wattson_Magical_Discovery", out float discoveryGain);
+            const double crossfade = 2.0, laboratoryIn = 11.13, discoveryDownbeat = 2.70;
+            double swap = T("SH02");
+            if (!discovery) Bed(laboratory, "Laboratory", 0, total, laboratoryIn, laboratoryGain).easeInDuration = 1.5;
+            else
+            {
+                var lab = Bed(laboratory, "Laboratory", 0, swap + crossfade / 2, laboratoryIn, laboratoryGain);
+                lab.easeInDuration = 1.5;
+                lab.blendOutDuration = crossfade;
+                // Full through SH07; over SH08 (the Ohm-niscope hero) it eases down to 40 %: two clips of the same passage,
+                // sample-aligned, crossfade from full to 0.4, so the dip is one continuous bed. The quieter bed holds through
+                // SH09's lock-on and goes out over SH10, silent before SH11's dive so Scene 5's Airy enters clean.
+                double dipFrom = start["SH08"], dipTo = end["SH08"], outFrom = start["SH10"], outTo = start["SH11"];
+                double discoveryIn = discoveryDownbeat - crossfade / 2;
+                var theme = Bed(discovery, "Wattson theme", swap - crossfade / 2, dipTo, discoveryIn, discoveryGain);
+                theme.blendInDuration = crossfade;
+                theme.blendOutDuration = dipTo - dipFrom;
+                var quiet = Bed(discovery, "Wattson theme 40%", dipFrom, outTo, discoveryIn + (dipFrom - theme.start), discoveryGain * 0.4f);
+                quiet.blendInDuration = dipTo - dipFrom;
+                quiet.easeOutDuration = outTo - outFrom;
+            }
+            // The title bed rides on the music bus without playing from it: ModuleFlow plays the carried clip (the laboratory
+            // theme, from its start) on a bus of its own while the title screen holds this Timeline at 0 (a music bus's bgm with
+            // Play On Start off only carries the clip).
             var musicBus = s.music.GetComponent<AudioBus>();
-            musicBus.bgm = sfx["PadIntro"];
+            musicBus.bgm = laboratory;
             musicBus.playOnStart = false;
             var ambienceTrack = timeline.CreateTrack<AudioTrack>(null, "Ambience");
             director.SetGenericBinding(ambienceTrack, s.ambience);
@@ -247,48 +296,102 @@ namespace OhmsLaw.Editor
                 s.receiver.AddReaction(asset, reaction);
             }
 
-            // SH01 arrival and SH02 entrance
+            // SH01 arrival and SH02 entrance: the title's charge streams shimmer under the crane's whoosh; Wattson sparkles in
+            // as his flight starts (0.3) and whooshes toward the lens as he closes on it (he arrives at 3.5).
             Active("Charge Streams Blue", 0, 5);
             Active("Charge Streams Gold", 0, 5);
             Active("Landing Dust", 0.7, 4.5);
-            Sfx("Whoosh", 0);
-            Sfx("Zip", T("SH02", 0.3));
+            Sfx("SFX_Magic_Gather", 0, 0.6f);
+            Sfx("SFX_Whoosh_Fast", 0, 0.5f);
+            Sfx("SFX_Wattson_Appear", T("SH02", 0.3), 0.9f);
+            Sfx("SFX_Wattson_Whoosh", T("SH02", 1.0), 0.8f);
+            // SH03: the wave, as the Greet gesture lifts his hand.
+            Sfx("SFX_Wattson_Wave", T("SH03", 0.2), 0.9f);
             // SH04: Ohm looks up at Wattson as he is pointed out (Wattson glances back at 2.3), then back to the galvanometer.
             SignalLook("Scene04_OhmAttend", T("SH04", 1.2), s.wattson.transform);
             Signal("Scene04_OhmAttendOff", T("SH04", 4.6), s.ohm.Attend);
-            // SH05 words, SH06 arc and question mark, SH07 drift
+            // SH05 words (his flick's blue spark trail gathers from the shot's start, the words pop at 0.7 and 1.7), SH06 arc and
+            // question mark, SH07 drift
             double wordsOff = T("SH11", 1.0);
+            Sfx("SFX_Magic_Gather", start["SH05"], 0.8f);
             Active("VOLTAGE", T("SH05", 0.7), wordsOff);
-            Sfx("Pop", T("SH05", 0.7));
-            Sfx("Zap", T("SH05", 0.8));
+            Sfx("SFX_Voltage_Reveal", T("SH05", 0.7), 0.9f);
             Active("CURRENT", T("SH05", 1.7), wordsOff);
-            Sfx("Pop", T("SH05", 1.7));
-            Sfx("Zap", T("SH05", 1.8));
+            Sfx("SFX_Current_Reveal", T("SH05", 1.7), 0.9f);
             Active("Arc", T("SH06", 0.2), end["SH06"] - 0.2);
-            Sfx("Crackle", T("SH06", 0.2));
+            Sfx("SFX_Static_Crackles", T("SH06", 0.2), 0.5f);
             Active("?", T("SH06", 1.9), end["SH07"]);
+            Sfx("SFX_Fact_Chime", T("SH06", 1.9), 0.9f);
             Signal("Scene04_DriftWords", T("SH07", 0.2), scene04.DriftWords);
-            // SH08 Ohm-niscope, SH09 lock-on
+            // SH08 Ohm-niscope: the gadget comes out with the RaiseGadget pose at the shot's start (the click), its rings charge
+            // through the slow motion and flash at about 2.2 (inside the charge's tail). SH09 lock-on: the reticle at 1.3.
             Signal("Scene04_SlowMotion", T("SH08", 0.15), scene04.SlowMotion);
-            Sfx("Shimmer", T("SH08", 0.2));
+            Sfx("SFX_Apparatus_Click", start["SH08"], 0.9f);
+            Sfx("SFX_Scan_Charge", T("SH08", 0.1), 0.5f);
             Active("Reticle", T("SH09", 1.3), T("SH11", 1.2));
-            Sfx("Click", T("SH09", 1.75));
+            Sfx("SFX_Scanner_Ping", T("SH09", 1.3), 0.9f);
             Active("Wire Highlight", T("SH09", 1.8), total);
-            // SH11: the tap (the instruction stays in the panel until the wire is tapped), then the dive
+            // SH11: the tap (the instruction stays in the panel until the wire is tapped; the hold at 0.1 freezes the graph and
+            // its audio with it), then the dive: the lock confirms the tap the moment the Timeline resumes, the electric whoosh
+            // rises into SH11b's dive, and the low impact lands on the match cut to Scene 5 (Complete, total - 0.7).
             Signal("Scene04_WaitForTap", T("SH11", 0.1), scene04.WaitForTap);
+            Sfx("SFX_Scanner_Lock", T("SH11", 0.2), 0.9f);
+            Sfx("SFX_Electric_Whoosh", T("SH11", 0.3), 0.9f);
             Active("Beam", T("SH11", 0.45), total);
-            Sfx("Beam", T("SH11", 0.45));
             Active("Dive Streaks", T("SH11", 0.8), total);
-            Sfx("Enter", T("SH11", 0.6));
+            Sfx("SFX_Impact_Low", total - 0.7, 0.6f);
             Signal("Scene04Complete", total - 0.7, scene04.Complete);
 
             EditorUtility.SetDirty(timeline);
+        }
+
+        // ------------------------------------------------------------------ the audio library (Assets/OhmsLaw/Audio)
+
+        [Serializable] class LibraryEntry { public string name, path; public float gain = 1f; }
+        [Serializable] class LibraryFile { public LibraryEntry[] entries; }
+        static Dictionary<string, LibraryEntry> libraryEntries;
+
+        // A downloaded library clip by its name in Ohms_Audio_Asset_Manifest.md, with the gain that levels it against the
+        // others. Read from library.json at build time (the Resources asset may not be built yet); a name the json lacks is
+        // looked up by file name under Audio at gain 1. Null when there is no such clip, so the caller can fall back.
+        static AudioClip Library(string name, out float gain)
+        {
+            gain = 1f;
+            if (libraryEntries == null)
+            {
+                libraryEntries = new Dictionary<string, LibraryEntry>();
+                var file = File.Exists(AudioLibraryBuilder.Json) ? JsonUtility.FromJson<LibraryFile>(File.ReadAllText(AudioLibraryBuilder.Json)) : null;
+                foreach (var entry in file?.entries ?? new LibraryEntry[0])
+                    if (!string.IsNullOrEmpty(entry.name)) libraryEntries[entry.name] = entry;
+            }
+            libraryEntries.TryGetValue(name, out var found);
+            string path = found?.path;
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                path = AssetDatabase.FindAssets(name + " t:AudioClip", new[] { Root + "/Audio" }).Select(AssetDatabase.GUIDToAssetPath)
+                    .FirstOrDefault(p => Path.GetFileNameWithoutExtension(p) == name);
+            var clip = string.IsNullOrEmpty(path) ? null : AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+            if (!clip)
+            {
+                Debug.LogWarning("Scene04: no library clip named " + name + " under " + Root + "/Audio; the synthesized bank stands in");
+                return null;
+            }
+            if (found != null) gain = Mathf.Clamp01(found.gain);
+            return clip;
+        }
+
+        // A Timeline audio clip's own volume (its AudioClipProperties are not public): the library gain times the cue's level.
+        static void ClipVolume(TimelineClip clip, float volume)
+        {
+            var asset = new SerializedObject(clip.asset);
+            asset.FindProperty("m_ClipProperties").FindPropertyRelative("volume").floatValue = Mathf.Clamp01(volume);
+            asset.ApplyModifiedPropertiesWithoutUndo();
         }
 
         // ------------------------------------------------------------------ placeholder sound, synthesized
 
         static Dictionary<string, AudioClip> BuildSfx()
         {
+            libraryEntries = null; // library.json is read again on every build
             const int hz = 44100;
             const float tau = Mathf.PI * 2;
             var random = new System.Random(4);

@@ -25,6 +25,7 @@ namespace OhmsLaw
 
         void Start()
         {
+            if (wattson) wattson.gestureSounds = false; // Scene 4's Timeline carries Wattson's wave / gadget sounds at the exact frames
             wordsHome = words.position;
             if (LessonPanel.Instance && wattson && wattson.agentContext) LessonPanel.Instance.SetTitle(wattson.agentContext.sceneTitle);
         }

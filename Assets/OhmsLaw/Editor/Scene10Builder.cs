@@ -26,9 +26,9 @@ namespace OhmsLaw.Editor
         static readonly Vector3 MeterCloseCamC = new Vector3(-0.62f, 1.22f, -0.74f), MeterCloseLookC = new Vector3(-0.28f, 0.95f, 0.08f);
         const float MeterCloseFov = 30f;
 
-        // The beds WP-A ships (PadLabTheme for the lab from Scene 8's reveal on, CircuitHum once current flows). A bed the
-        // director cannot find fades the bed out (SceneDirector.Bed), so a clip missing from the bank at build time falls
-        // back to the old one here, logged.
+        // The lab bed Scenes 8 and 9 cue (PadLabTheme, the library alias of the Wattson theme). A bed the director cannot find
+        // fades the bed out (SceneDirector.Bed), so a clip missing from the bank at build time falls back to the old one
+        // here, logged. Scenes 10-13 name their library clips directly (the runtime resolves them through the library).
         public static string LabTheme(IReadOnlyDictionary<string, AudioClip> sounds) => Bed(sounds, "PadLabTheme", "PadLab");
         public static string Bed(IReadOnlyDictionary<string, AudioClip> sounds, string clip, string fallback)
         {
@@ -99,7 +99,7 @@ namespace OhmsLaw.Editor
         {
             Shot("Bench Study"); // match-cut: Scene 9's last frame (circuit complete, key closed, voltage carried over)
             Ambience("RoomTone");
-            Music(LabTheme(sounds));
+            Music("BGM_Conductor_Pulse"); // audio: the experiment's own bed, crossfaded in from the Wattson theme over 2.5 s at the scene start
             Cue("rig.voltage 0", "start low: the source turns down to zero");
             Show("Meter Plates");
             Cue("table.rows 0", "the empty observation table (V and I) in the dock; the dock widens");
@@ -136,6 +136,7 @@ namespace OhmsLaw.Editor
                 "S10_After3V_If_S10_Predict3V_A", "S10_After3V_If_S10_Predict3V_B", "S10_After3V_If_S10_Predict3V_C");
             Gate("S10_Set4V", "Panel: 'Set the voltage to 4 V.' → observe → row 4, point 4.", "S10_Set4V_GO", "S10_Set4V_H");
             Gate("S10_Set5V", "Panel: 'Set the voltage to 5 V.' → observe → row 5, point 5.", "S10_Set5V_GO", "S10_Set5V_H");
+            Sfx("SFX_Experiment_Complete", 0.5); // audio: the table is full, 0.7 s after the gate (after row 5's own Record chime)
             Cue("rig.slider 0", "the slider goes: the data holds the attention now");
 
             // Look at the data: a pause to read it, then the first two rows side by side, and the doubling centre screen.
@@ -147,6 +148,8 @@ namespace OhmsLaw.Editor
             Line("S10_L09");
             // The doubling lands centre screen on "It also doubled" and holds through the callback; the meters' plates step
             // aside with it (behind the glass they would read through; the strip keeps the numbers).
+            // Audio: the hero rule's SFX_Scientific_Discovery alone. This is the first clue, not the verdict: the bigger stings
+            // are kept for V ∝ I (Scene 11, with its rise and music change) and OHM'S LAW (Scene 13).
             Cue("hero V × 2  →  I × 2|double the voltage, double the current", "the doubling lands on 'It also doubled'", 3.4);
             Hide("Meter Plates", 3.4);
             Line("S10_L10", 0.2);

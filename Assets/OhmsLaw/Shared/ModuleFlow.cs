@@ -3,6 +3,7 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.Playables;
 using UnityEngine.SceneManagement;
@@ -47,6 +48,7 @@ namespace OhmsLaw
         {
             if (Instance) { Destroy(gameObject); return; }
             Instance = this;
+            JumpFrame = -1000; // play mode without a domain reload keeps statics
             DontDestroyOnLoad(gameObject);
             UI.Theme = palette;
             Application.targetFrameRate = 60;
@@ -96,6 +98,7 @@ namespace OhmsLaw
             var cam = Camera.main;
             if (cam && !cam.GetComponent<PanelFraming>()) cam.gameObject.AddComponent<PanelFraming>();
             if (cam && !cam.GetComponent<LookAround>()) cam.gameObject.AddComponent<LookAround>();   // v5: a drag on the 3D view looks around the shot
+            ElectricalAudio.Install();   // audio WP-E: the hum / sparks / Pulse layer follow the current in a scene with a wire interior or a bench
             var sceneDirector = Director ? Director.GetComponent<SceneDirector>() : null;
             if (Panel) Panel.ResetForScene("", sceneDirector ? sceneDirector.DockWidth : 0f);
             int chapter = ChapterIndex;
@@ -149,10 +152,15 @@ namespace OhmsLaw
         Coroutine titleBedRun;
         bool titleBedWarned;
 
-        // The clip: `titleMusic`, else the background clip the scene's music bus carries without playing it.
+        // The clip: `titleMusic`, else the library's laboratory theme, else the background clip the scene's music bus
+        // carries without playing it.
+        const string TitleTheme = "BGM_Professor_Ohm_Laboratory";
+
         AudioClip TitleClip()
         {
             if (titleMusic) return titleMusic;
+            var theme = AudioLibrary.ClipOrNull(TitleTheme);
+            if (theme) return theme;
             foreach (var bus in FindObjectsByType<AudioBus>(FindObjectsSortMode.None))
                 if (bus.kind == AudioBus.Kind.Music && bus.bgm && !bus.playOnStart) return bus.bgm;
             return null;
@@ -182,8 +190,20 @@ namespace OhmsLaw
                 go.SetActive(true);
             }
             titleBus.gain = TitleBedGain;
+            titleBus.trim = AudioLibrary.GainOf(clip.name); // the library's level for its clip (1 for any other), under the 0.35
             titleBed.clip = clip;
             titleBed.Play();
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // A browser keeps audio blocked until the page is tapped or a key is pressed: a bed that has not advanced by
+            // then starts again on that first gesture (the player's own resume normally brings it in; this is the guard).
+            float blocked = 0f;
+            while (TitleScreen.IsOpen && titleBed.timeSamples == 0)
+            {
+                blocked += Time.unscaledDeltaTime;
+                if (blocked > 0.5f && (HudKeys.Tapped || (Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame))) { titleBed.Stop(); titleBed.Play(); blocked = 0f; }
+                yield return null;
+            }
+#endif
             while (TitleScreen.IsOpen) yield return null;
             for (float t = 0; t < 1f; t += Time.unscaledDeltaTime / TitleBedFade)
             {
@@ -213,9 +233,13 @@ namespace OhmsLaw
                 Director.playableGraph.GetRootPlayable(0).SetSpeed(paused == 0 ? 1 : 0);
         }
 
+        // The frame of the last Timeline jump (REPLAY, SKIP, Ask Wattson's resume): the cues it re-fires make no sound.
+        public static int JumpFrame { get; private set; } = -1000;
+
         public void JumpTo(double time)
         {
             if (!Director) return;
+            JumpFrame = Time.frameCount;
             Director.time = Math.Max(0, time);
             Director.Evaluate();
         }

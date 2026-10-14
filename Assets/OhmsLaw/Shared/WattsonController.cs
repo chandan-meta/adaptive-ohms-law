@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -64,6 +65,22 @@ namespace OhmsLaw
         public AudioSource liveVoice, sfx;
         public AudioClip chirp;
         public ParticleSystem sparks;
+
+        [Header("Sound")]
+        [Tooltip("His gesture cues from the audio library: SFX_Wattson_Wave on Greet, SFX_Wattson_Pop on Thinking, SFX_Wattson_Magic at the Transform / RaiseGadget action moment. A scene whose own Timeline carries these (Scene 4's director) turns them off; the marker-move whoosh and settle stay on.")]
+        public bool gestureSounds = true;
+        // The character sound family: event driven only (a gesture start, the action moment, a marker move that is at
+        // least WhooshMeters long, its arrival), never a blink, an idle breath or a frame of flight. One 2D source made on
+        // first use (the HUD is 2D and he is often near the lens) on the Character mixer group, SFX until the library
+        // builder has added it, with an Sfx AudioBus so the Effects slider and the ducker apply. A missing clip is
+        // reported once and skipped from then on.
+        const float WhooshMeters = 0.8f, WhooshCooldown = 2f, GestureCooldown = 1f, MoveSettleSeconds = 8f;
+        AudioSource cues;
+        Vector3 lastTarget;   // where the flight aimed last frame: a jump of WhooshMeters or more is a new move
+        bool moving;          // a whoosh-length move is in flight: a settle plays when he arrives
+        float moveStarted;
+        readonly Dictionary<string, float> cueReadyAt = new Dictionary<string, float>();
+        static readonly HashSet<string> missingCues = new HashSet<string>();
 
         static readonly int Emission = Shader.PropertyToID("_EmissionColor");
         const float PointTurnShare = 0.35f, AcrossLimit = 15f, MaxTurn = 75f;
@@ -149,7 +166,7 @@ namespace OhmsLaw
             block = new MaterialPropertyBlock();
             home = transform.position;
             if (path) transform.position = path.EvaluatePosition(pathT);
-            chase = lastPosition = transform.position;
+            chase = lastPosition = lastTarget = transform.position;
             if (visual) visualHome = visual.localPosition;
             frameT = visual ? visual : transform;
             foreach (var skin in GetComponentsInChildren<SkinnedMeshRenderer>(true))
@@ -337,8 +354,9 @@ namespace OhmsLaw
         {
             if (!marker) return;
             MoveTo(marker);
-            transform.position = chase = lastPosition = home;
+            transform.position = chase = lastPosition = lastTarget = home;
             velocity = chaseVelocity = Vector3.zero;
+            moving = false; // landed, not flown: no whoosh, no settle
         }
 
         // Called by the subtitle track every frame a scripted line is on screen.
@@ -405,6 +423,9 @@ namespace OhmsLaw
             gestureStart = clock;
             actionFired = false;
             if (Random.value < 0.6f) blinkStart = clock; // people blink as they change what they do
+            if (!gestureSounds) return;
+            if (g == Gesture.Greet) Cue("SFX_Wattson_Wave", 0.7f, GestureCooldown);
+            else if (g == Gesture.Thinking) Cue("SFX_Wattson_Pop", 0.6f, GestureCooldown);
         }
 
         void Step(float dt)
@@ -420,11 +441,16 @@ namespace OhmsLaw
                 gadget.gameObject.SetActive(gadgetOut || thinking || g == Gesture.Transform);
                 if (thinking) gadget.Rotate(0, 0, 540 * dt, Space.Self);
             }
-            if (g == Gesture.Transform && !actionFired && GestureTime >= TransformActionDelay)
+            // The action moment: the Transform's thrust (flash and sparks) and the gadget raise both cast with the magic cue.
+            if ((g == Gesture.Transform || g == Gesture.RaiseGadget) && !actionFired && GestureTime >= TransformActionDelay)
             {
                 actionFired = true;
-                flash = 1.2f;
-                if (sparks) sparks.Emit(ReducedMotion.On ? 8 : 26);
+                if (gestureSounds) Cue("SFX_Wattson_Magic", 0.8f, GestureCooldown);
+                if (g == Gesture.Transform)
+                {
+                    flash = 1.2f;
+                    if (sparks) sparks.Emit(ReducedMotion.On ? 8 : 26);
+                }
             }
             flash = Mathf.MoveTowards(flash, 0, dt * 1.6f);
         }
@@ -446,7 +472,9 @@ namespace OhmsLaw
         void Fly(float dt)
         {
             Vector3 target = askHome ?? (path ? (Vector3)path.EvaluatePosition(pathT) : home);
+            Vector3 aimed = target; // before the furniture lift, which can change mid-flight
             if (!path || askHome.HasValue) target = ClearFurniture(transform.position, target);
+            TrackMove(aimed, target);
             // Something else moved him (a director cue under a fade): he settles where he was put, no spring back.
             if (placed && (transform.position - lastPosition).sqrMagnitude > 1e-8f)
             {
@@ -958,6 +986,58 @@ namespace OhmsLaw
             if (!ReducedMotion.On) rollTime = 0;
             if (sparks) sparks.Emit(28);
             if (sfx && chirp) sfx.PlayOneShot(chirp);
+        }
+
+        // ------------------------------------------------------------------ sound
+
+        // Marker moves (MoveTo from a Timeline clip, the Ask spot and back): the target jumping by WhooshMeters or more while
+        // he has that far to fly is a new move, a whoosh (once per move, WhooshCooldown apart) and a settle when he arrives.
+        // Warp (wire.warp, the title banner) lands him on the target first, so neither plays; Scene 4's spline flight moves
+        // the target a few centimetres a frame, never a jump (its whoosh is on the Timeline).
+        void TrackMove(Vector3 aimed, Vector3 target)
+        {
+            Vector3 was = lastTarget;
+            lastTarget = aimed;
+            if ((aimed - was).sqrMagnitude >= WhooshMeters * WhooshMeters && (aimed - transform.position).sqrMagnitude >= WhooshMeters * WhooshMeters)
+            {
+                Cue("SFX_Wattson_Whoosh", 0.6f, WhooshCooldown);
+                moving = true;
+                moveStarted = Time.unscaledTime;
+                return;
+            }
+            if (!moving) return;
+            bool arrived = (transform.position - target).sqrMagnitude < 0.12f * 0.12f && velocity.sqrMagnitude < 0.35f * 0.35f;
+            if (arrived) Cue("SFX_Wattson_Settle", 0.5f, GestureCooldown);
+            if (arrived || Time.unscaledTime - moveStarted > MoveSettleSeconds) moving = false; // held off the spot (furniture): no late settle
+        }
+
+        // One library clip at its library gain x `gain`, no sooner than `cooldown` seconds after the same clip last played.
+        // Editor tests (Simulate) never make a source.
+        void Cue(string clip, float gain, float cooldown)
+        {
+            if (!Application.isPlaying) return;
+            if (cueReadyAt.TryGetValue(clip, out float readyAt) && Time.unscaledTime < readyAt) return;
+            var sound = AudioLibrary.ClipOrNull(clip);
+            if (!sound)
+            {
+                if (missingCues.Add(clip)) Debug.Log($"Wattson: no clip '{clip}' in the audio library (build it with Ohm's Law/Audio/Build library); skipping it.");
+                return;
+            }
+            cueReadyAt[clip] = Time.unscaledTime + cooldown;
+            if (!cues)
+            {
+                cues = new GameObject("Wattson Cues").AddComponent<AudioSource>();
+                cues.transform.SetParent(transform, false);
+                cues.playOnAwake = false;
+                cues.loop = false;
+                cues.spatialBlend = 0;
+                var group = AudioBus.Group("Character");
+                if (!group) group = AudioBus.Group("SFX");
+                cues.outputAudioMixerGroup = group;
+                cues.gameObject.AddComponent<AudioBus>().kind = AudioBus.Kind.Sfx;
+                AudioDucker.RescanSoon();
+            }
+            cues.PlayOneShot(sound, gain * AudioLibrary.GainOf(clip));
         }
     }
 

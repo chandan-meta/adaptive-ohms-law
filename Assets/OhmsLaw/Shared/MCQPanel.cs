@@ -155,6 +155,7 @@ namespace OhmsLaw
             Fill(index, color);
             bool right = color == RightMark, part = color == PartMark;
             Chip(right ? "Correct!" : part ? "Nearly" : "Not quite", color, right ? "check" : "x");
+            UiSounds.Play(right ? "correct" : part ? "done" : "wrong");   // SFX_Correct_Answer, or the gentle UI_Error; the gate's Done() of the same frame stays quiet
             if (!right && !part && !ReducedMotion.On && LessonPanel.Instance) LessonPanel.Instance.StartCoroutine(Shake());
         }
 
@@ -194,7 +195,7 @@ namespace OhmsLaw
             chipFill.color = color;
             chipIcon.sprite = Icons.Get(icon);
             chipText.text = text;
-            chip.GetComponent<ChipFade>().Restart();   // no sound of its own: the gate's Done() chimes in the same frame
+            chip.GetComponent<ChipFade>().Restart();   // no sound of its own: Mark() plays the verdict
         }
 
         // A tried option keeps its mark and can no longer be picked (retries offer the others).
