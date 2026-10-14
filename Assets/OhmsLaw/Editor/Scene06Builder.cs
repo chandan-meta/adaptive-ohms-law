@@ -113,7 +113,7 @@ namespace OhmsLaw.Editor
         {
             const float width = 0.44f, height = 1.5f, depth = 0.3f, face = -0.05f, scale = 1.5f;
             const float slotWidth = 0.2f, slotHeight = 1.1f, slotY = -0.12f, edge = 0.012f;
-            var gauge = Node("Battery Readout", null, PlusBlock + new Vector3(-0.35f, 1.8f + scale * height / 2, -0.35f)); // the block's cap top is 1.8 m over its centre
+            var gauge = Node("Battery Readout", null, PlusBlock + new Vector3(-0.35f, (BlenderSet.Wire.Exists ? 2.66f : 1.8f) + scale * height / 2, -0.35f)); // on the block's cap (1.8 m over its centre), or on the Blender machine's top (2.66)
             gauge.transform.rotation = Quaternion.Euler(0, 45, 0);
             gauge.transform.localScale = Vector3.one * scale;
             var pop = gauge.AddComponent<PopIn>();

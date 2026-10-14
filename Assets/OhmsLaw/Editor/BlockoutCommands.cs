@@ -46,6 +46,22 @@ namespace OhmsLaw.Editor
             foreach (var builder in BlockoutAssets.Builders().Where(b => b.SceneId != "Scene00Test")) builder.Build();
         }
 
+        // Batchmode entry for build requests with the editor closed: -executeMethod OhmsLaw.Editor.BlockoutCommands.Batch
+        // -ohmRequests "Scene08|Scene09|menu Ohm's Law/Polish/Apply lab (Scenes 8-13)|stills". "stills" renders LabShots.
+        public static void Batch()
+        {
+            var args = Environment.GetCommandLineArgs();
+            int at = Array.IndexOf(args, "-ohmRequests");
+            if (at < 0 || at + 1 >= args.Length) throw new ArgumentException("-ohmRequests \"A|B|…\" missing");
+            foreach (var request in args[at + 1].Split('|').Select(r => r.Trim()).Where(r => r.Length > 0))
+            {
+                if (request == "stills") LabShots.Run();
+                else if (request.StartsWith("menu ")) { if (!EditorApplication.ExecuteMenuItem(request.Substring(5).Trim())) throw new ArgumentException("No menu item " + request.Substring(5)); }
+                else Build(request);
+                Debug.Log("OHM-BATCH OK " + request);
+            }
+        }
+
         static void CheckRequests()
         {
             if (EditorApplication.isPlaying && File.Exists("Logs/ohm-stop.req")) { File.Delete("Logs/ohm-stop.req"); EditorApplication.ExitPlaymode(); return; }

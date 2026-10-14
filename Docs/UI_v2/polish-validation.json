@@ -1,0 +1,101 @@
+{
+  "textAndValuesPreserved": true,
+  "sameGameplayAsset": true,
+  "screenBoundsAndTextBlur": "PASS",
+  "primaryLabelContrast": [
+    {
+      "state": "Default",
+      "minimumRatio": 4.704,
+      "sampleRange": [
+        14,
+        41
+      ],
+      "foreground": "#FFFFFF"
+    },
+    {
+      "state": "Hover",
+      "minimumRatio": 4.528,
+      "sampleRange": [
+        14,
+        41
+      ],
+      "foreground": "#FFFFFF"
+    },
+    {
+      "state": "Pressed",
+      "minimumRatio": 6.763,
+      "sampleRange": [
+        14,
+        41
+      ],
+      "foreground": "#FFFFFF"
+    },
+    {
+      "state": "Focus",
+      "minimumRatio": 4.705,
+      "sampleRange": [
+        14,
+        41
+      ],
+      "foreground": "#FFFFFF"
+    },
+    {
+      "state": "Selected",
+      "minimumRatio": 4.705,
+      "sampleRange": [
+        14,
+        41
+      ],
+      "foreground": "#FFFFFF"
+    },
+    {
+      "state": "Loading",
+      "minimumRatio": 4.704,
+      "sampleRange": [
+        14,
+        41
+      ],
+      "foreground": "#FFFFFF"
+    }
+  ],
+  "transparentHaloPadding": [
+    {
+      "asset": "PanelCyanHalo",
+      "padding": 64,
+      "outerEdgeAlpha": 0,
+      "size": [
+        256,
+        256
+      ]
+    },
+    {
+      "asset": "PanelAmberHalo",
+      "padding": 64,
+      "outerEdgeAlpha": 0,
+      "size": [
+        256,
+        256
+      ]
+    },
+    {
+      "asset": "PanelBlueHalo",
+      "padding": 64,
+      "outerEdgeAlpha": 0,
+      "size": [
+        256,
+        256
+      ]
+    },
+    {
+      "asset": "ButtonHalo",
+      "padding": 64,
+      "outerEdgeAlpha": 0,
+      "size": [
+        328,
+        184
+      ]
+    }
+  ],
+  "method": "Rendered PNG checks at native sizes; no simulated Unity runtime result.",
+  "limits": "Contrast samples cover primary-button label gradient bands. Full assistive-technology, Unity/player and physical-device validation remain pending."
+}

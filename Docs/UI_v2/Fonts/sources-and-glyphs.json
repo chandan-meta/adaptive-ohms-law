@@ -1,0 +1,52 @@
+[
+  {
+    "font": "inter-Inter[opsz,wght].ttf",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf",
+    "glyphCoverage": {
+      "\u03a9": true,
+      "\u221d": false,
+      "\u0394": true,
+      "\u2192": true,
+      "\u00f7": true,
+      "\u00d7": true,
+      "\u2212": true
+    }
+  },
+  {
+    "font": "spacegrotesk-SpaceGrotesk[wght].ttf",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/spacegrotesk/SpaceGrotesk%5Bwght%5D.ttf",
+    "glyphCoverage": {
+      "\u03a9": true,
+      "\u221d": false,
+      "\u0394": true,
+      "\u2192": true,
+      "\u00f7": true,
+      "\u00d7": true,
+      "\u2212": true
+    }
+  },
+  {
+    "fallback": "D:\\AI unity project\\AI OHM'S LAW\\Assets\\OhmsLaw\\Shared\\UI\\Fonts\\DejaVuSans-Bold.ttf",
+    "glyphCoverage": {
+      "\u03a9": true,
+      "\u221d": true,
+      "\u0394": true,
+      "\u2192": true,
+      "\u00f7": true,
+      "\u00d7": true,
+      "\u2212": true
+    },
+    "requiredFor": [
+      {
+        "inter-Inter[opsz,wght].ttf": [
+          "\u221d"
+        ]
+      },
+      {
+        "spacegrotesk-SpaceGrotesk[wght].ttf": [
+          "\u221d"
+        ]
+      }
+    ]
+  }
+]

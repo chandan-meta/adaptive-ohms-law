@@ -1,0 +1,201 @@
+{
+ "materials": [
+  {
+   "name": "Center_Magnet_System",
+   "baseMap": "Center_Magnet_System_Base_color.png",
+   "baseColor": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "metallic": 0.0,
+   "roughness": 0.5,
+   "emission": [
+    2.5,
+    2.5,
+    2.5
+   ],
+   "normalMap": "Center_Magnet_System_Normal_OpenGL_gl.png",
+   "maskMap": "",
+   "alphaClip": false,
+   "tiling": [
+    1,
+    1
+   ],
+   "emissionMap": "Center_Magnet_System_emission.png"
+  },
+  {
+   "name": "Round_Floor",
+   "baseMap": "Round_Floor_Base_color.png",
+   "baseColor": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "metallic": 0.0,
+   "roughness": 0.5,
+   "emission": [
+    2.0,
+    2.0,
+    2.0
+   ],
+   "normalMap": "Round_Floor_Normal_OpenGL_gl.png",
+   "maskMap": "",
+   "alphaClip": false,
+   "tiling": [
+    1,
+    1
+   ],
+   "emissionMap": "Round_Floor_emission.png"
+  },
+  {
+   "name": "Rack_And_Frame",
+   "baseMap": "Rack_And_Frame_Base_color.png",
+   "baseColor": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "metallic": 0.0,
+   "roughness": 0.5,
+   "emission": [
+    1.6,
+    1.6,
+    1.6
+   ],
+   "normalMap": "Rack_And_Frame_Normal_OpenGL_gl.png",
+   "maskMap": "",
+   "alphaClip": false,
+   "tiling": [
+    1,
+    1
+   ],
+   "emissionMap": "Rack_And_Frame_emission.png"
+  },
+  {
+   "name": "Material",
+   "baseMap": "",
+   "baseColor": [
+    0.295,
+    0.4051,
+    0.1948,
+    1.0
+   ],
+   "metallic": 0.0,
+   "roughness": 0.5,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "normalMap": "",
+   "maskMap": "",
+   "alphaClip": false,
+   "tiling": [
+    1,
+    1
+   ]
+  },
+  {
+   "name": "Material.001",
+   "baseMap": "Futuristic_Ohm_s_Law_Lab_Mural.png",
+   "baseColor": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "metallic": 0.0,
+   "roughness": 0.5,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "normalMap": "",
+   "maskMap": "",
+   "alphaClip": false,
+   "tiling": [
+    1,
+    1
+   ]
+  },
+  {
+   "name": "Center_Table",
+   "baseMap": "Center_Table_Base_color.png",
+   "baseColor": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "metallic": 0.0,
+   "roughness": 0.5,
+   "emission": [
+    2.5,
+    2.5,
+    2.5
+   ],
+   "normalMap": "Center_Table_Normal_OpenGL_gl.png",
+   "maskMap": "",
+   "alphaClip": false,
+   "tiling": [
+    1,
+    1
+   ],
+   "emissionMap": "Center_Table_emission.png"
+  },
+  {
+   "name": "Round_Falsceiling",
+   "baseMap": "Round_Falsceiling_Base_color.png",
+   "baseColor": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "metallic": 0.0,
+   "roughness": 0.5,
+   "emission": [
+    2.2,
+    2.2,
+    2.2
+   ],
+   "normalMap": "Round_Falsceiling_Normal_OpenGL_gl.png",
+   "maskMap": "",
+   "alphaClip": false,
+   "tiling": [
+    1,
+    1
+   ],
+   "emissionMap": "Round_Falsceiling_emission.png"
+  },
+  {
+   "name": "Round_Wall",
+   "baseMap": "Round_Wall_Base_color.png",
+   "baseColor": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "metallic": 0.0,
+   "roughness": 0.5,
+   "emission": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "normalMap": "",
+   "maskMap": "",
+   "alphaClip": false,
+   "tiling": [
+    1,
+    1
+   ]
+  }
+ ]
+}

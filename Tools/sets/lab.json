@@ -1,0 +1,16 @@
+{
+  "name": "LabSet",
+  "exclude": "^(Ammeter|Base|Button|Contact_Shadow|Cube|Current_Path|Handle|Hinge_Block|Lead_|Legs|Lever_Arm|Needle|Nichrome_Rod|Post|Power_Supply|Round_Switch|Terminal_|Voltmeter|Wood)",
+  "names": {"Round_Wall": "Round_Wall", "Glass_01": "Glass_Chamber"},
+  "rename_by_material": true,
+  "max_distance": 30,
+  "max_size": 2048,
+  "glow": {
+    "Rack_And_Frame": {"rule": "screen", "strength": 1.6},
+    "Glass_Chamber": {"rule": "screen", "strength": 1.6},
+    "Center_Table": {"rule": "blue", "strength": 2.5},
+    "Center_Magnet_System": {"rule": "blue", "strength": 2.5},
+    "Round_Floor": {"rule": "blue", "strength": 2.0},
+    "Round_Falsceiling": {"rule": "blue+white", "strength": 2.2}
+  }
+}

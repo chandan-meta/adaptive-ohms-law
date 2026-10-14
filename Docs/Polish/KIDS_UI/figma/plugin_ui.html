@@ -1,0 +1,52 @@
+<style>
+  body { font: 13px/1.45 Inter, system-ui, sans-serif; margin: 0; padding: 16px; background: var(--figma-color-bg); color: var(--figma-color-text); }
+  h1 { font-size: 15px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; color: var(--figma-color-text-secondary); }
+  .parts { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin: 8px 0 12px; }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--figma-color-border); background: var(--figma-color-bg-secondary); color: inherit; cursor: pointer; margin: 0 6px 8px 0; }
+  button.primary { background: #FFB347; color: #0B1626; border-color: #F0921A; font-weight: 700; }
+  button:disabled { opacity: .45; cursor: default; }
+  #log { height: 300px; overflow: auto; background: var(--figma-color-bg-secondary); border-radius: 8px; padding: 8px; font: 11px/1.5 ui-monospace, monospace; white-space: pre-wrap; }
+  .err { color: #FF6B6B; } .ok { color: #2ECC71; }
+</style>
+<h1>Ohm’s Law — Kids UI</h1>
+<p>Updates this file’s tokens and styles in place, then builds the library, the desktop and tablet mockups, before / after and the component sheet on two new pages. Re-running rebuilds only what it made.</p>
+<button id="audit">1 · Audit this file</button>
+<div class="parts" id="parts"></div>
+<label><input type="checkbox" id="renders" checked> Send renders to the local checker (localhost:8787)</label><br><br>
+<button id="build" class="primary">2 · Build Kids UI</button>
+<div id="log"></div>
+<script>
+const IMAGES = /*__IMAGES__*/{};
+const PARTS = ['Foundations', 'Icons', 'Controls', 'Panels', 'Screens', 'Before / After', 'Sheet'];
+const logEl = document.getElementById('log');
+function out(msg, cls) { const d = document.createElement('div'); d.textContent = msg; if (cls) d.className = cls; logEl.appendChild(d); logEl.scrollTop = 1e9; }
+document.getElementById('parts').innerHTML = PARTS.map(p => '<label><input type="checkbox" checked value="' + p + '"> ' + p + '</label>').join('');
+let online = null;
+async function send(name, body) {
+  if (!document.getElementById('renders').checked || online === false) return;
+  try { await fetch('http://localhost:8787/' + encodeURIComponent(name), { method: 'POST', body: body }); if (online === null) out('Checker reachable: sending results', 'ok'); online = true; }
+  catch (e) { online = false; out('Local checker not running: results stay in Figma only.'); }
+}
+function bytes(url) { const b = atob(url.split(',')[1]); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+document.getElementById('audit').onclick = () => parent.postMessage({ pluginMessage: { type: 'audit' } }, '*');
+document.getElementById('build').onclick = () => {
+  const only = [...document.querySelectorAll('#parts input:checked')].map(i => i.value);
+  const images = {}; for (const k in IMAGES) images[k] = bytes(IMAGES[k]);
+  document.getElementById('build').disabled = true;
+  out('Building ' + only.join(', ') + ' with ' + Object.keys(images).length + ' gameplay images…');
+  parent.postMessage({ pluginMessage: { type: 'build', images: images, only: only.length === PARTS.length ? null : only, renders: document.getElementById('renders').checked } }, '*');
+};
+onmessage = (e) => {
+  const m = e.data.pluginMessage; if (!m) return;
+  if (m.type === 'log') out(m.msg);
+  if (m.type === 'audit') {
+    const d = m.data;
+    out((m.after ? 'After build: ' : 'Audit: ') + d.pages.length + ' pages, ' + d.collections.map(c => c.name + ' (' + c.variables + ')').join(', ') + '; ' + d.textStyles.length + ' text, ' + d.paintStyles.length + ' paint, ' + d.effectStyles.length + ' effect styles; component sets: ' + d.pages.reduce((a, p) => a + p.componentSets.length, 0));
+    send(m.after ? 'audit-after.json' : 'audit-before.json', JSON.stringify(d, null, 1));
+  }
+  if (m.type === 'render') send('render/' + m.name, m.bytes);
+  if (m.type === 'done') { out('Done.', 'ok'); send('build-log.txt', (m.log || []).join('\n')); document.getElementById('build').disabled = false; }
+  if (m.type === 'error') { out('Error: ' + m.msg, 'err'); out(m.stack); send('build-error.txt', m.msg + '\n' + m.stack + '\n\n' + (m.log || []).join('\n')); document.getElementById('build').disabled = false; }
+};
+</script>

@@ -1,5 +1,7 @@
 # Hand-off — Ohm's Law Unity module (Scenes 4–13)
 
+UI v2 design checkpoint (12 October 2026): editable [OhmsLaw_UI_v2](https://www.figma.com/design/63sTcmNn0TYOn4lrxAgJgq) is ready for review. Read [UI v2 handoff](UI_v2/HANDOFF.md) and [design review](UI_v2/README.md) before continuing. The audit covers both OhmsLaw and AdaptiveLearning UI, including runtime/hidden/shared views. Unity UI integration awaits the requested design approval; no gameplay scenes or scripts were modified in this design phase. Migration inventory, exported assets, font licences/glyph evidence and explicitly pending Unity validation reports are in `Docs/UI_v2`.
+
 Last updated 2026-10-07 (HUD v3 "Case File": `Docs/Polish/V3_REPORT.md` and `Docs/Polish/HUD_DESIGN.md` supersede the HUD
 parts below; new: title screen, chapter banner, pause menu with chapters, turn / clue / case-closed cards, four new gates
 S05_ApplyVoltage, S11_DrawLine, S12_SwapWire, S13_BuildLaw). Repository `github.com/chandan-meta/adaptive-ohms-law`,

@@ -1,0 +1,230 @@
+{
+  "contrastChecks": [
+    {
+      "token": "color/text",
+      "background": [
+        1,
+        1,
+        1
+      ],
+      "ratio": 11.42,
+      "method": "sRGB compositing at 96% panel/group opacity"
+    },
+    {
+      "token": "color/text-muted",
+      "background": [
+        1,
+        1,
+        1
+      ],
+      "ratio": 8.58,
+      "method": "sRGB compositing at 96% panel/group opacity"
+    },
+    {
+      "token": "color/text",
+      "background": [
+        1,
+        1,
+        1
+      ],
+      "ratio": 8.06,
+      "method": "linear-light worst-case alpha composition"
+    },
+    {
+      "token": "color/text-muted",
+      "background": [
+        1,
+        1,
+        1
+      ],
+      "ratio": 6.08,
+      "method": "linear-light worst-case alpha composition"
+    },
+    {
+      "token": "color/text",
+      "background": [
+        1,
+        0.72,
+        0.35
+      ],
+      "ratio": 11.6,
+      "method": "sRGB compositing at 96% panel/group opacity"
+    },
+    {
+      "token": "color/text-muted",
+      "background": [
+        1,
+        0.72,
+        0.35
+      ],
+      "ratio": 8.69,
+      "method": "sRGB compositing at 96% panel/group opacity"
+    },
+    {
+      "token": "color/text",
+      "background": [
+        1,
+        0.72,
+        0.35
+      ],
+      "ratio": 9.45,
+      "method": "linear-light worst-case alpha composition"
+    },
+    {
+      "token": "color/text-muted",
+      "background": [
+        1,
+        0.72,
+        0.35
+      ],
+      "ratio": 7.08,
+      "method": "linear-light worst-case alpha composition"
+    },
+    {
+      "token": "color/text",
+      "background": [
+        0,
+        0,
+        0
+      ],
+      "ratio": 11.8,
+      "method": "sRGB compositing at 96% panel/group opacity"
+    },
+    {
+      "token": "color/text-muted",
+      "background": [
+        0,
+        0,
+        0
+      ],
+      "ratio": 8.78,
+      "method": "sRGB compositing at 96% panel/group opacity"
+    },
+    {
+      "token": "color/text",
+      "background": [
+        0,
+        0,
+        0
+      ],
+      "ratio": 12.29,
+      "method": "linear-light worst-case alpha composition"
+    },
+    {
+      "token": "color/text-muted",
+      "background": [
+        0,
+        0,
+        0
+      ],
+      "ratio": 9.12,
+      "method": "linear-light worst-case alpha composition"
+    },
+    {
+      "token": "color/text",
+      "background": [
+        0.5,
+        0.8,
+        1
+      ],
+      "ratio": 11.47,
+      "method": "sRGB compositing at 96% panel/group opacity"
+    },
+    {
+      "token": "color/text-muted",
+      "background": [
+        0.5,
+        0.8,
+        1
+      ],
+      "ratio": 8.61,
+      "method": "sRGB compositing at 96% panel/group opacity"
+    },
+    {
+      "token": "color/text",
+      "background": [
+        0.5,
+        0.8,
+        1
+      ],
+      "ratio": 9.49,
+      "method": "linear-light worst-case alpha composition"
+    },
+    {
+      "token": "color/text-muted",
+      "background": [
+        0.5,
+        0.8,
+        1
+      ],
+      "ratio": 7.11,
+      "method": "linear-light worst-case alpha composition"
+    },
+    {
+      "token": "color/action",
+      "ratio": 5.42,
+      "method": "opaque primary action"
+    },
+    {
+      "token": "color/action-hover",
+      "ratio": 5.42,
+      "method": "opaque primary action"
+    }
+  ],
+  "minimumRatio": 5.42,
+  "science": "5 samples satisfy V=I×R at R=5 Ω; V vertical / I horizontal; slope=R",
+  "fonts": [
+    {
+      "font": "inter-Inter[opsz,wght].ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf",
+      "glyphCoverage": {
+        "Ω": true,
+        "∝": false,
+        "Δ": true,
+        "→": true,
+        "÷": true,
+        "×": true,
+        "−": true
+      }
+    },
+    {
+      "font": "spacegrotesk-SpaceGrotesk[wght].ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/spacegrotesk/SpaceGrotesk%5Bwght%5D.ttf",
+      "glyphCoverage": {
+        "Ω": true,
+        "∝": false,
+        "Δ": true,
+        "→": true,
+        "÷": true,
+        "×": true,
+        "−": true
+      }
+    },
+    {
+      "fallback": "D:\\AI unity project\\AI OHM'S LAW\\Assets\\OhmsLaw\\Shared\\UI\\Fonts\\DejaVuSans-Bold.ttf",
+      "glyphCoverage": {
+        "Ω": true,
+        "∝": true,
+        "Δ": true,
+        "→": true,
+        "÷": true,
+        "×": true,
+        "−": true
+      },
+      "requiredFor": [
+        {
+          "inter-Inter[opsz,wght].ttf": [
+            "∝"
+          ]
+        },
+        {
+          "spacegrotesk-SpaceGrotesk[wght].ttf": [
+            "∝"
+          ]
+        }
+      ]
+    }
+  ],
+  "tokenCount": 52,
+  "limitation": "Design compositing checks; Unity screenshots and device rendering remain untested."
+}

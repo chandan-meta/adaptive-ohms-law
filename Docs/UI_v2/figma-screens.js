@@ -1,0 +1,76 @@
+const page=await figma.getNodeByIdAsync(PAGE_ID);await figma.setCurrentPageAsync(page);
+if(START===0&&page.children.length)throw new Error('Screen page already populated; inspect before retry.');
+const C=COMPONENT_MAP;
+const main=Object.fromEntries(await Promise.all(Object.entries(C).map(async([k,id])=>[k,await figma.getNodeByIdAsync(id)])));
+const specs=[
+['Launch','Start your journey','Explore • experiment • measure • understand','launch'],
+['History04','Meet Wattson','1826 • Georg Ohm’s study','history'],
+['ConductorRandom','Inside the wire','Observe random electron motion','wire'],
+['ConductorVoltage','Apply a potential difference','Observe electron drift from − to +','wire'],
+['CrossSection','Count the crossing charge','Choose the highlighted cross-section','counter'],
+['Prediction','Make your prediction','Record your thinking before the experiment','prediction'],
+['History07','Back to Georg Ohm','Repeated measurements reveal a pattern','history'],
+['LabTransition08','Welcome to our laboratory','Historical instruments become familiar equipment','history'],
+['Instruments','Meet the instruments','Identify each highlighted piece of apparatus','instruments'],
+['CircuitSetup','Build the circuit','Connect the ammeter in series and voltmeter in parallel','circuit'],
+['CircuitError','Check your connection','An invalid connection needs a correction','circuitError'],
+['Experiment','Collect your evidence','Change voltage and record the measured current','experiment'],
+['ReadingSaved','Reading recorded','Your experiment data has been updated','saved'],
+['NoReadings','Ready for the first reading','Close the circuit, then set the source voltage','empty'],
+['GraphPlot','Turn your data into a graph','Select a reading, then plot its intersection','graph'],
+['GraphComplete','Find the pattern','The straight line passes through the origin','graphComplete'],
+['Comparison','Copper and nichrome','Inspect the conductor comparison','comparison'],
+['ConstantRatio','Calculate the ratio','Compare V / I across your measurements','ratio'],
+['ResistanceSlope','Discover resistance','Choose two measured points to find the slope','slope'],
+['ResistanceUnit','Meet the ohm','Name the unit of electrical resistance','unit'],
+['Equation','Build Ohm’s Law','Select V, I and R in the guided sequence','equation'],
+['Challenge','Try the law','Use the measured quantities to complete the challenge','challenge'],
+['Condition','State the condition','Keep temperature constant for an ohmic conductor','condition'],
+['Quiz','Check your understanding','Answer the question using your evidence','quiz'],
+['QuizRetry','Use the evidence','Review the clue and try the question again','quizError'],
+['Results','Investigation complete','Review what you discovered','results'],
+['Pause','Lesson paused','Resume from your saved place','pause'],
+['Settings','Make it comfortable','Adjust captions, sound, text and motion','settings'],
+['Help','Need a little guidance?','Get help for the current step','help'],
+['WattsonChat','Ask Wattson','Contextual guidance for your current lesson','chat'],
+['VoiceError','Voice input unavailable','Continue using text while speech is unavailable','voiceError'],
+['Loading','Preparing the next chapter','Your progress is saved','loading'],
+['LoadError','Unable to load the next chapter','Your saved progress is preserved','loadError']
+];
+const W=TABLET?1024:1920,H=TABLET?768:1080,M=TABLET?24:48;
+const frames={},buttons={};
+function override(n,name,value){const t=n.findOne(n=>n.type==='TEXT'&&n.name===name);if(t)t.characters=value;}
+function instance(parent,name,x,y,width=0){const n=track(main[name].createInstance());parent.appendChild(n);n.name=name;if(width&&width!==n.width)n.rescale(width/n.width);at(n,x,y);return n;}
+function fitted(parent,name,x,y,width){const n=instance(parent,name,x,y,width);if(TABLET)for(const t of n.findAllWithCriteria({types:['TEXT']})){const s=Math.max(16,t.fontSize);t.fontSize=s;t.lineHeight={unit:'PIXELS',value:s*1.35};}return n;}
+function action(parent,label,x,y,kind='Primary',width=0){const n=instance(parent,'Button/'+kind,x,y);override(n,'Label',label);if(width)n.resize(width,56);return n;}
+function textCard(parent,name,title,body,x,y,w=TABLET?460:620){const n=box(parent,name,w,100,'color/surface','VERTICAL',TABLET?16:24);edge(n);at(n,x,y);txt(n,'Title',title,TABLET?'Panel':'Heading',w-(TABLET?32:48));txt(n,'Body',body,TABLET?'TabletBody':'Body',w-(TABLET?32:48));return n;}
+function measures(parent,x,y){const r=box(parent,'Runtime measurement widgets',TABLET?510:756,110,'color/bg','HORIZONTAL',0);r.fills=[];at(r,x,y);gap(r,TABLET?8:16);const set=main['Widget/Measurement'].parent;for(const source of set.children){const n=track(source.createInstance());r.appendChild(n);override(n,'Value',source.name.includes('Current')?'0.60 A':source.name.includes('Resistance')?'5 Ω':'3.00 V');if(TABLET)n.rescale(160/n.width);}return r;}
+function header(frame,title,index){if(!TABLET){const n=instance(frame,'HUD/Lesson',M,M);override(n,'Title','Ohm’s Law Lab');override(n,'Step',title+' • Chapter '+Math.min(10,Math.max(1,Math.ceil(index/2)))+' of 10');override(n,'Progress label','Explore • experiment • understand');return n;}const bar=box(frame,'HUD / landscape tablet',W-2*M,72,'color/surface','HORIZONTAL',12);fixed(bar,W-2*M,72);at(bar,M,M);bar.primaryAxisAlignItems='SPACE_BETWEEN';const names=box(bar,'Lesson',350,48,'color/surface','VERTICAL',0);gap(names,4);txt(names,'Title','Ohm’s Law Lab','Label');txt(names,'Step',title,'TabletLabel',320,'color/text-muted');const ctr=box(bar,'Controls',288,48,'color/surface','HORIZONTAL',0);gap(ctr,8);for(const name of ['Pause','Replay','Captions','Volume','Settings']){const b=track(main['Button/Icon'].createInstance());b.name=name;ctr.appendChild(b);b.resize(48,48);const ic=b.findOne(n=>n.type==='INSTANCE');ic.swapComponent(main['Icon/'+name]);}return bar;}
+function subtitle(frame,body){if(!TABLET){const n=instance(frame,'Panel/WattsonDialogue',M,H-184);override(n,'Caption',body);return n;}const n=box(frame,'Panel / single subtitle area',W-2*M,92,'color/surface','HORIZONTAL',12);fixed(n,W-2*M,92);n.counterAxisAlignItems='CENTER';edge(n);at(n,M,H-116);const a=imageNode(n,'Wattson portrait','c19228980982cb924feb4bb5da183c83a852a1cd',64,64);a.cornerRadius=32;const s=box(n,'Caption text',W-140,72,'color/surface','VERTICAL',0);gap(s,4);txt(s,'Speaker','Wattson','TabletLabel',0,'color/accent');txt(s,'Caption',body,'TabletBody',W-164);return n;}
+for(const [index,[id,title,hint,kind]]of [...specs.entries()].slice(START,END)){
+const f=track(figma.createFrame());f.name=(TABLET?'Tablet / ':'Desktop / ')+id+' — '+title;f.resize(W,H);color(f,'color/bg');page.appendChild(f);at(f,80+(index%4)*(W+120),80+Math.floor(index/4)*(H+140));f.clipsContent=true;frames[id]=f.id;
+const wire=['wire','counter','prediction','comparison'].includes(kind);
+if(!['graph','graphComplete','slope','ratio','loading','loadError'].includes(kind)){const bg=imageNode(f,'Gameplay context / UI-free asset preview',wire?'6d3aefb8145394ffa6791b89705b6b452fc46382':'08ffb09ff3ac923b6d72a7d9d02975ce9f08fa1c',W,H);bg.opacity=.78;const tint=track(figma.createRectangle());tint.name='Readability tint / environment unchanged';tint.resize(W,H);color(tint,'color/bg',.14);f.appendChild(tint);}
+header(f,title,index);
+const x=M, y=TABLET?120:168, right=W-M-(TABLET?320:340), bottom=TABLET?568:796;
+let primary=null;
+if(kind==='launch'){const n=textCard(f,'Launch / title block','Ohm’s Law','Explore the relationship between voltage, current and resistance.',x,TABLET?150:210,TABLET?600:860);const titleNode=n.children[0];titleNode.textStyleId=styles[TABLET?'Title':'Display'].id;const kicker=txt(n,'Kicker','A SCIENCE INVESTIGATION','Micro',0,'color/accent');primary=action(f,'Start journey',x,bottom);action(f,'Continue',x+220,bottom,'Secondary');txt(f,'Saved state','Continue appears only when saved progress exists.',TABLET?'TabletLabel':'Caption',TABLET?640:760,'color/text-muted');at(f.children[f.children.length-1],x,bottom-38);}
+else if(kind==='history'){textCard(f,'Chapter introduction',title,hint,x,y,TABLET?520:620);primary=action(f,'Continue',x,bottom);}
+else if(['wire','counter','prediction'].includes(kind)){textCard(f,'Learning objective',title,hint,x,y,TABLET?380:500);if(kind==='counter')fitted(f,'Widget/ChargeCounter',W-M-(TABLET?310:360),bottom-90,TABLET?280:340);if(kind==='prediction'){const q=fitted(f,'Quiz/Question',W-M-(TABLET?440:620),y+30,TABLET?440:620);override(q,'Question','If potential difference increases, what do you predict will happen to current?');for(let i=0;i<3;i++){const opt=fitted(f,'Quiz/AnswerOption',W-M-(TABLET?440:620),y+(TABLET?226:240)+i*(TABLET?68:84),TABLET?440:620);override(opt,'Answer',['Current increases','Current stays the same','Current decreases'][i]);override(opt,'Letter',['A','B','C'][i]);}primary=action(f,'Keep my prediction',x,bottom,'Primary',240);}else primary=action(f,kind==='counter'?'Start counting':'Apply voltage',x,bottom);}
+else if(kind==='instruments'){const obj=fitted(f,'Panel/Objective',x,y,TABLET?300:340);override(obj,'Title','Identify the ammeter');override(obj,'Body','Select the highlighted instrument. Its scale measures current in amperes.');const label=fitted(f,'Label/World',TABLET?410:730,TABLET?360:570,280);primary=action(f,'Next instrument',x,bottom);}
+else if(kind==='circuit'||kind==='circuitError'){const obj=fitted(f,'Panel/Objective',x,y,TABLET?300:340);override(obj,'Title','Connect the next lead');override(obj,'Body','Choose two terminals. Follow the highlighted connection.');if(kind==='circuitError'){const n=fitted(f,'Feedback/Error',right-100,y,TABLET?400:430);override(n,'Explanation','That lead does not match the required circuit. Select the highlighted terminal and try again.');}else fitted(f,'Circuit/Schematic',right-100,y,TABLET?400:440);primary=action(f,'Show a clue',x,bottom,'Secondary');}
+else if(['experiment','saved','empty','challenge'].includes(kind)){const obj=fitted(f,'Panel/Objective',x,y,TABLET?300:340);override(obj,'Title',kind==='challenge'?'Solve the circuit':'Set the source voltage');override(obj,'Body',kind==='challenge'?'Use Ohm’s Law with the given runtime quantities.':'Adjust the source to the next required voltage.');measures(f,TABLET?420:1120,y);if(kind==='saved'){const n=fitted(f,'Feedback/Success',right-80,y+180,TABLET?380:430);override(n,'Explanation','This reading is now in your saved observation table.');}if(kind==='empty')fitted(f,'State/Empty',right-80,y+180,TABLET?380:430);const control=fitted(f,'Control/Voltage',x,bottom-120,TABLET?580:700);primary=action(f,kind==='challenge'?'Check result':'Record reading',TABLET?640:810,bottom);}
+else if(['graph','graphComplete','slope'].includes(kind)){fitted(f,'Graph/VoltageCurrent',x,y,TABLET?550:900);const table=fitted(f,'Table/Observations',TABLET?600:1040,y,TABLET?400:760);if(TABLET){table.visible=false;const tab=fitted(f,'Control/Tabs',600,128,360);override(tab,'Label','Graph   /   Measurements');textCard(f,'Selected reading','Reading 3','I = 0.60 A\nV = 3.00 V',600,240,400);}else textCard(f,'Data provenance','Your saved measurements','The plot and table read the same experiment session.',1040,650,760);primary=action(f,kind==='graph'?'Plot selected reading':kind==='slope'?'Find the slope':'Continue',x,bottom,'Primary',260);}
+else if(kind==='ratio'){fitted(f,'Table/Observations',x,y,TABLET?500:820);textCard(f,'Ratio insight','V / I is constant','For each measured pair, divide voltage by current.\n3.00 V / 0.60 A = 5.00 Ω\nDesign example • use actual saved readings.',TABLET?548:1000,y,TABLET?452:820);primary=action(f,'Continue',x,bottom);}
+else if(kind==='comparison'){textCard(f,'Comparison / copper','Copper','Inspect the existing conductor view and observe the lesson’s explanation.',x,y,TABLET?460:740);textCard(f,'Comparison / nichrome','Nichrome','Compare the electron motion in the supplied microscopic inset.',TABLET?536:1020,y,TABLET?464:740);primary=action(f,'Inspect the wire',x,bottom);}
+else if(['unit','equation','condition'].includes(kind)){const law=fitted(f,'Formula/Law',x,y,TABLET?480:780);if(kind==='unit')override(law,'Equation','R = V / I');if(kind==='equation'){const tiles=box(f,'Equation tiles',TABLET?440:620,100,'color/surface','HORIZONTAL',16);at(tiles,TABLET?548:980,y);for(const symbol of ['V','I','R']){const t=action(tiles,symbol,0,0,'Secondary',TABLET?112:160);}}else textCard(f,'Lesson detail',kind==='unit'?'The ohm (Ω)':'When the law applies',kind==='unit'?'1 Ω is the resistance for which 1 V produces 1 A.':'For an ohmic conductor, the V–I relationship holds at constant temperature.',TABLET?536:1000,y,TABLET?464:820);primary=action(f,'Continue',x,bottom);}
+else if(kind==='quiz'||kind==='quizError'){const q=fitted(f,'Quiz/Question',x,y,TABLET?550:760);override(q,'Question','At constant resistance, which quantity increases when source voltage increases?');for(let i=0;i<3;i++){const opt=fitted(f,'Quiz/AnswerOption',x,y+(TABLET?196:246)+i*(TABLET?70:108),TABLET?550:760);override(opt,'Answer',['Current through the conductor','Resistance of the conductor','The duration of one second'][i]);override(opt,'Letter',['A','B','C'][i]);}const help=fitted(f,kind==='quizError'?'Feedback/Guidance':'Modal/Help',TABLET?610:1030,y,TABLET?390:660);primary=action(f,kind==='quizError'?'Try again':'Submit answer',x,bottom);}
+else if(kind==='results'){textCard(f,'Completion','You discovered Ohm’s Law','Voltage and current are proportional at constant resistance.\nThe slope of V against I gives resistance.',x,y,TABLET?480:900);fitted(f,'Formula/Law',TABLET?536:1110,y,TABLET?464:640);primary=action(f,'Replay lesson',x,bottom);action(f,'Return to lab',x+220,bottom,'Secondary');}
+else if(['pause','settings','help'].includes(kind)){const scrim=track(figma.createRectangle());scrim.name='Modal scrim';scrim.resize(W,H);color(scrim,'color/scrim',.7);f.appendChild(scrim);const n=fitted(f,'Modal/'+({pause:'Pause',settings:'Settings',help:'Help'}[kind]),(W-660)/2,TABLET?144:280,660);primary=n.findOne(n=>n.type==='INSTANCE'&&n.name.includes('Button'));}
+else if(kind==='chat'||kind==='voiceError'){fitted(f,'Panel/Chat',W-M-(TABLET?460:520),y,TABLET?460:520);textCard(f,'Current step','Guidance stays contextual','Wattson knows the current scene, question and measured values.',x,y,TABLET?430:720);if(kind==='voiceError')textCard(f,'Voice status','Microphone unavailable','You can type your question. Retry speech when the device is ready.',x,y+220,TABLET?430:720);primary=action(f,'Back to lesson',x,bottom,'Secondary');}
+else{const n=fitted(f,kind==='loading'?'State/Loading':'State/Error',(W-540)/2,H/2-140,540);primary=action(f,kind==='loading'?'Please wait…':'Retry',(W-200)/2,bottom,kind==='loading'?'Secondary':'Primary');}
+if(!['pause','settings','help','loading','loadError'].includes(kind))subtitle(f,hint+'.');
+if(primary)buttons[id]=primary.id;
+}
+return{createdNodeIds:[...new Set([...created,...page.children.filter(n=>Object.values(frames).includes(n.id)).flatMap(n=>n.findAll(()=>true).map(n=>n.id))])],frames,buttons,screens:page.children.filter(n=>Object.values(frames).includes(n.id)).map(evidence),resolution:[W,H],screenCount:Object.keys(frames).length};
+

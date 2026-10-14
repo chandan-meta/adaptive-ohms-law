@@ -1,0 +1,36 @@
+// Based on figma-generate-library/scripts/createVariableCollection.js.
+const made=[];
+const track=n=>{made.push(n.id);return n;};
+const pageNames=['00 — References and UI Audit','01 — Foundations and Design Tokens','02 — Components and States','03 — Desktop Screens','04 — Tablet Screens','05 — Prototype Flows and Unity Handoff'];
+figma.root.children[0].name=pageNames[0];
+for(const name of pageNames.slice(1)) if(!figma.root.children.some(p=>p.name===name)){const p=track(figma.createPage());p.name=name;}
+const pages=Object.fromEntries(figma.root.children.map(p=>[p.name,p.id]));
+await figma.setCurrentPageAsync(figma.root.children[0]);
+await Promise.all([{family:'Inter',style:'Regular'},{family:'Inter',style:'Semi Bold'},{family:'Space Grotesk',style:'Bold'}].map(f=>figma.loadFontAsync(f)));
+async function createVariableCollection(name,modeNames){const collection=figma.variables.createVariableCollection(name);const modeIds={};collection.renameMode(collection.modes[0].modeId,modeNames[0]);modeIds[modeNames[0]]=collection.modes[0].modeId;for(const name of modeNames.slice(1))modeIds[name]=collection.addMode(name);return{collection,modeIds};}
+const hex=s=>({r:parseInt(s.slice(1,3),16)/255,g:parseInt(s.slice(3,5),16)/255,b:parseInt(s.slice(5,7),16)/255});
+const pc=await createVariableCollection('OHM / Primitives',['Value']);
+const sc=await createVariableCollection('OHM / Semantic',['Acrylic','Solid']);
+const nc=await createVariableCollection('OHM / Layout and Motion',['Value']);
+const primitives={navy:'#061B30',surface:'#0C253D',raised:'#143650',blue:'#3682F6',blueAccessible:'#2466CF',cyan:'#22D3EE',amber:'#F59E0B',paper:'#E2E8F0',white:'#FFFFFF',muted:'#B8CBDE',border:'#5489AA',success:'#57E7B5',error:'#FFB5B5',errorSurface:'#412537',successSurface:'#113D38',scrim:'#03101E'};
+const pv={},variables={};
+for(const [name,value]of Object.entries(primitives)){const v=figma.variables.createVariable('primitive/'+name,pc.collection,'COLOR');v.scopes=[];v.setValueForMode(pc.modeIds.Value,hex(value));v.setVariableCodeSyntax('WEB','var(--ohm-'+name+')');pv[name]=v;}
+const semantics={'color/bg':'navy','color/surface':'surface','color/raised':'raised','color/action':'blueAccessible','color/action-hover':'blue','color/accent':'cyan','color/measurement-voltage':'blue','color/measurement-current':'cyan','color/measurement-resistance':'amber','color/text':'paper','color/text-strong':'white','color/text-muted':'muted','color/on-action':'white','color/border':'border','color/focus':'cyan','color/success':'success','color/error':'error','color/error-bg':'errorSurface','color/success-bg':'successSurface','color/scrim':'scrim'};
+for(const [name,target]of Object.entries(semantics)){const v=figma.variables.createVariable(name,sc.collection,'COLOR');v.scopes=name.includes('text')||name==='color/on-action'?['TEXT_FILL']:name.includes('border')||name.includes('focus')?['STROKE_COLOR']:['FRAME_FILL','SHAPE_FILL','TEXT_FILL','STROKE_COLOR'];for(const mode of Object.values(sc.modeIds))v.setValueForMode(mode,{type:'VARIABLE_ALIAS',id:pv[target].id});v.setVariableCodeSyntax('WEB','var(--ohm-'+name.replaceAll('/','-')+')');variables[name]=v.id;}
+for(const [name,value,scope]of [...[4,8,12,16,24,32,48,64].map(n=>['space/'+n,n,'GAP']),...[8,12,16,24].map(n=>['radius/'+n,n,'CORNER_RADIUS']),['opacity/panel',0.96,'OPACITY'],['motion/button-ms',140,'OPACITY'],['motion/panel-ms',220,'OPACITY']]){const v=figma.variables.createVariable(name,nc.collection,'FLOAT');v.scopes=[scope];v.setValueForMode(nc.modeIds.Value,value);v.setVariableCodeSyntax('WEB','var(--ohm-'+name.replaceAll('/','-')+')');variables[name]=v.id;}
+const typeDefs={Display:[72,82,'Space Grotesk','Bold'],Title:[40,48,'Space Grotesk','Bold'],Heading:[28,36,'Space Grotesk','Bold'],Panel:[24,32,'Space Grotesk','Bold'],Body:[22,32,'Inter','Regular'],Label:[20,28,'Inter','Semi Bold'],Caption:[18,26,'Inter','Regular'],Micro:[16,24,'Inter','Semi Bold'],Measure:[44,52,'Space Grotesk','Bold'],TabletBody:[18,26,'Inter','Regular'],TabletLabel:[16,24,'Inter','Semi Bold']};
+const styles={};for(const [name,[size,line,family,style]]of Object.entries(typeDefs)){const s=figma.createTextStyle();s.name='OHM/'+name;s.fontName={family,style};s.fontSize=size;s.lineHeight={unit:'PIXELS',value:line};styles[name]=s.id;}
+const shadow=figma.createEffectStyle();shadow.name='OHM/Panel elevation';shadow.effects=[{type:'DROP_SHADOW',color:{r:0,g:0.02,b:0.06,a:0.35},offset:{x:0,y:8},radius:24,spread:0,visible:true,blendMode:'NORMAL'}];styles.Shadow=shadow.id;
+function text(parent,name,chars,size=22,w=1100){const n=track(figma.createText());n.name=name;n.fontName={family:'Inter',style:'Regular'};n.fontSize=size;n.lineHeight={unit:'PIXELS',value:size*1.45};n.characters=chars;n.fills=[{type:'SOLID',color:hex('#E2E8F0')}];parent.appendChild(n);n.textAutoResize='HEIGHT';n.resize(w,n.height);return n;}
+function board(name,x,y,w,h){const n=track(figma.createAutoLayout('VERTICAL'));n.name=name;n.resize(w,h);n.layoutSizingHorizontal='FIXED';n.layoutSizingVertical='FIXED';n.itemSpacing=24;n.paddingTop=n.paddingBottom=n.paddingLeft=n.paddingRight=40;n.fills=[{type:'SOLID',color:hex('#061B30')}];n.x=x;n.y=y;return n;}
+const audit=board('Audit / Scope and actual project',80,80,1280,1100);
+text(audit,'Title','OHM’S LAW / UI v2',44);
+text(audit,'Status','FIGMA DESIGN REVIEW • UNITY INTEGRATION AWAITS APPROVAL',18);
+text(audit,'Project','Unity 6000.3.0f1 • URP 17.3.0 • uGUI 2.0 • Input System 1.16\nWindows + landscape Android tablet; WebGL also present.\nActual default resolution: 1024 × 768. Design checks: 1920 × 1080 and 1280 × 720.',22);
+text(audit,'Scope','Two existing lesson systems: OhmsLaw persistent module (Scenes 00, 04–13) and AdaptiveLearning scenes (06, 08–13). Both need UI migration. Diagnostic scenes stay explicitly documented.',22);
+text(audit,'Faithfulness','Reference direction: deep navy, electric blue, cyan, amber, thin edges.\nPreserve Wattson’s actual portrait, name, narration, scene logic and environment.\nNo generated Nova character. No background blur required.',22);
+text(audit,'Science','Design samples: 1–5 V, 0.20–1.00 A, 5 Ω. Bind actual runtime values.\nGraph: V vertical, I horizontal → slope = ΔV / ΔI = R.\nOlder prose describing 10 Ω and reversed axes is stale; verify serialized scene/controller state before integration.',22);
+text(audit,'Audit evidence','Local audit: 44 serialized scenes/prefabs; 77 inactive UI objects; 61 runtime construction scripts.\nMigration inventory and binding evidence live in Docs/UI_v2.\nExisting unrelated export work is preserved.',22);
+const assets={};
+for(const [i,name,w,h]of [[0,'Reference / supplied UI sheet',1491,1055],[1,'Context / actual lab (UI-free export preview)',1280,720],[2,'Context / actual conductor (UI-free export preview)',1280,720],[3,'Asset / preserved Wattson portrait',256,256]]){const n=track(figma.createRectangle());n.name=name;n.resize(w,h);n.x=1480+(i%2)*1600;n.y=80+Math.floor(i/2)*1200;assets[name]=n.id;}
+return{createdNodeIds:made,mutatedNodeIds:[figma.root.children[0].id],pages,variables,styles,assets,collections:{primitives:pc.collection.id,semantic:sc.collection.id,layout:nc.collection.id},modes:sc.modeIds,counts:{variables:Object.keys(variables).length+Object.keys(pv).length,textStyles:Object.keys(typeDefs).length}};

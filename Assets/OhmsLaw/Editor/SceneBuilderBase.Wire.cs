@@ -40,6 +40,7 @@ namespace OhmsLaw.Editor
         // Inside the copper: fog, ambient and background are a warm copper-brown haze (gamma; under ACES it lands near #1B100E),
         // so the far atom rows dissolve into a visible warm haze. The old navy mix rendered as black: a starfield.
         static readonly Color CopperHaze = new Color(0.24f, 0.19f, 0.18f);
+        static readonly Color SetHaze = new Color(0.1f, 0.12f, 0.16f); // the Blender set: a cool steel dark
         protected static readonly Color ConduitBlue = new Color(0.31f, 0.82f, 1f);                     // #4FD1FF glass and grid
         protected static readonly Color ElectronTint = new Color(0.75f, 0.965f, 1f);                   // #BFF6FF
         protected static readonly Color MinusTint = ConduitBlue, PlusTint = new Color(1f, 0.27f, 0.21f); // terminal badges: cyan −, red +
@@ -76,7 +77,10 @@ namespace OhmsLaw.Editor
             bool nichrome = lattice; // Scene 12's wire: nichrome grey-green tints the glass, the void, the grid and the atoms
             Color glass = Color.Lerp(ConduitBlue, tint, nichrome ? 0.85f : 0f);
             glass.a = nichrome ? 0.22f : 0.12f;
-            Color space = nichrome ? Color.Lerp(SpaceBlue, tint * 0.45f, 0.7f) : CopperHaze; // the metal's own dark
+            // Scenes 5 and 6: the set made in Blender (Editor/BlenderSet.cs) replaces the code-built floor, terminal blocks, cables and
+            // copper lattice; the conduit, bands, badges, ring, electrons and counter stay built here (the lesson drives them).
+            var setModel = nichrome ? null : BlenderSet.Wire.Load();
+            Color space = nichrome ? Color.Lerp(SpaceBlue, tint * 0.45f, 0.7f) : setModel ? SetHaze : CopperHaze; // the metal's own dark
             Color grid = Color.Lerp(ConduitBlue, tint, nichrome ? 0.85f : 0f);
             Color atom = Color.Lerp(CopperTint, tint, nichrome ? 0.85f : 0f);
 
@@ -93,7 +97,7 @@ namespace OhmsLaw.Editor
             // the lab keeps the lab's atmosphere in its file.
             var was = (fog: RenderSettings.fog, mode: RenderSettings.fogMode, colour: RenderSettings.fogColor, density: RenderSettings.fogDensity,
                 ambientMode: RenderSettings.ambientMode, sky: RenderSettings.ambientSkyColor, flat: RenderSettings.ambientLight, background: camera.backgroundColor);
-            WireLights(section.transform, space, atom, nichrome);
+            WireLights(section.transform, space, atom, nichrome, setModel);
             wire.fogColor = RenderSettings.fogColor;
             wire.fogDensity = RenderSettings.fogDensity;
             wire.ambient = RenderSettings.ambientLight;
@@ -110,8 +114,8 @@ namespace OhmsLaw.Editor
             var set = Node("Set", section.transform);
             var steel = Lit("Wire_Steel", new Color(0.36f, 0.42f, 0.52f), 0.9f, 0.5f);
             var trim = Lit("Wire_SteelDark", new Color(0.14f, 0.17f, 0.23f), 0.8f, 0.45f);
-            WireFloor(set.transform, space, grid, nichrome);
-            WireCavern(wire, section.transform, atom, nichrome);
+            WireFloor(set.transform, space, grid, nichrome, plane: !setModel);
+            if (!setModel) WireCavern(wire, section.transform, atom, nichrome);
 
             // The conduit: an open glass tube (premultiplied alpha keeps its highlights), two steel bands; WireInterior
             // scales the tube and every ring to the current radius (Scene 12 narrows it by at most 20 %).
@@ -126,28 +130,43 @@ namespace OhmsLaw.Editor
             // One style for both polarity markings: the same badge size, each on the face toward the lens at the
             // conduit's height, cyan − and red + (the glyph says which, so colour is never the only cue).
             var minus = WireTerminal(set.transform, "−", MinusBlock - WireOrigin, new Vector3(1.8f, 3.4f, 1.8f),
-                new Vector3(0, 0, -0.9f), Vector3.back, 0.42f, MinusTint, 1.4f, steel, trim);
+                new Vector3(0, 0, -0.9f), Vector3.back, 0.42f, MinusTint, 1.4f, steel, trim, body: !setModel);
             var plus = WireTerminal(set.transform, "+", PlusBlock - WireOrigin, new Vector3(1.6f, 3.4f, 1.6f),
-                new Vector3(0, 0.35f, -0.8f), Vector3.back, 0.42f, PlusTint, 1.4f, steel, trim);
+                new Vector3(0, 0.35f, -0.8f), Vector3.back, 0.42f, PlusTint, 1.4f, steel, trim, body: !setModel);
             minus.SetActive(terminalsOn);
             plus.SetActive(terminalsOn);
             var cableDark = Lit("Wire_CableDark", new Color(0.05f, 0.06f, 0.09f), 0.1f, 0.7f);
             var cableRed = Lit("Wire_CableRed", new Color(0.75f, 0.08f, 0.06f), 0.1f, 0.55f, new Color(0.12f, 0.01f, 0f)); // a dim glow: it was the brightest thing on the right third
             Vector3 m = MinusBlock - WireOrigin, p = PlusBlock - WireOrigin;
-            Polyline("Cable", set.transform, cableDark, 0.1f, false, false, m + new Vector3(0.2f, 1.78f, 0.4f), m + new Vector3(-0.6f, 2.25f, 0.5f), m + new Vector3(-2.0f, 2.45f, 0.9f), m + new Vector3(-3.6f, 2.0f, 1.6f), m + new Vector3(-4.6f, 0.9f, 2.4f));
-            Polyline("Cable", set.transform, cableRed, 0.1f, false, false, p + new Vector3(0.5f, 1.42f, 0.3f), p + new Vector3(1.3f, 1.75f, 0.1f), p + new Vector3(2.8f, 1.6f, -0.4f), p + new Vector3(4.4f, 0.9f, -1.2f), p + new Vector3(6.2f, -2.4f, -2.4f)); // plugs into the floor (it ended in mid-air)
+            if (!setModel) Polyline("Cable", set.transform, cableDark, 0.1f, false, false, m + new Vector3(0.2f, 1.78f, 0.4f), m + new Vector3(-0.6f, 2.25f, 0.5f), m + new Vector3(-2.0f, 2.45f, 0.9f), m + new Vector3(-3.6f, 2.0f, 1.6f), m + new Vector3(-4.6f, 0.9f, 2.4f));
+            if (!setModel) Polyline("Cable", set.transform, cableRed, 0.1f, false, false, p + new Vector3(0.5f, 1.42f, 0.3f), p + new Vector3(1.3f, 1.75f, 0.1f), p + new Vector3(2.8f, 1.6f, -0.4f), p + new Vector3(4.4f, 0.9f, -1.2f), p + new Vector3(6.2f, -2.4f, -2.4f)); // plugs into the floor (it ended in mid-air)
+            if (setModel)
+            {
+                var model = (GameObject)PrefabUtility.InstantiatePrefab(setModel, scene);
+                model.name = "Wire Set (Blender)";
+                model.transform.SetParent(set.transform, true);
+                model.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity); // the FBX holds world coordinates
+                foreach (var t in model.GetComponentsInChildren<Transform>(true)) GameObjectUtility.SetStaticEditorFlags(t.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.ReflectionProbeStatic);
+                var renderers = model.GetComponentsInChildren<Renderer>();
+                var bounds = renderers.Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
+                Debug.Log($"{SceneId}: wire set from Blender, {renderers.Length} renderers, bounds {bounds.min} to {bounds.max}");
+            }
             foreach (var t in set.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = ReflectedLayer;
             var floorPlane = set.transform.Find("Floor");
-            floorPlane.gameObject.layer = FloorLayer;
-            floorPlane.GetComponent<Renderer>().renderingLayerMask = FloorLight;
+            if (floorPlane)
+            {
+                floorPlane.gameObject.layer = FloorLayer;
+                floorPlane.GetComponent<Renderer>().renderingLayerMask = FloorLight;
+            }
 
             // Each terminal is named in words as well as by its sign and colour: "− negative" under the − disc on the block's
             // front; "+ positive" on the + block's front beside the conduit's entry (its disc sits low on the side face,
             // just over the floor), above Scene 6's gauge and right of the CURRENT card. Dark backings keep them readable.
             // Labels sit well in front of the blocks: Face() tilts them toward the lens, and at the old depth the tilted plane's
             // left end dipped behind the block face, which swallowed the glyph after the sign ("egative", "ositive").
-            WireTerminalLabel(section.transform, "−", "− negative", MinusTint, MinusBlock + new Vector3(0, -0.85f, -1.3f), terminalsOn);
-            WireTerminalLabel(section.transform, "+", "+ positive", PlusTint, PlusBlock + new Vector3(0, -0.5f, -1.2f), terminalsOn);
+            // In front of the Blender machines (their fronts stand at z -1.9) when the set is used.
+            WireTerminalLabel(section.transform, "−", "− negative", MinusTint, MinusBlock + new Vector3(0, -0.85f, setModel ? -2.2f : -1.3f), terminalsOn);
+            WireTerminalLabel(section.transform, "+", "+ positive", PlusTint, PlusBlock + new Vector3(setModel ? -0.9f : 0f, -0.5f, setModel ? -2.2f : -1.2f), terminalsOn); // nearer the lens it reached under the dock: 0.9 m left
 
             // Electrons: the carriers, two of them traced; the lattice ions apart, drawn first so the electrons stay on top.
             wire.carriers = Particles("Carriers", section.transform, BlockoutAssets.ChargeMaterial(ElectronTint), 64);
@@ -253,6 +272,9 @@ namespace OhmsLaw.Editor
             Vector3 labelAt = root.transform.position + new Vector3(0, -0.3f, 0);
             var label = WorldText.Card("Label", "electron drift", Color.Lerp(ElectronTint, Color.white, 0.4f), root.transform, new Vector3(0, -0.3f, 0), WireCap(WorldText.Px.Small, labelAt));
             label.transform.rotation = Quaternion.LookRotation(WireCamLook - WireCamPos);
+            float cap = WireCap(WorldText.Px.Small, labelAt); // a dark backing: the Blender set's glowing floor sits right behind the words
+            label.sortingOrder = 1;
+            WirePanel(label.transform, new Vector3(label.textBounds.center.x, label.textBounds.center.y, 0.02f), new Vector2(label.textBounds.size.x + cap * 1.6f, label.textBounds.size.y + cap * 1.2f), cap);
             root.SetActive(false);
             return Ref(root);
         }
@@ -543,7 +565,7 @@ namespace OhmsLaw.Editor
         // the blocks, not on the floor: there it put warm smears and a hot spot under the captions; the floor's own rendering
         // layer keeps it off), a warm fill on Wattson only, the global ACES/bloom volume (bloom 1.0, light grain). The terminal
         // glow lights live in the badges so they switch on with them; they and the key do light the floor.
-        void WireLights(Transform section, Color space, Color atom, bool nichrome)
+        void WireLights(Transform section, Color space, Color atom, bool nichrome, GameObject setModel = null)
         {
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Flat;
@@ -551,14 +573,14 @@ namespace OhmsLaw.Editor
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogColor = space;
-            RenderSettings.fogDensity = 0.045f; // the far rows (20-30 m) dissolve into the haze; the terminals (8-13 m) keep 70-85 %
+            RenderSettings.fogDensity = setModel ? 0.012f : 0.045f; // the far rows dissolve into the haze; the Blender set's walls (20-40 m) stay readable
             camera.backgroundColor = space;
             var root = Node("Lighting", section).transform;
             var key = Node("Space Key", root).AddComponent<Light>();
             key.type = LightType.Directional;
             key.transform.rotation = Quaternion.Euler(50, -20, 0);
             key.color = nichrome ? new Color(0.86f, 0.85f, 0.78f) : new Color(0.72f, 0.82f, 1f);
-            key.intensity = nichrome ? 0.3f : 0.4f;
+            key.intensity = nichrome ? 0.3f : setModel ? 1.1f : 0.4f; // the textured set needs real light; the void did not
             key.shadows = LightShadows.Soft;
             key.shadowStrength = 0.75f;
             key.GetUniversalAdditionalLightData().renderingLayers = 1u | FloorLight; // Default and the floor: Wattson's shadow on the glass
@@ -566,7 +588,7 @@ namespace OhmsLaw.Editor
             {
                 var copper = Node(name, root, at).AddComponent<Light>();
                 copper.type = LightType.Point;
-                copper.color = Color.Lerp(new Color(1f, 0.62f, 0.35f), atom, nichrome ? 0.8f : 0f);
+                copper.color = setModel ? new Color(0.72f, 0.84f, 1f) : Color.Lerp(new Color(1f, 0.62f, 0.35f), atom, nichrome ? 0.8f : 0f); // cool steel light in the Blender set
                 copper.intensity = intensity;
                 copper.range = 22f;
                 copper.shadows = LightShadows.None;
@@ -590,7 +612,7 @@ namespace OhmsLaw.Editor
 
         // Glossy dark floor with a faint emissive 1 m grid, and a reflection probe (box-projected, baked by the builder) so
         // the floor mirrors the conduit and the terminals on the haze.
-        void WireFloor(Transform section, Color space, Color grid, bool nichrome)
+        void WireFloor(Transform section, Color space, Color grid, bool nichrome, bool plane = true)
         {
             var texture = WireGridTexture();
             var floor = Mat("Wire_Floor" + (nichrome ? "_Nichrome" : ""), "Universal Render Pipeline/Lit", mat =>
@@ -604,7 +626,7 @@ namespace OhmsLaw.Editor
                 mat.SetColor("_EmissionColor", grid * 0.04f); // the seams, faint: not a Tron floor under the action
                 mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             });
-            Prim(PrimitiveType.Plane, "Floor", section, new Vector3(0, SpaceFloorY, 2f), new Vector3(4.4f, 1, 4.4f), floor);
+            if (plane) Prim(PrimitiveType.Plane, "Floor", section, new Vector3(0, SpaceFloorY, 2f), new Vector3(4.4f, 1, 4.4f), floor);
 
             var probe = Node("Reflection Probe", section, new Vector3(0, 0.6f, 0)).AddComponent<ReflectionProbe>();
             probe.mode = ReflectionProbeMode.Realtime;
@@ -640,14 +662,17 @@ namespace OhmsLaw.Editor
         // steel puck on `face` (local centre on the block's surface, `normal` outward) with a saturated lit disc, a bright
         // white sign, a soft halo behind the disc and the glow light. The badge is the GameObject "Card Terminal <sign>" so the scenes' show/boost cues and the
         // point gesture work on it; it starts hidden unless WireStage lights it.
-        GameObject WireTerminal(Transform section, string sign, Vector3 centre, Vector3 size, Vector3 face, Vector3 normal, float radius, Color tint, float light, Material steel, Material trim)
+        GameObject WireTerminal(Transform section, string sign, Vector3 centre, Vector3 size, Vector3 face, Vector3 normal, float radius, Color tint, float light, Material steel, Material trim, bool body = true)
         {
             string hex = ColorUtility.ToHtmlStringRGB(tint);
             var block = Node("Terminal " + sign, section, centre);
-            Prim(PrimitiveType.Cube, "Block", block.transform, Vector3.zero, size, steel);
-            Prim(PrimitiveType.Cube, "Cap", block.transform, new Vector3(0, size.y / 2 + 0.05f, 0), new Vector3(size.x + 0.12f, 0.1f, size.z + 0.12f), trim);
-            Prim(PrimitiveType.Cube, "Edge Light", block.transform, new Vector3(0, size.y / 2 + 0.1f, -(size.z / 2 + 0.06f)), new Vector3(size.x + 0.12f, 0.025f, 0.025f),
-                Glow("Glow_WireEdge", Hdr(ElectronTint, 0.6f), softTexture: false)); // neutral and faint: the block is lit before its terminal "appears"
+            if (body) // false: the Blender set's machine stands here, only the badge is built
+            {
+                Prim(PrimitiveType.Cube, "Block", block.transform, Vector3.zero, size, steel);
+                Prim(PrimitiveType.Cube, "Cap", block.transform, new Vector3(0, size.y / 2 + 0.05f, 0), new Vector3(size.x + 0.12f, 0.1f, size.z + 0.12f), trim);
+                Prim(PrimitiveType.Cube, "Edge Light", block.transform, new Vector3(0, size.y / 2 + 0.1f, -(size.z / 2 + 0.06f)), new Vector3(size.x + 0.12f, 0.025f, 0.025f),
+                    Glow("Glow_WireEdge", Hdr(ElectronTint, 0.6f), softTexture: false)); // neutral and faint: the block is lit before its terminal "appears"
+            }
 
             var badge = Node("Card Terminal " + sign, block.transform, face);
             badge.transform.localRotation = Quaternion.LookRotation(normal); // local +Z = outward

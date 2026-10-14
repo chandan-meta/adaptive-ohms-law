@@ -22,7 +22,9 @@ namespace OhmsLaw.Editor
         // ---- The classroom frame (metres). Floor y 0, desk top y 0.80, back wall z 2.6, side walls x ±3.2, ceiling 3.0 ----
         public const float ClassroomFloorY = 0f, ClassroomDeskY = 0.80f, ClassroomWallZ = 2.6f, ClassroomHalfWidth = 3.2f, ClassroomCeilingY = 3f;
         public static readonly Vector3 DeskTopC = new Vector3(0f, ClassroomDeskY, 0f);           // desk / bench top centre, 2.0 x 0.9 m
-        public static readonly Vector3 OhmFeetC = new Vector3(0f, 0f, 0.75f);                    // Ohm behind the desk, facing -Z
+        // Ohm behind the desk, facing -Z; with the Blender lab (BlenderSet.Lab) behind its round table (radius 1.22), on its floor.
+        public static Vector3 OhmFeetC => BlenderSet.Lab.Exists ? new Vector3(0f, LabFloorY, 1.5f) : new Vector3(0f, 0f, 0.75f);
+        public const float LabFloorY = 0.08f; // the Blender lab's floor (Exports/OurLab/OurLab.blend), 8 cm over the classroom's
         public static readonly Vector3 WattsonHomeC = new Vector3(-1.05f, 1.4f, 0.3f);           // flying left of the desk, inside the frame the lesson panel leaves free (Bench Wide: 56-79 % up)
         // Cameras, all on -Z. Bench Wide = board + Ohm + desk (Scene07_two_clues); Bench Close = the apparatus row
         // (Scene09_series_ammeter); Bench Present = the row with Ohm's head in frame (Scene08_modern_apparatus_presented);
@@ -70,13 +72,16 @@ namespace OhmsLaw.Editor
         protected void ClassroomSet(bool modernBench, bool audience)
         {
             ClassroomMaterials();
+            var labSet = BlenderSet.Lab.Load();
             var lab = Ref(Node("Lab"));
-            Room(lab.transform);
+            if (labSet) LabSetRoom(lab.transform, labSet);
+            else Room(lab.transform);
             var desk = OakDesk(lab.transform);
-            var bench = CleanBench(lab.transform);
+            var bench = labSet ? refs["Bench"] : CleanBench(lab.transform); // the Blender lab's round table, or the clean bench
             desk.SetActive(!modernBench);
             bench.SetActive(modernBench);
-            ClassroomLighting(lab.transform);
+            if (labSet) LabSetLighting(lab.transform);
+            else ClassroomLighting(lab.transform);
             Audience(audience);
 
             Marker("Wattson Home", WattsonHomeC);
@@ -378,6 +383,110 @@ namespace OhmsLaw.Editor
             }
             ContactShadow(bench.transform, new Vector2(2.2f, 1.1f));
             return bench;
+        }
+
+        // ------------------------------------------------------------------ the Blender lab
+
+        // The round lab made in Blender (Exports/OurLab/OurLab.blend -> Tools/sets/lab.json -> Art/LabSet) in place of the
+        // code-built room and bench: same frame (the bench at the origin, cameras on -Z), the apparatus still built here.
+        // Its round centre table becomes "Bench"; the rest is split into Room()'s region groups so Scene 8's sweep still
+        // builds it out from the bench: the floor discs spread with the floor, the false ceiling and magnet rig with the
+        // ceiling, the round wall, back board and racks rise with the back, the side racks and the mural with the sides.
+        void LabSetRoom(Transform lab, GameObject model)
+        {
+            var room = Node("Room", lab).transform;
+            var set = (GameObject)PrefabUtility.InstantiatePrefab(model, scene);
+            set.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity); // the FBX holds world coordinates
+            PrefabUtility.UnpackPrefabInstance(set, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+            foreach (var part in set.transform.Cast<Transform>().ToList()) part.SetParent(room, true);
+            UnityEngine.Object.DestroyImmediate(set);
+
+            // The round centre table is the bench now (the .blend has no other): it is "Bench", so Scene 8 grows it from Ohm's
+            // desk and the apparatus stands on it (its top is 0.79, the apparatus feet 0.80).
+            var bench = Ref(Node("Bench", lab)).transform;
+            foreach (var part in room.Cast<Transform>().Where(p => p.name.StartsWith("Center_Table")).ToList()) part.SetParent(bench, true);
+
+            var parts = room.Cast<Transform>().Select(p => (part: p, b: RenderBounds(p.gameObject))).ToList();
+            bool Floor((Transform part, Bounds b) p) => p.b.max.y < 0.95f;
+            bool Ceiling((Transform part, Bounds b) p) => p.b.min.y > 2f;
+            bool Back((Transform part, Bounds b) p) => p.b.size.x > 8f || p.b.center.z > 1.95f; // the round wall spans the room
+            var walls = parts.Where(p => !Floor(p) && !Ceiling(p)).ToList();
+            PivotGroup("Classroom Floor", room, new Vector3(0f, LabFloorY, 0f), parts.Where(Floor).Select(p => p.part));
+            PivotGroup("Classroom Ceiling", room, new Vector3(0f, ClassroomCeilingY, 0f), parts.Where(Ceiling).Select(p => p.part));
+            PivotGroup("Classroom Back", room, new Vector3(0f, LabFloorY, ClassroomWallZ), walls.Where(Back).Select(p => p.part));
+            PivotGroup("Classroom Left", room, new Vector3(-ClassroomHalfWidth, LabFloorY, -0.7f), walls.Where(p => !Back(p) && p.b.center.x < 0f).Select(p => p.part));
+            PivotGroup("Classroom Right", room, new Vector3(ClassroomHalfWidth, LabFloorY, -0.7f), walls.Where(p => !Back(p) && p.b.center.x >= 0f).Select(p => p.part));
+            var all = parts.Select(p => p.b).Aggregate((a, b) => { a.Encapsulate(b); return a; });
+            Debug.Log($"{SceneId}: lab set from Blender, {parts.Count} parts, bounds {all.min} to {all.max}");
+        }
+
+        // The round lab is closed (no window, no daylight): a cool overhead key on the bench with soft shadows, the ceiling
+        // cove as a ring of soft blue points, the display wall behind the bench as a blue practical, a warm-neutral front fill
+        // for faces and a cool rim on Ohm's spot. The set's emissive screens and strips bloom; the probe sees the room once.
+        // Names differ from the classroom's (Window Key, Ceiling Fill, Bench Light, Rim) so CinematicPolish's warm grade of
+        // those lights leaves these alone.
+        void LabSetLighting(Transform lab)
+        {
+            RenderSettings.skybox = null;
+            RenderSettings.ambientMode = AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.46f, 0.56f, 0.72f);
+            RenderSettings.ambientEquatorColor = new Color(0.33f, 0.37f, 0.45f);
+            RenderSettings.ambientGroundColor = new Color(0.11f, 0.12f, 0.14f);
+            RenderSettings.fog = false;
+            camera.backgroundColor = new Color(0.03f, 0.05f, 0.08f);
+
+            var root = Node("Lighting", lab).transform;
+            Light Spot(string name, Vector3 at, Vector3 aim, Color color, float intensity, float range, float angle, LightShadows shadows)
+            {
+                var light = Node(name, root, at).AddComponent<Light>();
+                light.type = LightType.Spot;
+                light.transform.rotation = Quaternion.LookRotation(aim - at);
+                light.color = color;
+                light.intensity = intensity;
+                light.range = range;
+                light.spotAngle = angle;
+                light.innerSpotAngle = angle * 0.55f;
+                light.shadows = shadows;
+                return light;
+            }
+            Light Point(string name, Vector3 at, Color color, float intensity, float range)
+            {
+                var light = Node(name, root, at).AddComponent<Light>();
+                light.type = LightType.Point;
+                light.color = color;
+                light.intensity = intensity;
+                light.range = range;
+                light.shadows = LightShadows.None;
+                return light;
+            }
+
+            // The key sits just under the magnet rig (its bottom is at 2.11; inside the rig, the coils threw wedges of shadow
+            // across the bench) and toward the cameras so the meter faces get it; at 4 the light bench top went white.
+            var key = Spot("Lab Key", new Vector3(0f, 2.05f, -1.0f), DeskTopC + new Vector3(0f, 0f, 0.15f), new Color(0.93f, 0.96f, 1f), 2.6f, 4.5f, 75f, LightShadows.Soft);
+            key.shadowStrength = 0.7f;
+            for (int i = 0; i < 6; i++)
+            {
+                float a = (i + 0.5f) * Mathf.PI / 3f;
+                Point("Cove " + (i + 1), new Vector3(Mathf.Sin(a) * 3.6f, 2.45f, Mathf.Cos(a) * 3.6f), new Color(0.55f, 0.8f, 1f), 0.9f, 4.5f);
+            }
+            // The back wall's display is now a dark green board (the .blend's "Material" panel over it, centre (0, 1.64, 5.55)):
+            // a soft neutral wash so it reads as a board, and a weaker blue practical below it for the backs of the figures.
+            Spot("Board Wash", new Vector3(0f, 2.7f, 3.0f), new Vector3(0f, 1.64f, 5.55f), new Color(0.95f, 0.98f, 1f), 1.8f, 5f, 75f, LightShadows.None);
+            Point("Display Glow", new Vector3(0f, 1.2f, 4.2f), new Color(0.38f, 0.62f, 1f), 1.2f, 4f);
+            Spot("Face Fill", new Vector3(0.4f, 2.0f, -2.6f), new Vector3(0f, 1.25f, 0.6f), new Color(1f, 0.95f, 0.88f), 1.0f, 6.5f, 70f, LightShadows.None);
+            Spot("Lab Rim", new Vector3(0.8f, 2.6f, 3.2f), OhmFeetC + Vector3.up * 1.3f, new Color(0.62f, 0.8f, 1f), 2.5f, 5f, 60f, LightShadows.None);
+
+            // One capture at start: the lab reflected in the bench top, the meter glass and the floor.
+            var probe = Node("Reflection Probe", root, new Vector3(0f, 1.5f, 0f)).AddComponent<ReflectionProbe>();
+            probe.mode = ReflectionProbeMode.Realtime;
+            probe.refreshMode = ReflectionProbeRefreshMode.OnAwake;
+            probe.timeSlicingMode = ReflectionProbeTimeSlicingMode.AllFacesAtOnce;
+            probe.size = new Vector3(12.2f, 3.2f, 12.2f);
+            probe.center = Vector3.zero;
+            probe.boxProjection = true;
+            probe.resolution = 128;
+
+            GlobalPost(root, "Classroom_Global", bloom: 0.6f, vignette: 0.2f, exposure: 0.45f);
         }
 
         // ------------------------------------------------------------------ lighting
