@@ -6,6 +6,7 @@ Balance proxy: the bed level is the loudness of the quietest 20 % of 400 ms wind
 only music/ambience/loops play); the voice level is the loudest 20 %. Their difference is the effective duck depth.
 """
 import os, re, subprocess, sys, wave
+sys.stdout.reconfigure(encoding="utf-8")
 import numpy as np
 
 run = sys.argv[1] if len(sys.argv) > 1 else "after"
@@ -47,4 +48,5 @@ for r in rows:
 text = "\n".join(lines)
 print(text)
 open(os.path.join(folder, "audio_report.md"), "w", encoding="utf-8").write(f"# Audio analysis — {run}\n\n{text}\n")
+w.close()
 os.remove(wav)

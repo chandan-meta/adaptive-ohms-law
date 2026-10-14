@@ -177,7 +177,7 @@ cue = {"entries": entries,
            "LabSweep": "SFX_Magic_Sweep", "Enter": "SFX_Tunnel_Woosh", "Exit": "SFX_Whoosh_Fast", "Count": "UI_Hover",
            "ui.hover": "UI_Hover", "ui.click": "UI_Click", "ui.open": "UI_Open", "ui.close": "UI_Close", "ui.done": "SFX_Correct_Answer",
            "ui.hint": "UI_Question", "ui.stamp": "UI_Stamp", "ui.wrong": "UI_Error", "ui.start": "UI_Confirm"},
-       "cueRules": []}
+       "cueRules": json.load(open(os.path.join(root, "CueDefinitions", "library.json"), encoding="utf-8")).get("cueRules", []) if os.path.exists(os.path.join(root, "CueDefinitions", "library.json")) else []}
 cd = os.path.join(root, "CueDefinitions"); os.makedirs(cd, exist_ok=True)
 json.dump(cue, open(os.path.join(cd, "library.json"), "w", encoding="utf-8"), indent=1)
 

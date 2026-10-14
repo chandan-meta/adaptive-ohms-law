@@ -1,3 +1,5 @@
+Audio redesign (14 October 2026, afternoon): downloaded CC0 / Mixkit music and effects live in `Assets/OhmsLaw/Audio/` (manifest, licences, cue map and implementation report in its `Documentation/`); every sound resolves through `Shared/AudioLibrary.cs` (`Resources/OhmsAudioLibrary.asset`, built by `Ohm's Law/Audio/Build library` from `Audio/CueDefinitions/library.json`). Scenes 5 and 6 are the user's: never rebuild or polish them (use `Polish/Apply study + lab (Scenes 7-13)`).
+
 Audit and polish pass (14 October 2026): read `Reports/OhmsLawAudit/Final_QA_Report.md` first (regression runs, verified findings, honest scores, remaining limitations), then `Implementation_Log.md` (every change by work package) and `Improvement_Plan.md` (file ownership). Evidence pipeline: play test `all record ask fresh @1920x1080` → `python Tools/audit_frames.py <run>`.
 
 # Hand-off — Ohm's Law Unity module (Scenes 4–13)

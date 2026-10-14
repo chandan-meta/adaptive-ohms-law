@@ -1,0 +1,803 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d72a487e1953f7145a7aa28b59f9165e, type: 3}
+  m_Name: OhmsAudioLibrary
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioLibrary
+  entries:
+  - name: BGM_Professor_Ohm_Laboratory
+    clip: {fileID: 8300000, guid: 7d026bf83e29fde4588587d66005191d, type: 3}
+    group: Music
+    gain: 0.75
+    loop: 1
+    source: Intro Music (game.mp3)
+    author: RonyDkid
+    license: CC0
+  - name: BGM_Wattson_Magical_Discovery
+    clip: {fileID: 8300000, guid: f1c7b0322be880748ae80aa8a3b383cf, type: 3}
+    group: Music
+    gain: 0.473
+    loop: 1
+    source: Magic Puzzle In-Game 1 (bpm110)
+    author: MintoDog
+    license: CC0
+  - name: BGM_Conductor_Airy
+    clip: {fileID: 8300000, guid: b55f6121732d15543af6c81ee47ed84c, type: 3}
+    group: Music
+    gain: 0.531
+    loop: 1
+    source: 'Dark Sci-Fi Audio Pack: airy'
+    author: SRG774
+    license: CC0
+  - name: BGM_Conductor_Pulse
+    clip: {fileID: 8300000, guid: 771ae89c8c8f20a4aa9d59745a2dc40c, type: 3}
+    group: Music
+    gain: 0.944
+    loop: 1
+    source: 'Dark Sci-Fi Audio Pack: pulse'
+    author: SRG774
+    license: CC0
+  - name: BGM_Conductor_Mystery
+    clip: {fileID: 8300000, guid: 91cb2ecaad2b02948bef6db9aef732a9, type: 3}
+    group: Music
+    gain: 0.447
+    loop: 1
+    source: 'Dark Sci-Fi Audio Pack: sector'
+    author: SRG774
+    license: CC0
+  - name: BGM_Electric_Current_Experiment
+    clip: {fileID: 8300000, guid: fcb2a69605c103a4086797354a89f4f4, type: 3}
+    group: Music
+    gain: 0.351
+    loop: 1
+    source: Claimed by the Void (loop)
+    author: vitalezzz
+    license: CC0
+  - name: SFX_Discovery_Victory
+    clip: {fileID: 8300000, guid: 834d9281055769e418fb6ea0cc827d36, type: 3}
+    group: SFX
+    gain: 0.495
+    loop: 0
+    source: 'Dark Sci-Fi Audio Pack: victory'
+    author: SRG774
+    license: CC0
+  - name: SFX_Correct_Answer
+    clip: {fileID: 8300000, guid: e08cb95b6bb13f94f8c4f300abdc4f41, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: jingles_PIZZI01
+    author: Kenney
+    license: CC0
+  - name: SFX_Experiment_Complete
+    clip: {fileID: 8300000, guid: 102de843d677a7d4fbf828eb80b075df, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: jingles_STEEL07
+    author: Kenney
+    license: CC0
+  - name: SFX_Scientific_Discovery
+    clip: {fileID: 8300000, guid: 1fd7cfc487d2cc846a7043a4c9821fec, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: jingles_PIZZI07
+    author: Kenney
+    license: CC0
+  - name: SFX_Final_Success
+    clip: {fileID: 8300000, guid: a7b2da468ca399f44a5d39e0834fe391, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: jingles_STEEL14
+    author: Kenney
+    license: CC0
+  - name: SFX_Magic_Success
+    clip: {fileID: 8300000, guid: 0ebdec7600d8482488564b4e41e6c69e, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: Fantasy game success notification (2633)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: UI_Click
+    clip: {fileID: 8300000, guid: 687f603618a1e5740ace107cc7079816, type: 3}
+    group: UI
+    gain: 0.794
+    loop: 0
+    source: click_001
+    author: Kenney
+    license: CC0
+  - name: UI_Select
+    clip: {fileID: 8300000, guid: 574a9a2d3a9feb3409261b4177e46b61, type: 3}
+    group: UI
+    gain: 0.733
+    loop: 0
+    source: select_001
+    author: Kenney
+    license: CC0
+  - name: UI_Back
+    clip: {fileID: 8300000, guid: 687bf58bac13cf742aee431380c2d85b, type: 3}
+    group: UI
+    gain: 0.794
+    loop: 0
+    source: back_001
+    author: Kenney
+    license: CC0
+  - name: UI_Open
+    clip: {fileID: 8300000, guid: 1ac18c92abd76954596c3b9455d57fc4, type: 3}
+    group: UI
+    gain: 0.55
+    loop: 0
+    source: open_001
+    author: Kenney
+    license: CC0
+  - name: UI_Close
+    clip: {fileID: 8300000, guid: 4d1a31580dc96e04f91f6e5daa993df5, type: 3}
+    group: UI
+    gain: 0.55
+    loop: 0
+    source: close_001
+    author: Kenney
+    license: CC0
+  - name: UI_Confirm
+    clip: {fileID: 8300000, guid: b42d73986e57a0b43b3971f51451fc8e, type: 3}
+    group: UI
+    gain: 0.367
+    loop: 0
+    source: confirmation_001
+    author: Kenney
+    license: CC0
+  - name: UI_Error
+    clip: {fileID: 8300000, guid: bd9023aedd1455f4d95034aeab4a7782, type: 3}
+    group: UI
+    gain: 0.631
+    loop: 0
+    source: error_006
+    author: Kenney
+    license: CC0
+  - name: UI_Toggle
+    clip: {fileID: 8300000, guid: 4ddbcb7ca00d8314cb8b7b7efd0a0532, type: 3}
+    group: UI
+    gain: 0.501
+    loop: 0
+    source: toggle_001
+    author: Kenney
+    license: CC0
+  - name: UI_Question
+    clip: {fileID: 8300000, guid: b00deebf344e20b4d963e1bf030bfb92, type: 3}
+    group: UI
+    gain: 0.389
+    loop: 0
+    source: question_001
+    author: Kenney
+    license: CC0
+  - name: UI_Hover
+    clip: {fileID: 8300000, guid: dd9a5b76ce3d4204f8ba15c92b30f4ad, type: 3}
+    group: UI
+    gain: 0.596
+    loop: 0
+    source: tick_001
+    author: Kenney
+    license: CC0
+  - name: UI_Stamp
+    clip: {fileID: 8300000, guid: efc692fee09989a419ebb6bba8c4c6ac, type: 3}
+    group: UI
+    gain: 0.724
+    loop: 0
+    source: bong_001
+    author: Kenney
+    license: CC0
+  - name: UI_Scroll
+    clip: {fileID: 8300000, guid: 4cc1e1fdc58ca444b8246a81744e748e, type: 3}
+    group: UI
+    gain: 0.794
+    loop: 0
+    source: scroll_001
+    author: Kenney
+    license: CC0
+  - name: SFX_SciFi_UI_Hover
+    clip: {fileID: 8300000, guid: 229d28f6d7e741242af168caf2ff6e57, type: 3}
+    group: UI
+    gain: 0.452
+    loop: 0
+    source: 'Dark Sci-Fi Audio Pack: hover'
+    author: SRG774
+    license: CC0
+  - name: SFX_Wattson_Appear
+    clip: {fileID: 8300000, guid: f62a8930baea521418524bc453a07626, type: 3}
+    group: Character
+    gain: 0.794
+    loop: 0
+    source: Fairy magic sparkle (2638)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Wattson_Whoosh
+    clip: {fileID: 8300000, guid: 82e2efe7d98d9404297cc7d641db35de, type: 3}
+    group: Character
+    gain: 0.569
+    loop: 0
+    source: Magic sparkle whoosh (2350)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Wattson_Wave
+    clip: {fileID: 8300000, guid: ef2aecdada0f06342a01e42f91860ff3, type: 3}
+    group: Character
+    gain: 0.794
+    loop: 0
+    source: glass_002
+    author: Kenney
+    license: CC0
+  - name: SFX_Wattson_Pop
+    clip: {fileID: 8300000, guid: 1741304cdda945845969ec9f623a5d89, type: 3}
+    group: Character
+    gain: 0.437
+    loop: 0
+    source: pepSound1
+    author: Kenney
+    license: CC0
+  - name: SFX_Wattson_Settle
+    clip: {fileID: 8300000, guid: 48e2fc1bf94fc084f923e0e3203f1a6c, type: 3}
+    group: Character
+    gain: 0.446
+    loop: 0
+    source: phaserDown1
+    author: Kenney
+    license: CC0
+  - name: SFX_Wattson_Magic
+    clip: {fileID: 8300000, guid: d6615a298f931af439e0f1e09b753800, type: 3}
+    group: Character
+    gain: 0.794
+    loop: 0
+    source: Magic wand sparkle (2352)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Magic_Gather
+    clip: {fileID: 8300000, guid: 5e86ff3878179ec45b9466a612d2ad7b, type: 3}
+    group: Character
+    gain: 0.462
+    loop: 0
+    source: Magical light moving (3082)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Magic_Poof
+    clip: {fileID: 8300000, guid: 7a141aac6d8e9194994e48c21bf5036b, type: 3}
+    group: Character
+    gain: 0.513
+    loop: 0
+    source: Magic sparkle poof hit (2407)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Electric_Glitch
+    clip: {fileID: 8300000, guid: bf7637fccc3efb54aa5d39cdad608a43, type: 3}
+    group: Electrical
+    gain: 1
+    loop: 0
+    source: Small electric glitch (2595)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Electric_Buzz
+    clip: {fileID: 8300000, guid: fef3d351e97d99440b3a439c1e86b8ab, type: 3}
+    group: Electrical
+    gain: 0.412
+    loop: 0
+    source: Electric buzz glitch (2596)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Electric_Whoosh
+    clip: {fileID: 8300000, guid: 27352cdfb495aff43b93463627572259, type: 3}
+    group: Electrical
+    gain: 1
+    loop: 0
+    source: Electric whoosh (2600)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Electronics_PowerUp
+    clip: {fileID: 8300000, guid: 479ec81c33bcef84db6fe218c6ba6833, type: 3}
+    group: Electrical
+    gain: 0.955
+    loop: 0
+    source: Electronics power up (2599)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Voltage_Reveal
+    clip: {fileID: 8300000, guid: e960e604d9f91964695477e705d2d691, type: 3}
+    group: Electrical
+    gain: 0.473
+    loop: 0
+    source: Electricity static power up (2602)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: LOOP_Electric_Charge_Hum
+    clip: {fileID: 8300000, guid: 2ef2ea3335a85274e894e3b457e57d05, type: 3}
+    group: Electrical
+    gain: 0.813
+    loop: 1
+    source: Electric charge hum (332)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Static_Crackles
+    clip: {fileID: 8300000, guid: 84871fba84d400b4fb1ac7ca8c77aece, type: 3}
+    group: Electrical
+    gain: 1
+    loop: 0
+    source: Static electric crackles (2597)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: LOOP_Electricity_Sparks
+    clip: {fileID: 8300000, guid: 6942ffa069c41894fa45e0afbb35dc00, type: 3}
+    group: Electrical
+    gain: 0.61
+    loop: 1
+    source: Futuristic electricity sparks (2138)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: LOOP_Electricity_Hum_Intense
+    clip: {fileID: 8300000, guid: 5744925480bf65f4e8d922d05c1416b1, type: 3}
+    group: Electrical
+    gain: 0.902
+    loop: 1
+    source: Intense electricity hum (2593)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: LOOP_Electricity_Hum_Low
+    clip: {fileID: 8300000, guid: 8cd77273b1746da43b6396b087c0520a, type: 3}
+    group: Electrical
+    gain: 0.562
+    loop: 1
+    source: Low electricity humming (2592)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Energy_Field
+    clip: {fileID: 8300000, guid: 1a405dd5f82ef33408c08deb70c5bf6d, type: 3}
+    group: Electrical
+    gain: 0.473
+    loop: 0
+    source: forceField_000
+    author: Kenney
+    license: CC0
+  - name: SFX_Energy_Field_Off
+    clip: {fileID: 8300000, guid: 575562acdbf2a244faee80954ed79b64, type: 3}
+    group: Electrical
+    gain: 0.479
+    loop: 0
+    source: forceField_003
+    author: Kenney
+    license: CC0
+  - name: SFX_Terminal_Positive
+    clip: {fileID: 8300000, guid: 751573c9fd0c4804f89e8ee756e8fe6e, type: 3}
+    group: Electrical
+    gain: 0.891
+    loop: 0
+    source: powerUp3
+    author: Kenney
+    license: CC0
+  - name: SFX_Terminal_Negative
+    clip: {fileID: 8300000, guid: ab8c1a4042be8134f81d3eb951516671, type: 3}
+    group: Electrical
+    gain: 0.403
+    loop: 0
+    source: lowDown
+    author: Kenney
+    license: CC0
+  - name: SFX_Battery_Connect
+    clip: {fileID: 8300000, guid: 9200960947fa4e249b359baffaa4c926, type: 3}
+    group: Electrical
+    gain: 0.407
+    loop: 0
+    source: zapTwoTone
+    author: Kenney
+    license: CC0
+  - name: SFX_Current_Marker
+    clip: {fileID: 8300000, guid: 4255e7239435bbe4e9ba1799f996ea82, type: 3}
+    group: Electrical
+    gain: 0.668
+    loop: 0
+    source: twoTone1
+    author: Kenney
+    license: CC0
+  - name: SFX_Drift_Chime
+    clip: {fileID: 8300000, guid: 62c962724f70ea847b647c715dbcac37, type: 3}
+    group: Electrical
+    gain: 0.507
+    loop: 0
+    source: threeTone1
+    author: Kenney
+    license: CC0
+  - name: SFX_Current_Reveal
+    clip: {fileID: 8300000, guid: 75948b2e0ee14a44f9375771ed34c0a2, type: 3}
+    group: Electrical
+    gain: 0.692
+    loop: 0
+    source: powerUp12
+    author: Kenney
+    license: CC0
+  - name: SFX_Scanner_Ping
+    clip: {fileID: 8300000, guid: 31522329c3e7879489e94c0018c22a22, type: 3}
+    group: SFX
+    gain: 0.525
+    loop: 0
+    source: tone1
+    author: Kenney
+    license: CC0
+  - name: SFX_Scanner_Lock
+    clip: {fileID: 8300000, guid: fd0b35c2a977c8143ab2a9a567508f80, type: 3}
+    group: SFX
+    gain: 0.305
+    loop: 0
+    source: highUp
+    author: Kenney
+    license: CC0
+  - name: SFX_Scan_Charge
+    clip: {fileID: 8300000, guid: dc8c316c849c3e640811c8ac97b7f2c9, type: 3}
+    group: SFX
+    gain: 0.144
+    loop: 0
+    source: computerNoise_000
+    author: Kenney
+    license: CC0
+  - name: SFX_Apparatus_Click
+    clip: {fileID: 8300000, guid: e965586be2dd7bb4fb20137c90004a0c, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: switch_002
+    author: Kenney
+    license: CC0
+  - name: SFX_Whoosh_Fast
+    clip: {fileID: 8300000, guid: d23ee23a0ec58ae4381cddd071b00c45, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: Cinematic whoosh fast transition (1492)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Tunnel_Woosh
+    clip: {fileID: 8300000, guid: 032d1fc929934db47978814cf5fe2680, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: Cinematic tunnel reverb woosh (2608)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_SciFi_Sweep
+    clip: {fileID: 8300000, guid: 0d2f954c86f26454d80f98c2d91a890e, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: Fast sci fi transition sweep (2408)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Magic_Sweep
+    clip: {fileID: 8300000, guid: 2eebb6c346d46ee4599988e69db8023d, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: Magic transition sweep presentation (869)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Tech_Alert
+    clip: {fileID: 8300000, guid: e491e7256fdbedd4eb91c58181f4bd40, type: 3}
+    group: SFX
+    gain: 0.389
+    loop: 0
+    source: Technology alert transition (3111)
+    author: Mixkit (Envato)
+    license: Mixkit Sound Effects Free License
+  - name: SFX_Impact_Low
+    clip: {fileID: 8300000, guid: e5e32e1a1a6c1224a89d3ed54821b05f, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: lowFrequency_explosion_000
+    author: Kenney
+    license: CC0
+  - name: SFX_Magic_Settle
+    clip: {fileID: 8300000, guid: 1428c727edf53d741b29ebabe2f80746, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: glass_005
+    author: Kenney
+    license: CC0
+  - name: SFX_Voltage_Step
+    clip: {fileID: 8300000, guid: bd16de8244ebc0646841556f6210ab30, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: drop_002
+    author: Kenney
+    license: CC0
+  - name: SFX_Record
+    clip: {fileID: 8300000, guid: baa0f6a24962e8740aa276dbe5ef1346, type: 3}
+    group: SFX
+    gain: 0.447
+    loop: 0
+    source: twoTone2
+    author: Kenney
+    license: CC0
+  - name: SFX_Plot
+    clip: {fileID: 8300000, guid: ea53946b519b78848a5b5e6d10a1b5b4, type: 3}
+    group: SFX
+    gain: 0.347
+    loop: 0
+    source: pepSound2
+    author: Kenney
+    license: CC0
+  - name: SFX_Part_Select
+    clip: {fileID: 8300000, guid: 3e8a62aef90d1be449d1a64c6972be0b, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: select_003
+    author: Kenney
+    license: CC0
+  - name: SFX_Part_Place
+    clip: {fileID: 8300000, guid: e8d63f63da9d22049acd322a5897c912, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: drop_003
+    author: Kenney
+    license: CC0
+  - name: SFX_Key_Switch
+    clip: {fileID: 8300000, guid: 17a4417a9fbdb0148ad548a2c77ea7dc, type: 3}
+    group: SFX
+    gain: 0.631
+    loop: 0
+    source: switch_004
+    author: Kenney
+    license: CC0
+  - name: SFX_Condition_Reached
+    clip: {fileID: 8300000, guid: c631755349d6fa24894195c2887b034d, type: 3}
+    group: SFX
+    gain: 0.457
+    loop: 0
+    source: confirmation_003
+    author: Kenney
+    license: CC0
+  - name: SFX_Info_Chime
+    clip: {fileID: 8300000, guid: 966a499670dca02468d4ea46439cefda, type: 3}
+    group: SFX
+    gain: 0.376
+    loop: 0
+    source: threeTone2
+    author: Kenney
+    license: CC0
+  - name: SFX_Fact_Chime
+    clip: {fileID: 8300000, guid: cdd35c87d5f95ee4498d236570145343, type: 3}
+    group: SFX
+    gain: 0.562
+    loop: 0
+    source: glass_004
+    author: Kenney
+    license: CC0
+  aliases:
+  - from: PadIntro
+    to: BGM_Professor_Ohm_Laboratory
+  - from: PadLab
+    to: BGM_Professor_Ohm_Laboratory
+  - from: PadLabTheme
+    to: BGM_Wattson_Magical_Discovery
+  - from: PadWire
+    to: BGM_Conductor_Airy
+  - from: WireHum
+    to: LOOP_Electricity_Hum_Low
+  - from: CircuitHum
+    to: LOOP_Electric_Charge_Hum
+  - from: Select
+    to: SFX_Part_Select
+  - from: Place
+    to: SFX_Part_Place
+  - from: Switch
+    to: SFX_Key_Switch
+  - from: VoltStep
+    to: SFX_Voltage_Step
+  - from: Record
+    to: SFX_Record
+  - from: Plot
+    to: SFX_Plot
+  - from: Highlight
+    to: SFX_Fact_Chime
+  - from: Reveal
+    to: SFX_Scientific_Discovery
+  - from: Rise
+    to: SFX_Magic_Sweep
+  - from: Omega
+    to: SFX_Discovery_Victory
+  - from: Finale
+    to: SFX_Final_Success
+  - from: Transform
+    to: SFX_Magic_Poof
+  - from: LabSweep
+    to: SFX_Magic_Sweep
+  - from: Enter
+    to: SFX_Tunnel_Woosh
+  - from: Exit
+    to: SFX_Whoosh_Fast
+  - from: Count
+    to: UI_Hover
+  - from: ui.hover
+    to: UI_Hover
+  - from: ui.click
+    to: UI_Click
+  - from: ui.open
+    to: UI_Open
+  - from: ui.close
+    to: UI_Close
+  - from: ui.done
+    to: SFX_Correct_Answer
+  - from: ui.hint
+    to: UI_Question
+  - from: ui.stamp
+    to: UI_Stamp
+  - from: ui.wrong
+    to: UI_Error
+  - from: ui.start
+    to: UI_Confirm
+  cueRules:
+  - cueStartsWith: wire.dive
+    clip: SFX_Tunnel_Woosh
+    gain: 0.7
+    cooldown: 2
+  - cueStartsWith: fade 1 0.15
+    clip: SFX_Impact_Low
+    gain: 0.45
+    cooldown: 2
+  - cueStartsWith: fade 1 0.3
+    clip: SFX_Whoosh_Fast
+    gain: 0.5
+    cooldown: 2
+  - cueStartsWith: fade 1
+    clip: SFX_Whoosh_Fast
+    gain: 0.35
+    cooldown: 4
+  - cueStartsWith: callout show
+    clip: SFX_Fact_Chime
+    gain: 0.5
+    cooldown: 1
+  - cueStartsWith: wire.trails 1
+    clip: SFX_Electric_Glitch
+    gain: 0.5
+    cooldown: 0.25
+  - cueStartsWith: "show Card Terminal Label \u2212"
+    clip: SFX_Terminal_Negative
+    gain: 0.8
+    cooldown: 0.25
+  - cueStartsWith: show Card Terminal Label +
+    clip: SFX_Terminal_Positive
+    gain: 0.8
+    cooldown: 0.25
+  - cueStartsWith: show Bracket
+    clip: SFX_Electric_Whoosh
+    gain: 0.6
+    cooldown: 0.25
+  - cueStartsWith: show [VFX] field wave
+    clip: SFX_Electronics_PowerUp
+    gain: 0.45
+    cooldown: 0.25
+  - cueStartsWith: wire.field 1
+    clip: SFX_Battery_Connect
+    gain: 0.7
+    cooldown: 0.25
+  - cueStartsWith: show Drift Arrow
+    clip: SFX_Drift_Chime
+    gain: 0.7
+    cooldown: 0.25
+  - cueStartsWith: counter 1
+    clip: SFX_Current_Marker
+    gain: 0.7
+    cooldown: 0.25
+  - cueStartsWith: wire.freeze 1
+    clip: SFX_Energy_Field
+    gain: 0.7
+    cooldown: 0.25
+  - cueStartsWith: wire.freeze 0
+    clip: SFX_Energy_Field_Off
+    gain: 0.5
+    cooldown: 0.25
+  - cueStartsWith: boost Card Terminal +
+    clip: SFX_Voltage_Reveal
+    gain: 0.6
+    cooldown: 0.25
+  - cueStartsWith: spotlight
+    clip: UI_Question
+    gain: 0.5
+    cooldown: 0.25
+  - cueStartsWith: show Beam
+    clip: SFX_Scan_Charge
+    gain: 0.6
+    cooldown: 0.25
+  - cueStartsWith: show [VFX] Ohm-niscope flash
+    clip: SFX_Magic_Poof
+    gain: 0.6
+    cooldown: 0.25
+  - cueStartsWith: 'hero '
+    clip: SFX_Scientific_Discovery
+    gain: 0.6
+    cooldown: 2
+  - cueStartsWith: 'reveal '
+    clip: SFX_Info_Chime
+    gain: 0.7
+    cooldown: 1
+  - cueStartsWith: stage 1
+    clip: UI_Open
+    gain: 0.6
+    cooldown: 0.25
+  - cueStartsWith: stage 0
+    clip: UI_Close
+    gain: 0.5
+    cooldown: 0.25
+  - cueStartsWith: readings.top 1
+    clip: SFX_Info_Chime
+    gain: 0.5
+    cooldown: 0.25
+  - cueStartsWith: schematic 1
+    clip: SFX_Scanner_Lock
+    gain: 0.7
+    cooldown: 0.25
+  - cueStartsWith: 'rig.drag '
+    clip: SFX_Scanner_Ping
+    gain: 0.5
+    cooldown: 1
+  - cueStartsWith: rig.readouts 1
+    clip: SFX_Info_Chime
+    gain: 0.4
+    cooldown: 0.25
+  - cueStartsWith: table.ratio 1
+    clip: SFX_Info_Chime
+    gain: 0.6
+    cooldown: 0.25
+  - cueStartsWith: table.glow
+    clip: SFX_Fact_Chime
+    gain: 0.6
+    cooldown: 0.25
+  - cueStartsWith: table.highlight
+    clip: SFX_Fact_Chime
+    gain: 0.4
+    cooldown: 0.25
+  - cueStartsWith: graph.triangle
+    clip: SFX_Scanner_Ping
+    gain: 0.5
+    cooldown: 0.25
+  - cueStartsWith: graph.highlight
+    clip: SFX_Fact_Chime
+    gain: 0.4
+    cooldown: 0.25
+  - cueStartsWith: 'vanish '
+    clip: SFX_Magic_Poof
+    gain: 0.45
+    cooldown: 1
+  - cueStartsWith: 'appear '
+    clip: SFX_Magic_Gather
+    gain: 0.5
+    cooldown: 1
+  - cueStartsWith: 'fx '
+    clip: SFX_Static_Crackles
+    gain: 0.5
+    cooldown: 0.4
+  - cueStartsWith: 'look '
+    clip: SFX_Magic_Sweep
+    gain: 0.5
+    cooldown: 3
+  - cueStartsWith: ohm.freeze 1
+    clip: SFX_Energy_Field
+    gain: 0.5
+    cooldown: 0.25
+  - cueStartsWith: inset 1
+    clip: UI_Open
+    gain: 0.6
+    cooldown: 0.25
+  - cueStartsWith: end
+    clip: SFX_Final_Success
+    gain: 0.7
+    cooldown: 5
