@@ -108,3 +108,17 @@ Checkpoint before any change: commit `28c9aa4`. Every entry says what was **Impl
   −0.35); the freeze/gadget beat plays in the "Wire Wattson" two-shot before S06_L01, then Wire Inside for the card.
 - Compile: clean. Verify: calmer floor/backdrop, warm walls, orange ions in a faintly glowing tube, cyan haloed
   electrons, Wattson lower-left ≈190 px, labels inside both wides, gauge ≈100 px from the top.
+
+## Orchestration — Tested
+- Full-tree compile clean (`Tools/compile_check.sh final`); code committed as `e53ff6b` before any scene rebuild.
+- Editor chain (open editor, PID 34148): `menu Ohm's Law/Build Scene 04` (51 s; wrote PadIntro / PadLabTheme /
+  CircuitHum wavs) → `all` (first attempt failed: `BlockoutAssets.EnsureDisplayFont` null reference, the TMP
+  fallback list is null in memory right after CreateAsset + SaveAssets; guarded, re-run clean, Scenes 05–13 built,
+  Fredoka SDF created with Nunito as fallback) → `Polish/Apply later scenes` (9 scenes patched; Classroom polished
+  exposure now 0.45, Finale_Global_Polished created) → self-checks Ohm Pose 21, Wattson Pose 119, Wattson Actions
+  144, Lab Continuity 153, Voice Pipeline 20, Wire Electrons 18, HUD v5 11, Wire Sample 4: **490 pass, 0 fail**.
+- After run `all record ask fresh @1920x1080`: **RESULT PASS**, 616.6 s, every line of every scene spoken in order,
+  all gates taken, Ask Wattson probe passed, no FAIL / ERROR / STALL. Evidence `Reports/OhmsLawAudit/after/`.
+- Perf (editor, no recorder, Scenes 9–13 at 2x): frame ms mean 17.5–19.6, p95 ≤ 25.9, batches ≤ 590 — the same as
+  the pre-change baseline (the recorder's per-frame readback inflates the recorded runs to 42–45 ms in both runs).
+- Audio of the after run: integrated −21.1 LUFS, LRA 8.7 LU, true peak −2.0 dBFS, no silence gap > 2.5 s.

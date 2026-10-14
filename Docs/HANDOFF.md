@@ -1,3 +1,5 @@
+Audit and polish pass (14 October 2026): read `Reports/OhmsLawAudit/Final_QA_Report.md` first (regression runs, verified findings, honest scores, remaining limitations), then `Implementation_Log.md` (every change by work package) and `Improvement_Plan.md` (file ownership). Evidence pipeline: play test `all record ask fresh @1920x1080` → `python Tools/audit_frames.py <run>`.
+
 # Hand-off — Ohm's Law Unity module (Scenes 4–13)
 
 UI v2 design checkpoint (12 October 2026): editable [OhmsLaw_UI_v2](https://www.figma.com/design/63sTcmNn0TYOn4lrxAgJgq) is ready for review. Read [UI v2 handoff](UI_v2/HANDOFF.md) and [design review](UI_v2/README.md) before continuing. The audit covers both OhmsLaw and AdaptiveLearning UI, including runtime/hidden/shared views. Unity UI integration awaits the requested design approval; no gameplay scenes or scripts were modified in this design phase. Migration inventory, exported assets, font licences/glyph evidence and explicitly pending Unity validation reports are in `Docs/UI_v2`.

@@ -59,6 +59,7 @@ namespace OhmsLaw.Editor
                 EditorUtility.SetDirty(display);
                 AssetDatabase.SaveAssets();
             }
+            if (display.fallbackFontAssetTable == null) display.fallbackFontAssetTable = new System.Collections.Generic.List<TMP_FontAsset>(); // null in memory right after CreateAsset + SaveAssets
             if (body && !display.fallbackFontAssetTable.Contains(body))
             {
                 display.fallbackFontAssetTable.Add(body);

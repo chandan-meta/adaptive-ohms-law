@@ -1,6 +1,6 @@
 # Ohm's Law module flow
 
-Generated 2026-10-14 12:16 from the scene Timelines. Scene 4 is the polished build; Scenes 5-13 are blockouts.
+Generated 2026-10-14 13:18 from the scene Timelines. Scene 4 is the polished build; Scenes 5-13 are blockouts.
 
 ## Scene05 — Journey Inside the Wire
 
@@ -12,7 +12,7 @@ Generated 2026-10-14 12:16 from the scene Timelines. Scene 4 is the polished bui
 | 0.5 s | Visual | Into the wire surface | 1.1 s |
 | 1.6 s | Visual | fade 1 0.15 — a flash of white (0.15 s) |  |
 | 1.8 s | Camera | Wire Enter |  |
-| 1.8 s | Visual | The dive settles inside the copper lattice; Wattson glides in to his spot on the floor, lower-left | 1.2 s |
+| 1.8 s | Visual | The dive settles inside the copper: its ions on the lattice in the glass, the electrons glowing cyan between them; Wattson glides in to his spot lower-left, under the conduit's − end | 1.2 s |
 | 1.9 s | Visual | the entry camera keeps moving: 3 m on, easing out onto Wire Inside (`wire.dive 1.8`) |  |
 | 1.9 s | Visual | fade 0 0.5 — the flash clears on the cavern: warm copper atoms all round, the conduit ahead |  |
 | 3.0 s | VO | `S05_V01` Now you are inside the wire. | 2.4 s |
@@ -54,9 +54,9 @@ Generated 2026-10-14 12:16 from the scene Timelines. Scene 4 is the polished bui
 | 0.0 s | Visual | match-cut from Scene 5: carriers still drifting − → + (`wire.field 1`) |  |
 | 0.0 s | Visual | Wattson turns toward the learner | 0.6 s |
 | 0.6 s | Camera | Wire Wattson |  |
-| 0.6 s | VO | `S06_L01` Detective test. | 1.9 s |
-| 2.8 s | Visual | electrons frozen (a little random motion only) until the scene ends, so the drift never reveals the answer (`wire.freeze 1`) |  |
-| 2.8 s | Visual | The Ohm-niscope freezes the electrons in the two-shot: the cold pulse from his gadget, frost round the conduit, the charges turn ice-blue and stop drifting; the counter is put away | 1.2 s |
+| 0.6 s | Visual | electrons frozen (a little random motion only) until the scene ends, so the drift never reveals the answer (`wire.freeze 1`) |  |
+| 0.6 s | Visual | The Ohm-niscope freezes the electrons in the two-shot: the cold pulse from his gadget, frost round the conduit, the charges and their halos turn ice-blue and stop drifting; the counter is put away | 1.2 s |
+| 1.8 s | VO | `S06_L01` Detective test. | 1.9 s |
 | 4.0 s | Camera | Wire Inside |  |
 | 4.0 s | Visual | Voltage rises on the + terminal's gauge while the electrons stay frozen | 1.4 s |
 | 4.6 s | Visual | Wattson raises the battery voltage: the + terminal brightens as its V gauge rises (`boost Card Terminal +`) |  |
@@ -132,18 +132,18 @@ Generated 2026-10-14 12:16 from the scene Timelines. Scene 4 is the polished bui
 | 20.5 s | Visual | and up again, to the class (`ohm.pose Present`) |  |
 | 20.8 s | VO | `S08_P02` Thank you, Georg Ohm! Back to 1826 you go. | 5.0 s |
 | 21.2 s | Visual | Ohm dissolves back to 1826 (`vanish 1.0 Georg Ohm`) |  |
-| 26.6 s | Visual | light, ambient, fog, background, post and reflections crossfade to the classroom (`look 2.8 classroom`) |  |
-| 26.6 s | Visual | the camera sweeps 20 degrees round the bench and pulls back onto Bench Wide's pose (`glide 3.4 Cam Bench Orbit`) |  |
 | 26.6 s | Visual | the time wave: a ring of light grows out from the bench, past the walls (`appear 1.8 Time Wave`) |  |
 | 26.6 s | Visual | fade 0.12 0.1 — a brief exposure lift at the wave |  |
-| 26.6 s | Visual | Ohm's study sweeps away from the bench into today's classroom lab | 1.2 s |
 | 26.8 s | Visual | fade 0 0.8 |  |
-| 27.8 s | VO | `S08_L02` So let's investigate his relationship using the instruments you would use today. | 4.7 s |
-| 29.6 s | Camera | Bench Wide |  |
-| 32.7 s | Visual | handoff — SceneHandoffState: camera pose + CircuitState |  |
-| 33.0 s | Hand-off | Scene08Complete → next scene |  |
+| 27.2 s | Visual | light, ambient, fog, background, post and reflections crossfade to the classroom (`look 2.8 classroom`) |  |
+| 27.2 s | Visual | the camera sweeps 20 degrees round the bench and pulls back onto Bench Wide's pose (`glide 3.4 Cam Bench Orbit`) |  |
+| 27.2 s | Visual | Ohm's study sweeps away from the bench into today's classroom lab | 1.2 s |
+| 28.4 s | VO | `S08_L02` So let's investigate his relationship using the instruments you would use today. | 4.7 s |
+| 30.2 s | Camera | Bench Wide |  |
+| 33.3 s | Visual | handoff — SceneHandoffState: camera pose + CircuitState |  |
+| 33.6 s | Hand-off | Scene08Complete → next scene |  |
 
-**Scene total:** 34.1 s of Timeline, plus time spent at 0 interaction gate(s).
+**Scene total:** 34.7 s of Timeline, plus time spent at 0 interaction gate(s).
 
 ## Scene09 — Build the Circuit
 
@@ -155,13 +155,19 @@ Generated 2026-10-14 12:16 from the scene Timelines. Scene 4 is the polished bui
 | 0.8 s | VO | `S09_L01` That's our test conductor. | 2.2 s |
 | 3.3 s | VO | `S09_L02` We're going to change the potential difference across this nichrome wire...measure the current through it... | 5.4 s |
 | 8.9 s | VO | `S09_L03` ...and see whether your prediction was right. | 2.8 s |
+| 12.0 s | Camera | Tray Close |  |
 | 12.0 s | VO | `S09_L05` If we want to know how much current flows through the nichrome wire, we use an ammeter. | 5.0 s |
 | 12.0 s | Visual | the series slot glows: the ammeter may be selected now (`rig.drag ammeter`) |  |
+| 12.0 s | Visual | a slow dolly onto the tray and the ammeter waiting in it (`push 3.2 Cam Tray Close`) |  |
+| 15.8 s | Camera | Bench Study |  |
 | 17.2 s | Interaction | `S09_PlaceAmmeter` — Panel: 'Select the ammeter.' then 'Click the highlighted position to place it.' (tap the meter, tap the glowing slot; or drag it there). Snaps with a placement sound; the series path lights, the X → Y pulse runs, the board's A lights. AutoPlace / autoAnswer fly it in. | waits |
 | 17.4 s | Visual | The ammeter snaps in: the series path lights, the X → Y pulse starts | 0.8 s |
 | 18.2 s | VO | `S09_L06` Exactly. An ammeter is connected in series, so the same current passes through it and the test wire. | 6.9 s |
+| 25.4 s | Camera | Voltmeter Close |  |
 | 25.4 s | VO | `S09_L07` And when we need the potential difference between the two ends of the wire... we use the voltmeter. | 5.4 s |
 | 25.4 s | Visual | the parallel slot glows: the voltmeter may be selected now (`rig.drag voltmeter`) |  |
+| 25.4 s | Visual | a slow dolly onto Y, the parallel slot and the voltmeter in the tray (`push 3.2 Cam Voltmeter Close`) |  |
+| 29.2 s | Camera | Bench Study |  |
 | 30.9 s | Interaction | `S09_PlaceVoltmeter` — Panel: 'Select the voltmeter.' then 'Click the highlighted position to place it.' Its leads reach X and Y; the board's V and its parallel leads light. | waits |
 | 31.1 s | VO | `S09_L08` That's why a voltmeter is connected in parallel across the nichrome wire. | 4.6 s |
 | 31.1 s | Visual | the empty tray folds away, so the last frame matches Scene 10's bench (`retract 0.5 Parts Tray`) |  |
@@ -193,27 +199,30 @@ Generated 2026-10-14 12:16 from the scene Timelines. Scene 4 is the polished bui
 | 0.6 s | Visual | the digital plates and the readings strip appear: 0.0 V, 0.00 A (`rig.readouts 1`) |  |
 | 1.0 s | VO | `S10_L01` Let's start low. Set the battery to 1 volt. | 4.2 s |
 | 5.3 s | Interaction | `S10_Set1V` — Panel: 'Set the voltage to 1 V.' (slider steps above 1 V dim). Once it holds: 'Observe the current reading.', row 1 records from the live meters with a confirmation chime, point 1 plots.<br>Lines: `S10_Set1V_H` Slide the battery to 1 volt. | waits |
-| 5.5 s | Interaction | `S10_Set2V` — Panel: 'Set the voltage to 2 V.' → observe → row 2 records, point 2 plots.<br>Lines: `S10_Set2V_GO` One volt, and the ammeter reads 0.20 amperes. Now set the voltage to 2 volts.; `S10_Set2V_H` Slide the battery to 2 volts. | waits |
-| 5.7 s | Interaction | `S10_Predict3V` — Quick check (MCQ, [QC]): 'At 3 volts, what will the ammeter read?' A 0.40 A · B 0.60 A · C 0.80 A. Recorded under Relationship, no mark; Wattson: 'Locked in.'<br>Lines: `S10_Predict3V_Q` Detective's wager: at three volts, what will the ammeter read?; `S10_Predict3V_R` Locked in. Set three volts and let the ammeter judge. | waits |
-| 5.9 s | Interaction | `S10_Set3V` — Panel: 'Set the voltage to 3 V.' → observe → row 3, point 3.<br>Lines: `S10_Set3V_H` Slide the battery to 3 volts. | waits |
-| 6.1 s | Interaction | `S10_After3V` — Say gate: the ammeter's verdict on the wager (B spot on / A climbed / C in step, not faster).<br>Lines: `S10_After3V_If_S10_Predict3V_A` The ammeter says zero point six, not zero point four. The current climbed with the voltage.; `S10_After3V_If_S10_Predict3V_B` Spot on. Three volts, zero point six amperes: the pattern holds.; `S10_After3V_If_S10_Predict3V_C` Zero point six, not zero point eight: it rises in step, not faster. | waits |
-| 6.3 s | Interaction | `S10_Set4V` — Panel: 'Set the voltage to 4 V.' → observe → row 4, point 4.<br>Lines: `S10_Set4V_GO` And 4 volts.; `S10_Set4V_H` Slide the battery to 4 volts. | waits |
-| 6.5 s | Interaction | `S10_Set5V` — Panel: 'Set the voltage to 5 V.' → observe → row 5, point 5.<br>Lines: `S10_Set5V_GO` Last one: 5 volts.; `S10_Set5V_H` Slide the battery to 5 volts. | waits |
-| 6.7 s | VO | `S10_L06` Look at your data. | 1.8 s |
-| 6.7 s | Visual | the slider goes: the data holds the attention now (`rig.slider 0`) |  |
-| 8.8 s | VO | `S10_L07` What do you notice? | 1.9 s |
-| 11.9 s | VO | `S10_L09` Compare just these two. | 2.1 s |
-| 11.9 s | Visual | rows 1 and 2 highlight (`table.highlight 0 1`) |  |
-| 14.3 s | VO | `S10_L10` What happened to the current when the potential difference doubled? It also doubled | 5.2 s |
-| 17.7 s | Visual | the doubling lands on 'It also doubled' (`hero V × 2  →  I × 2|double the voltage, double the current`) |  |
-| 19.7 s | Visual | The doubling, centre screen | 1.4 s |
-| 21.1 s | Interaction | `S10_Callback` — Say gate: the Scene 6 prediction called back (A rose / B dropped / C no change).<br>Lines: `S10_Callback_If_S06_Prediction_A` Back in the wire you predicted the current would rise. Your data agrees.; `S10_Callback_If_S06_Prediction_B` You predicted the current would drop. The data says it rises. Good detectives update.; `S10_Callback_If_S06_Prediction_C` You predicted no change. The data shows it rises with the push. | waits |
-| 21.3 s | VO | `S10_L11` Now we're getting somewhere. | 2.0 s |
-| 21.3 s | Visual | the plate goes on 'Now we're getting somewhere.' (`hero.clear`) |  |
-| 23.5 s | Visual | handoff — SceneHandoffState: table rows + camera |  |
-| 23.8 s | Hand-off | Scene10Complete → next scene |  |
+| 5.5 s | Camera | Meter Close |  |
+| 5.5 s | Visual | Close on the ammeter: the needle at 0.20 A, the plate reads 0.20 A | 2.6 s |
+| 8.1 s | Camera | Bench Study |  |
+| 9.3 s | Interaction | `S10_Set2V` — Panel: 'Set the voltage to 2 V.' → observe → row 2 records, point 2 plots.<br>Lines: `S10_Set2V_GO` One volt, and the ammeter reads 0.20 amperes. Now set the voltage to 2 volts.; `S10_Set2V_H` Slide the battery to 2 volts. | waits |
+| 9.5 s | Interaction | `S10_Predict3V` — Quick check (MCQ, [QC]): 'At 3 volts, what will the ammeter read?' A 0.40 A · B 0.60 A · C 0.80 A. Recorded under Relationship, no mark; Wattson: 'Locked in.'<br>Lines: `S10_Predict3V_Q` Detective's wager: at three volts, what will the ammeter read?; `S10_Predict3V_R` Locked in. Set three volts and let the ammeter judge. | waits |
+| 9.7 s | Interaction | `S10_Set3V` — Panel: 'Set the voltage to 3 V.' → observe → row 3, point 3.<br>Lines: `S10_Set3V_H` Slide the battery to 3 volts. | waits |
+| 9.9 s | Interaction | `S10_After3V` — Say gate: the ammeter's verdict on the wager (B spot on / A climbed / C in step, not faster).<br>Lines: `S10_After3V_If_S10_Predict3V_A` The ammeter says zero point six, not zero point four. The current climbed with the voltage.; `S10_After3V_If_S10_Predict3V_B` Spot on. Three volts, zero point six amperes: the pattern holds.; `S10_After3V_If_S10_Predict3V_C` Zero point six, not zero point eight: it rises in step, not faster. | waits |
+| 10.1 s | Interaction | `S10_Set4V` — Panel: 'Set the voltage to 4 V.' → observe → row 4, point 4.<br>Lines: `S10_Set4V_GO` And 4 volts.; `S10_Set4V_H` Slide the battery to 4 volts. | waits |
+| 10.3 s | Interaction | `S10_Set5V` — Panel: 'Set the voltage to 5 V.' → observe → row 5, point 5.<br>Lines: `S10_Set5V_GO` Last one: 5 volts.; `S10_Set5V_H` Slide the battery to 5 volts. | waits |
+| 10.5 s | VO | `S10_L06` Look at your data. | 1.8 s |
+| 10.5 s | Visual | the slider goes: the data holds the attention now (`rig.slider 0`) |  |
+| 12.6 s | VO | `S10_L07` What do you notice? | 1.9 s |
+| 15.7 s | VO | `S10_L09` Compare just these two. | 2.1 s |
+| 15.7 s | Visual | rows 1 and 2 highlight (`table.highlight 0 1`) |  |
+| 18.1 s | VO | `S10_L10` What happened to the current when the potential difference doubled? It also doubled | 5.2 s |
+| 21.5 s | Visual | the doubling lands on 'It also doubled' (`hero V × 2  →  I × 2|double the voltage, double the current`) |  |
+| 23.5 s | Visual | The doubling, centre screen | 1.4 s |
+| 24.9 s | Interaction | `S10_Callback` — Say gate: the Scene 6 prediction called back (A rose / B dropped / C no change).<br>Lines: `S10_Callback_If_S06_Prediction_A` Back in the wire you predicted the current would rise. Your data agrees.; `S10_Callback_If_S06_Prediction_B` You predicted the current would drop. The data says it rises. Good detectives update.; `S10_Callback_If_S06_Prediction_C` You predicted no change. The data shows it rises with the push. | waits |
+| 25.1 s | VO | `S10_L11` Now we're getting somewhere. | 2.0 s |
+| 25.1 s | Visual | the plate goes on 'Now we're getting somewhere.' (`hero.clear`) |  |
+| 27.3 s | Visual | handoff — SceneHandoffState: table rows + camera |  |
+| 27.6 s | Hand-off | Scene10Complete → next scene |  |
 
-**Scene total:** 24.9 s of Timeline, plus time spent at 8 interaction gate(s).
+**Scene total:** 28.7 s of Timeline, plus time spent at 8 interaction gate(s).
 
 ## Scene11 — The Pattern
 
@@ -318,7 +327,9 @@ Generated 2026-10-14 12:16 from the scene Timelines. Scene 4 is the polished bui
 | 17.3 s | Visual | The name holds centre screen; the lab warms | 0.8 s |
 | 18.1 s | VO | `S13_N01` You've followed the charges, measured the current, and discovered the pattern. Voltage, current, and resistance are connected by one relationship: V equals I times R. That's Ohm's law! | 12.0 s |
 | 18.1 s | Visual | the plate gives way to Ohm: the case-closed card carries the law at the end (`hero.clear`) |  |
+| 18.1 s | Visual | the lab warms for Ohm (WP-L's look; a look name the director lacks only logs a warning) (`look 2.0 finale`) |  |
 | 18.1 s | Visual | Georg Ohm reappears behind the bench, presenting (`appear 0.9 Georg Ohm`) |  |
+| 18.1 s | Visual | a slow dolly toward Ohm and the bench through the summary (`push 11 Cam Finale`) |  |
 | 30.5 s | Visual | The completed composition holds: bench, meters, Ohm and Wattson | 2.5 s |
 | 33.0 s | Visual | the panel offers replay and exit; the module holds here (`end`) |  |
 
@@ -331,14 +342,14 @@ Generated 2026-10-14 12:16 from the scene Timelines. Scene 4 is the polished bui
 | Scene05 | 90.3 s | 12 | 1 |
 | Scene06 | 21.3 s | 3 | 1 |
 | Scene07 | 31.9 s | 6 | 0 |
-| Scene08 | 34.1 s | 4 | 0 |
+| Scene08 | 34.7 s | 4 | 0 |
 | Scene09 | 53.7 s | 12 | 3 |
-| Scene10 | 24.9 s | 6 | 8 |
+| Scene10 | 28.7 s | 6 | 8 |
 | Scene11 | 30.2 s | 4 | 1 |
 | Scene12 | 112.0 s | 19 | 2 |
 | Scene13 | 34.0 s | 7 | 1 |
 
-**Module Timeline total (Scenes 5-13):** 432.4 s ≈ 7.2 min, before interaction wait times. Scene 4 adds about 50 s.
+**Module Timeline total (Scenes 5-13):** 436.8 s ≈ 7.3 min, before interaction wait times. Scene 4 adds about 50 s.
 
 ## Proposed lines (not in the storyboard)
 
