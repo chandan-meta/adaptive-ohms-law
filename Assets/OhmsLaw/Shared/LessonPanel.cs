@@ -24,8 +24,10 @@ namespace OhmsLaw
     //                       strip at the top), UI_Stage (the table, graph and formula cards in front of the 3D view),
     //                       UI_Popup3D (a card showing a RenderTexture the learner can turn), UI_VoltageStrip (the battery slider)
     // Sizes are 1920x1080 reference px; HudScale keeps the canvas from shrinking below 75 %. Colour means something:
-    // the chrome is translucent navy glass with a cyan hairline, Wattson's spark marks guidance and "done", blue / amber /
-    // red only ever mean V, I, R.
+    // the chrome is two-tone navy glass with an electric-blue edge and glow (the kids UI, Docs/Polish/KIDS_UI), amber is the
+    // one primary action, Wattson's spark marks guidance and "done", green / red only ever mean right / wrong, and
+    // blue / amber / red only ever mean V, I, R. Display text (titles, hero plates, readouts, the stamp) is Fredoka
+    // (UI.DisplayFont); everything else Nunito Sans.
     public class LessonPanel : MonoBehaviour
     {
         public static LessonPanel Instance { get; private set; }
@@ -41,12 +43,15 @@ namespace OhmsLaw
         // ponytail: StageScale 1.1, not the brief's 1.2: the stage shows the dock-sized table and graph cards side by side
         // (1153 px before scaling), and 1.2 would overrun the 1408 px free frame; bigger needs taller view holders on the stage.
         public const float HeroFont = 120f, HeroSubFont = 26f, StageScale = 1.1f, Popup3DWidth = 980f, Popup3DView = 440f, VoltStripWidth = 720f, VoltStripBottom = 212f;
+        // Motion (DESIGN_SPEC §6): panels enter over 0.22 s easing out, buttons settle in 0.14 s; exits are faster; fades
+        // only under reduced motion.
+        public const float PanelSeconds = 0.22f, ButtonSeconds = 0.14f;
 
         // Block order in the dock (top to bottom). Names are what callers ask Block() for. A question (MCQ) sits right
         // under its turn card, above the data it asks about.
         public static readonly string[] Order = { "Instruction", "Info", "Volt", "Readings", "Counter", "Schematic", "Inset", "MCQ", "Table", "Graph", "Formula", "Spacer", "End" };
         static readonly HashSet<string> Bare = new HashSet<string> { "Spacer" }; // draws no card
-        static readonly HashSet<string> Keep = new HashSet<string> { "Edge", "Plate", "Shine" }; // a card's own layers, kept by Clear()
+        static readonly HashSet<string> Keep = new HashSet<string> { "Edge", "Plate", "Shine", "Glow", "Halo", "Brackets" }; // a card's own layers, kept by Clear()
         static readonly HashSet<string> StageBlocks = new HashSet<string> { "Table", "Graph", "Formula" };
 
         public RectTransform Root { get; private set; }
@@ -60,26 +65,35 @@ namespace OhmsLaw
         public bool Wide { get; private set; }
         public string Title { get; private set; } = "";
 
-        // Colour roles (design v3).
+        // Colour roles (kids UI, Docs/Polish/KIDS_UI/DESIGN_SPEC.md §1): ink on every bright fill, text on navy.
         public static readonly Color Ink = new Color32(0x0A, 0x11, 0x20, 0xFF);
-        public static readonly Color Paper = new Color32(0xF7, 0xF5, 0xEF, 0xFF);
+        public static readonly Color Paper = new Color32(0xF4, 0xFA, 0xFF, 0xFF);
         public static readonly Color Body = new Color32(0xD3, 0xDA, 0xE6, 0xFF);
-        public static readonly Color Muted = new Color32(0xA9, 0xB6, 0xCC, 0xFF);
-        public static readonly Color Raised = new Color32(0x14, 0x1D, 0x30, 0xFF);
-        public static readonly Color HoverFill = new Color32(0x1D, 0x29, 0x44, 0xFF);
-        // v5 glass: cards are translucent navy (Glass at GlassAlpha) with a 1 px cyan hairline and a soft top highlight.
-        // The project renders in linear colour space, where UI alpha blends in linear light (0.72 of navy over a white bench
-        // reads as a mid grey, and a tenth of a bright poster still ghosts through), so every card also carries an inset ink
-        // plate (PlateAlpha) under its content: 7 % of the scene reaches the text, paper text keeps ~8:1 and muted text
-        // ~4.5:1 over the lab's white bench and the THINK poster, while the 4 px glass rim still shows the scene. The bars
-        // (controls, chip, hint pill) have no plate: their glass is BarAlpha.
-        public static readonly Color Glass = new Color32(0x08, 0x1A, 0x2B, 0xFF);
-        public const float GlassAlpha = 0.72f, PlateAlpha = 0.75f, BarAlpha = 0.93f;
+        public static readonly Color Muted = new Color32(0xB9, 0xCB, 0xE3, 0xFF);
+        public static readonly Color Raised = new Color32(0x2E, 0x3B, 0x55, 0xFF);
+        public static readonly Color HoverFill = new Color32(0x3A, 0x4A, 0x68, 0xFF);
+        // Electric blue for edges, chips, selected rows and progress; cyan glow for focus and hover; amber / gold for the one
+        // primary action; green / red only ever mean right / wrong (each with a word and an icon, never colour alone).
+        public static readonly Color Accent = new Color32(0x00, 0xD1, 0xFF, 0xFF);
+        public static readonly Color Glow = new Color32(0x7E, 0xE9, 0xFF, 0xFF);
+        public static readonly Color Amber = new Color32(0xFF, 0xB3, 0x47, 0xFF);
+        public static readonly Color Gold = new Color32(0xFF, 0xD1, 0x66, 0xFF);
+        public static readonly Color Success = new Color32(0x2E, 0xCC, 0x71, 0xFF);
+        public static readonly Color Error = new Color32(0xFF, 0x6B, 0x6B, 0xFF);
+        // Glass: cards are two-tone navy, a panel-navy rim (Glass at GlassAlpha) around a deep-navy plate, with a soft top
+        // highlight, a 1.5 px electric-blue edge and a faint blue glow outside it. The project renders in linear colour
+        // space, where UI alpha blends in linear light (0.8 of navy over a white bench reads as a mid grey, and a tenth of a
+        // bright poster still ghosts through), so every card carries the inset plate (PlateAlpha) under its content: ~5 % of
+        // the scene reaches the text, paper text keeps ~8:1 and muted text ~4.5:1 over the lab's white bench and the THINK
+        // poster, while the 4 px rim still shows the scene. The bars (controls, chip, hint pill) have no plate: BarAlpha.
+        public static readonly Color Glass = new Color32(0x1A, 0x2B, 0x45, 0xFF);
+        public static readonly Color Deep = new Color32(0x0B, 0x16, 0x26, 0xFF);
+        public const float GlassAlpha = 0.80f, PlateAlpha = 0.75f, BarAlpha = 0.93f, EdgeWidth = 1.5f, GlowSpread = 8f;
         public static Color CardFill => UI.Alpha(Glass, GlassAlpha);
-        public static Color CardLine => UI.Alpha(Spark, 0.45f);
-        public static Color ControlLine => new Color(1f, 1f, 1f, 0.38f);   // interactive borders: 3:1 on ink
-        public static Color Spark => UI.Theme ? UI.Theme.wattsonAccent : new Color32(0xBF, 0xF6, 0xFF, 0xFF);
-        public static Color AccentColor => Spark;   // guidance (was voltage blue: blue now only ever means V)
+        public static Color CardLine => UI.Alpha(Accent, 0.55f);
+        public static Color ControlLine => UI.Alpha(Accent, 0.45f);   // interactive borders: 3:1 on the plate
+        public static Color Spark => UI.Theme ? UI.Theme.wattsonAccent : new Color32(0xBF, 0xF6, 0xFF, 0xFF);   // Wattson's own marks (badges, his ring, "done")
+        public static Color AccentColor => Accent;   // guidance chrome (was voltage blue: blue now only ever means V)
         public static Color VoltColor => UI.Theme ? UI.Theme.voltage : new Color(0.25f, 0.66f, 1f);
         public static Color AmpColor => UI.Theme ? UI.Theme.current : new Color(1f, 0.72f, 0.19f);
         public static Color OhmColor => UI.Theme ? UI.Theme.resistance : new Color(1f, 0.35f, 0.37f);
@@ -159,8 +173,9 @@ namespace OhmsLaw
             BuildHint();
         }
 
-        // A rounded glass card (v5): translucent navy, an inset ink plate behind the content, a soft top highlight and a
-        // 1 px cyan hairline. `alpha` overrides the glass's opacity (1 = solid).
+        // A rounded glass card (kids UI): a panel-navy rim around an inset deep-navy plate (two-tone), a soft top highlight,
+        // a 1.5 px electric-blue edge and a two-step blue glow outside it (two outline bands, no blur). `alpha` overrides
+        // the rim's opacity (1 = solid).
         public static void Card(RectTransform rect, float alpha = -1f, float corner = Corner)
         {
             UI.Panel(rect, alpha < 0 ? CardFill : UI.Alpha(Glass, alpha), true, corner).raycastTarget = true;
@@ -168,7 +183,7 @@ namespace OhmsLaw
             plate.offsetMin = new Vector2(4f, 4f);
             plate.offsetMax = new Vector2(-4f, -4f);
             plate.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-            UI.Panel(plate, UI.Alpha(Ink, PlateAlpha), true, Mathf.Max(4f, corner - 4f)).raycastTarget = false;
+            UI.Panel(plate, UI.Alpha(Deep, PlateAlpha), true, Mathf.Max(4f, corner - 4f)).raycastTarget = false;
             var shine = UI.Rect("Shine", rect, new Vector2(0, 1), new Vector2(0.5f, 1), new Vector2(0, -1f), new Vector2(-2f * corner, 26f));
             shine.anchorMax = new Vector2(1, 1);
             shine.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
@@ -178,7 +193,49 @@ namespace OhmsLaw
             gloss.raycastTarget = false;
             var edge = UI.Stretch("Edge", rect);
             edge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-            UI.Outline(edge, CardLine, corner, 1f);
+            UI.Outline(edge, CardLine, corner, EdgeWidth);
+            // The glow: a band out to GlowSpread at 7 % under a nearer band to half that at 10 %, so it falls off in two steps.
+            Band("Glow", rect, corner, GlowSpread, UI.Alpha(Accent, 0.07f));
+            Band("Halo", rect, corner, GlowSpread / 2f, UI.Alpha(Accent, 0.10f));
+        }
+
+        // An outline band from a rect's edge outward by `spread` px (its own layer, outside the layout).
+        public static Image Band(string name, RectTransform rect, float corner, float spread, Color color)
+        {
+            var band = UI.Stretch(name, rect);
+            band.offsetMin = new Vector2(-spread, -spread);
+            band.offsetMax = new Vector2(spread, spread);
+            band.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+            return UI.Outline(band, color, corner + spread, spread);
+        }
+
+        public const float BracketLength = 18f, BracketStroke = 2f, BracketInset = 9f;
+
+        // Small electric-blue corner brackets (the reference's title frames) on a title-bearing card: four L marks, each two
+        // strokes BracketLength long, `inset` px inside the corners (negative: outside them, around a bare block). On or off;
+        // the layer stays with the card (Clear() keeps it).
+        public static void Brackets(RectTransform card, bool on, float inset = BracketInset)
+        {
+            var marks = card.Find("Brackets");
+            if (!marks && !on) return;
+            if (!marks)
+            {
+                marks = UI.Stretch("Brackets", card);
+                marks.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+                for (int i = 0; i < 4; i++)
+                {
+                    var anchor = new Vector2(i % 2, i / 2);   // bottom-left, bottom-right, top-left, top-right
+                    var at = new Vector2(anchor.x == 0 ? inset : -inset, anchor.y == 0 ? inset : -inset);
+                    // Pivot on the corner: each stroke grows inward from the corner along its edge.
+                    foreach (var (name, size) in new[] { ("Across " + i, new Vector2(BracketLength, BracketStroke)), ("Up " + i, new Vector2(BracketStroke, BracketLength)) })
+                    {
+                        var stroke = UI.Rect(name, marks, anchor, anchor, at, size).gameObject.AddComponent<Image>();
+                        stroke.color = UI.Alpha(Accent, 0.9f);
+                        stroke.raycastTarget = false;
+                    }
+                }
+            }
+            marks.gameObject.SetActive(on);
         }
 
         void BuildDock()
@@ -268,7 +325,7 @@ namespace OhmsLaw
             if (on) { Pop(block); FadeIn(block); }
         }
 
-        // A card fades in over 0.28 s when it appears (instant under reduced motion); hiding is instant.
+        // A card fades in over PanelSeconds (0.22 s, ease-out) when it appears (instant under reduced motion); hiding is instant.
         public static void FadeIn(RectTransform rect)
         {
             if (!rect) return;
@@ -322,11 +379,13 @@ namespace OhmsLaw
             return home;
         }
 
-        // Everything inside a block goes (the block itself and its card stay for the next use). "Volt" empties the battery strip.
+        // Everything inside a block goes (the block itself and its card stay for the next use, its corner brackets off).
+        // "Volt" empties the battery strip.
         public void Clear(string name)
         {
             if (name == "Volt" && voltStrip) { Empty(voltStrip); voltStrip.gameObject.SetActive(false); }
             Empty(Block(name));
+            Brackets(Block(name), false);
             Show(name, false);
         }
 
@@ -377,14 +436,15 @@ namespace OhmsLaw
 
         public enum Kind { Primary, Secondary, Ghost, Raised }
 
-        // A pill button of the v3 system: Primary (paper, one per view), Secondary (white wash, 3:1 border), Ghost (text),
-        // Raised (a card's option row). Icon optional; the word is always there.
+        // A pill button of the kids UI: Primary (amber with ink text and a soft amber glow, one per view; gold on hover),
+        // Secondary (navy with the electric-blue edge), Ghost (text), Raised (a card's option row, blue-edged). Icon
+        // optional; the word is always there.
         public static Button Pill(string name, Transform parent, string text, UnityAction onClick, Kind kind = Kind.Secondary, string icon = null, float height = ButtonHeight, float font = 20f)
         {
             var rect = UI.Rect(name, parent, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(0, height));
             Fixed(rect, height);
             float corner = kind == Kind.Raised ? 14f : height / 2f;
-            Color fillColor = kind == Kind.Primary ? Paper : kind == Kind.Secondary ? new Color(1, 1, 1, 0.10f) : kind == Kind.Raised ? Raised : Color.clear;
+            Color fillColor = kind == Kind.Primary ? Amber : kind == Kind.Secondary ? UI.Alpha(Glass, 0.92f) : kind == Kind.Raised ? Raised : Color.clear;
             Color ink = kind == Kind.Primary ? Ink : kind == Kind.Ghost ? Muted : Paper;
             var fill = UI.Panel(rect, fillColor, true, corner);
             fill.raycastTarget = true;
@@ -393,7 +453,19 @@ namespace OhmsLaw
             {
                 var edge = UI.Stretch("Edge", rect);
                 edge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-                outline = UI.Outline(edge, ControlLine, corner, 1.5f);
+                outline = UI.Outline(edge, kind == Kind.Raised ? UI.Alpha(Accent, 0.35f) : ControlLine, corner, EdgeWidth);
+            }
+            if (kind == Kind.Primary)
+            {
+                // The gloss along the top and the glow outside: the reference's glossy amber action.
+                var shine = UI.Rect("Shine", rect, new Vector2(0, 1), new Vector2(0.5f, 1), new Vector2(0, -1f), new Vector2(-corner, height * 0.45f));
+                shine.anchorMax = new Vector2(1, 1);
+                shine.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+                var gloss = shine.gameObject.AddComponent<Image>();
+                gloss.sprite = Vignettes.Shine;
+                gloss.color = Color.white;
+                gloss.raycastTarget = false;
+                Band("Glow", rect, corner, 6f, UI.Alpha(Amber, 0.18f));
             }
             var button = rect.gameObject.AddComponent<Button>();
             button.transition = Selectable.Transition.None;
@@ -403,9 +475,11 @@ namespace OhmsLaw
             hud.fill = fill;
             hud.fillColor = fillColor;
             hud.corner = corner;
-            hud.activeFill = Paper;   // a Raised option that is chosen turns paper (MCQPanel sets the ink text)
+            hud.activeFill = Accent;   // a Raised option that is chosen turns electric blue (MCQPanel sets the ink text)
+            if (kind == Kind.Primary) hud.hoverFill = Gold;
             hud.outline = outline;
-            hud.outlineColor = hud.activeOutline = ControlLine;
+            hud.outlineColor = kind == Kind.Raised ? UI.Alpha(Accent, 0.35f) : ControlLine;
+            hud.activeOutline = Accent;
             var row = rect.gameObject.AddComponent<HorizontalLayoutGroup>();
             int padX = kind == Kind.Ghost ? 14 : kind == Kind.Raised ? 16 : 28;
             row.padding = new RectOffset(padX, padX, 0, 0);
@@ -576,7 +650,7 @@ namespace OhmsLaw
             UI.Panel(hintPill, UI.Alpha(Glass, BarAlpha), true, 20f).raycastTarget = false;
             var edge = UI.Stretch("Edge", hintPill);
             edge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-            UI.Outline(edge, UI.Alpha(Spark, 0.5f), 20f, 1.5f);
+            UI.Outline(edge, CardLine, 20f, EdgeWidth);
             var row = hintPill.gameObject.AddComponent<HorizontalLayoutGroup>();
             row.padding = new RectOffset(16, 18, 0, 0);
             row.spacing = 8f;
@@ -642,7 +716,7 @@ namespace OhmsLaw
             track.offsetMax = new Vector2(0, -20);
             UI.Panel(track, new Color(1, 1, 1, 0.16f), true, 4f);
             var fill = UI.Stretch("Fill", track);
-            UI.Panel(fill, Paper, true, 4f);
+            UI.Panel(fill, Accent, true, 4f);
             var handleArea = UI.Stretch("Handle Area", rect);
             handleArea.offsetMin = new Vector2(15, 0);
             handleArea.offsetMax = new Vector2(-15, 0);
@@ -800,7 +874,7 @@ namespace OhmsLaw
             badgeFill.color = done ? Spark : listening ? new Color(1f, 1f, 1f, 0.08f) : UI.Alpha(Spark, 0.14f);
             badgeIcon.sprite = Icons.Get(done ? "check" : listening ? "volume" : "bolt");
             badgeIcon.color = done ? Ink : listening ? Muted : Spark;
-            turnEdge.color = done || listening ? CardLine : UI.Alpha(Spark, 0.55f);
+            turnEdge.color = done || listening ? CardLine : UI.Alpha(Accent, 0.9f);
             turnCurrent.enabled = !done && !listening;
             turnEyebrow.color = listening ? Muted : Spark;
         }
@@ -1029,19 +1103,20 @@ namespace OhmsLaw
         void BuildEnd()
         {
             var end = Block("End");
+            Brackets(end, true);   // a title-bearing card
             var layout = end.GetComponent<VerticalLayoutGroup>();
             layout.spacing = 16f;
             layout.padding = new RectOffset((int)Pad, (int)Pad, 22, 22);
 
-            // The stamp: a paper-edged box, tilted, hugging its word.
+            // The stamp: a gold-edged box, tilted, hugging its word (Fredoka, the display face).
             var stampRow = Row("Stamp Row", end, 0f);
             Fixed(stampRow, 72f);
             var stamp = UI.Rect("Stamp", stampRow, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(372, 64));
             var stampSize = stamp.gameObject.AddComponent<LayoutElement>();
             stampSize.preferredWidth = stampSize.minWidth = 372f;
             stampSize.preferredHeight = stampSize.minHeight = 64f;
-            UI.Outline(stamp, Paper, 12f, 4f);
-            var stampWord = UI.Label(stamp, "CASE CLOSED", 40f, Paper);
+            UI.Outline(stamp, Gold, 12f, 4f);
+            var stampWord = UI.Display(UI.Label(stamp, "CASE CLOSED", 40f, Gold));
             stampWord.fontStyle = FontStyles.Bold;
             stampWord.characterSpacing = 14f;
             stampWord.textWrappingMode = TextWrappingModes.NoWrap;
@@ -1061,7 +1136,7 @@ namespace OhmsLaw
                 Text(tile, name, 17f, Paper);
                 Text(tile, unit, 15f, Muted, TextAlignmentOptions.TopLeft, false);
             }
-            var law = Text(end, $"<color=#{ColorUtility.ToHtmlStringRGB(VoltColor)}>V</color> = <color=#{ColorUtility.ToHtmlStringRGB(AmpColor)}>I</color> × <color=#{ColorUtility.ToHtmlStringRGB(OhmColor)}>R</color>", 80f, Paper, TextAlignmentOptions.Center);
+            var law = UI.Display(Text(end, $"<color=#{ColorUtility.ToHtmlStringRGB(VoltColor)}>V</color> = <color=#{ColorUtility.ToHtmlStringRGB(AmpColor)}>I</color> × <color=#{ColorUtility.ToHtmlStringRGB(OhmColor)}>R</color>", 80f, Paper, TextAlignmentOptions.Center));
             OneLine(law, 80f);
             var data = ExperimentData.Main;
             string calc = data && data.Count > 0
@@ -1197,7 +1272,7 @@ namespace OhmsLaw
                 UI.Outline(heroGlow, Color.clear, Corner + 8f, 3f);
                 var frame = UI.Stretch("Frame", hero);
                 frame.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-                UI.Outline(frame, UI.Alpha(Spark, 0.8f), Corner, 2f);
+                UI.Outline(frame, UI.Alpha(Accent, 0.8f), Corner, 2f);
                 var boltBadge = UI.Rect("Bolt", hero, new Vector2(0, 1), new Vector2(0.5f, 0.5f), new Vector2(22, -22), new Vector2(40, 40));
                 boltBadge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
                 var disc = boltBadge.gameObject.AddComponent<Image>();
@@ -1206,7 +1281,7 @@ namespace OhmsLaw
                 var bolt = UI.Rect("Icon", boltBadge, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(24, 24)).gameObject.AddComponent<Image>();
                 bolt.sprite = Icons.Get("bolt");
                 bolt.color = Ink;
-                heroBig = Text(hero, "", HeroFont, Paper, TextAlignmentOptions.Center);
+                heroBig = UI.Display(Text(hero, "", HeroFont, Paper, TextAlignmentOptions.Center, false));   // Fredoka: display type
                 heroBig.characterSpacing = 4f;
                 heroBig.textWrappingMode = TextWrappingModes.NoWrap;
                 heroSmall = Text(hero, "", HeroSubFont, Body, TextAlignmentOptions.Center, false);
@@ -1368,7 +1443,7 @@ namespace OhmsLaw
                 hero.anchoredPosition = new Vector2(free / 2f, midY + 40f);
                 heroT += Time.unscaledDeltaTime;
                 float k = ReducedMotion.On ? 0f : 1f - Mathf.Clamp01(heroT / 0.9f);
-                heroGlow.GetComponent<Image>().color = UI.Alpha(Spark, 0.8f * k);
+                heroGlow.GetComponent<Image>().color = UI.Alpha(Glow, 0.8f * k);
                 heroGlow.sizeDelta = hero.rect.size + Vector2.one * (16f + 110f * (1f - k * k));
             }
             if (stage && stage.gameObject.activeSelf)
@@ -1502,7 +1577,7 @@ namespace OhmsLaw
             turnLaidOut = turnShown;   // a card shown this frame still has the height of its last layout
             if (!Mathf.Approximately(floor, turnHeight.floor)) { turnHeight.floor = floor; LayoutRebuilder.MarkLayoutForRebuild(instruction); }
             if (hintUntil > 0f && Time.unscaledTime > hintUntil) { hintUntil = 0f; hintPill.gameObject.SetActive(false); }
-            if (attention != null) SetEdge(attention, UI.Alpha(Spark, ReducedMotion.On ? 0.9f : 0.45f + 0.45f * Mathf.Sin(Time.unscaledTime * 4f)));
+            if (attention != null) SetEdge(attention, UI.Alpha(Glow, ReducedMotion.On ? 0.9f : 0.5f + 0.4f * Mathf.Sin(Time.unscaledTime * 4f)));
 
             // The dock's width eases between normal and wide.
             float target = width;
@@ -1634,7 +1709,7 @@ namespace OhmsLaw
         public void CalculateLayoutInputVertical() { }
     }
 
-    // Entrance of a card that just appeared: alpha 0 -> 1 and a 12 px rise over 0.28 s of unscaled time, decelerating
+    // Entrance of a card that just appeared: alpha 0 -> 1 over LessonPanel.PanelSeconds of unscaled time, decelerating
     // (none under reduced motion: it simply appears).
     public class CardFade : MonoBehaviour
     {
@@ -1651,7 +1726,7 @@ namespace OhmsLaw
         void Update()
         {
             if (t >= 1f) return;
-            t = Mathf.Min(1f, t + Time.unscaledDeltaTime / 0.28f);
+            t = Mathf.Min(1f, t + Time.unscaledDeltaTime / LessonPanel.PanelSeconds);
             group.alpha = 1f - (1f - t) * (1f - t);
         }
     }
@@ -1673,7 +1748,7 @@ namespace OhmsLaw
         }
     }
 
-    // Scale-in of a UI card: 0.96 -> 1 with a soft overshoot, unscaled time.
+    // Scale-in of a UI card: 0.96 -> 1 with a soft overshoot over LessonPanel.PanelSeconds, unscaled time.
     public class UIPop : MonoBehaviour
     {
         float t = 1f;
@@ -1682,7 +1757,7 @@ namespace OhmsLaw
         void Update()
         {
             if (t >= 1f) return;
-            t = Mathf.Min(1f, t + Time.unscaledDeltaTime / 0.28f);
+            t = Mathf.Min(1f, t + Time.unscaledDeltaTime / LessonPanel.PanelSeconds);
             float s = 0.96f + 0.04f * (1f + Mathf.Sin(t * Mathf.PI * 0.5f) * (1f + 0.35f * Mathf.Sin(t * Mathf.PI) * (1 - t)));
             transform.localScale = Vector3.one * (t >= 1f ? 1f : Mathf.Min(1.03f, s));
         }

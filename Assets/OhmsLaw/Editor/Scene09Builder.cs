@@ -70,6 +70,24 @@ namespace OhmsLaw.Editor
             KeyPulse();
             SchematicBoard();
             Vcam("Bench Study", Scene10Builder.StudyCamC, Scene10Builder.StudyLookC, Scene10Builder.StudyFov, refs["Bench Point"].transform, lensMedium);
+            // Two slow dollies for the explanations (audit finding 4), each pushed 0.5 m along its own axis ("push" to
+            // "Cam <name> Goal"; a cut there under reduced motion) and back on Bench Study before its gate. ClassroomSet's
+            // "Bench Close" is the whole apparatus row, so these carry their own names. Subjects sit near the authored
+            // centre, inside the dock's crop. Tray Close (S09_L05): the parts tray with both meters and Wattson pointing from
+            // Tray Point above it (his hat 2.6 deg inside the top edge at the goal); the key and X fall just outside.
+            // Voltmeter Close (S09_L07): Y, the glowing parallel slot behind the wire, the tray's voltmeter and Wattson at
+            // Voltmeter Point; X is outside the free frame (both badges pulse on Bench Study at the gate).
+            Dolly("Tray Close", new Vector3(0.32f, 1.45f, -1.84f), new Vector3(0.7f, 1.2f, 0.5f));
+            Dolly("Voltmeter Close", new Vector3(0.1f, 1.38f, -1.94f), new Vector3(0.4f, 1.0f, 0.3f));
+        }
+
+        const float DollyPush = 0.5f;
+
+        // A fixed-aim close-up at `at` looking at `aim` (its focus), with its goal 0.5 m further along the same axis.
+        void Dolly(string name, Vector3 at, Vector3 aim)
+        {
+            Vcam(name, at, aim, Scene10Builder.StudyFov, Marker(name + " Aim", aim).transform, lensMedium);
+            Marker("Cam " + name + " Goal", at + (aim - at).normalized * DollyPush);
         }
 
         // The live schematic on a world board (WorldSchematic builds the glass canvas and CircuitSchematic.CreateOn at
@@ -154,7 +172,7 @@ namespace OhmsLaw.Editor
             // Match-cut from Scene 8: the classroom's room tone and pad continue. Wattson flies to the wire and it lights.
             Shot("Bench Wide");
             Ambience("RoomTone");
-            Music("PadLab");
+            Music(Scene10Builder.LabTheme(sounds));
             Gesture(WattsonController.Gesture.Point, point: "NICHROME WIRE — XY", moveTo: "Wire Point");
             Show("Wire Highlight");
             Sfx("Highlight");
@@ -168,20 +186,28 @@ namespace OhmsLaw.Editor
             Cue("callout hideall");
             Show("Schematic Board"); // the circuit schematic pops in on the glass board over the bench: the loop with the empty positions
 
-            // The ammeter: select it, then click the highlighted position (the gate writes both instructions).
+            // The ammeter: select it, then click the highlighted position (the gate writes both instructions). The camera
+            // dollies onto the tray while he says why; back on the whole bench (tray and glowing slot) 0.4 s before the gate.
             Gesture(WattsonController.Gesture.Point, point: "AMMETER", moveTo: "Tray Point");
             Cue("callout show ammeter");
             Cue("rig.drag ammeter", "the series slot glows: the ammeter may be selected now");
+            Shot("Tray Close");
+            Cue("push 3.2 Cam Tray Close", "a slow dolly onto the tray and the ammeter waiting in it");
+            Shot("Bench Study", offset: 3.8);
             Line("S09_L05", 0.2);
             Gate("S09_PlaceAmmeter", "Panel: 'Select the ammeter.' then 'Click the highlighted position to place it.' (tap the meter, tap the glowing slot; or drag it there). Snaps with a placement sound; the series path lights, the X → Y pulse runs, the board's A lights. AutoPlace / autoAnswer fly it in.");
             Visual("The ammeter snaps in: the series path lights, the X → Y pulse starts", 0.8);
             Gesture(WattsonController.Gesture.Point, point: "AMMETER");
             Line("S09_L06");
 
-            // The voltmeter, across XY.
+            // The voltmeter, across XY: the dolly onto the voltmeter side while he says why; back on the whole bench before
+            // the gate (X and Y both pulse there).
             Gesture(WattsonController.Gesture.Point, point: "VOLTMETER", moveTo: "Voltmeter Point");
             Cue("callout show voltmeter");
             Cue("rig.drag voltmeter", "the parallel slot glows: the voltmeter may be selected now");
+            Shot("Voltmeter Close");
+            Cue("push 3.2 Cam Voltmeter Close", "a slow dolly onto Y, the parallel slot and the voltmeter in the tray");
+            Shot("Bench Study", offset: 3.8);
             Line("S09_L07", 0.2);
             Show("[VFX] X and Y pulse");
             Gate("S09_PlaceVoltmeter", "Panel: 'Select the voltmeter.' then 'Click the highlighted position to place it.' Its leads reach X and Y; the board's V and its parallel leads light.");
@@ -197,6 +223,7 @@ namespace OhmsLaw.Editor
             Line("S09_L09", 0.2);
             Gate("S09_CloseKey", "Panel: 'Close the switch to complete the circuit.' Tap the key (tap-hand hint): the lever closes with a clack, the needles move at the small default voltage, the loop on the board warms to amber (conventional current, + → −).");
             Hide("[VFX] Key pulse");
+            Ambience(Scene10Builder.Bed(sounds, "CircuitHum", "RoomTone")); // current flows: the circuit hums (WP-A's loop; the room tone until it ships). Scene 10 opens at 0 V, on RoomTone again.
             Gesture(WattsonController.Gesture.Talking);
             Line("S09_L10");
             // The twist gets its picture once current flows: the board's loop is amber with its "+ → −" note, and the

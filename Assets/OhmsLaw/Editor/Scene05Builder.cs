@@ -80,7 +80,7 @@ namespace OhmsLaw.Editor
             Vector3 forward = (WireCamLook - WireCamPos).normalized, enter = WireCamPos - forward * 3f;
             Vcam("Wire Enter", enter, WireCamLook, WireFov, refs["Platform Point"].transform, lensTracking);
             WireFx("race into wire interior", enter + forward * 2.5f).transform.rotation = Quaternion.LookRotation(-forward);
-            Wattson(PlatformPoint + new Vector3(-3.5f, 0.3f, 0.6f), WireCamPos); // glides to Platform Point: lower-left, on the floor
+            Wattson(PlatformPoint + new Vector3(-3.5f, 0.3f, 0.6f), WireCamPos); // off the frame's left; glides to Platform Point: lower-left, hovering under the conduit's first quarter
 
             // The panel's notes for this scene (the cues name them).
             Note("electrons", "Free electrons", "Inside a metal some electrons are free to move. Before a voltage is applied they jiggle randomly: no overall flow in any direction.");
@@ -151,7 +151,7 @@ namespace OhmsLaw.Editor
             Hide("[VFX] race into wire interior", 0.6);
             Shot("Wire Inside", offset: 1.8);
             Gesture(WattsonController.Gesture.Idle, moveTo: "Platform Point");
-            Visual("The dive settles inside the copper lattice; Wattson glides in to his spot on the floor, lower-left", 1.2);
+            Visual("The dive settles inside the copper: its ions on the lattice in the glass, the electrons glowing cyan between them; Wattson glides in to his spot lower-left, under the conduit's − end", 1.2);
             Line("S05_V01");
 
             // A: what the particles are, and that nothing flows yet.
@@ -166,7 +166,8 @@ namespace OhmsLaw.Editor
             // applies it), then the drift that follows.
             Cue("callout hideall");
             Shot("Wire Terminals");
-            Gesture(WattsonController.Gesture.Point, point: "Card Terminal −");
+            // Down to the floor for the wide: the central lens put his home spot's hat on the "− negative" label.
+            Gesture(WattsonController.Gesture.Point, point: "Card Terminal −", moveTo: "Terminal Point");
             Show("Card Terminal −");
             Show("Card Terminal Label −");
             Sfx("Highlight");
@@ -197,7 +198,7 @@ namespace OhmsLaw.Editor
             // C: current, counted at the section in the panel, and the completed second (wide again: Wattson points at
             // the ring); then the question Scene 6 asks.
             Shot("Wire Inside");
-            Gesture(WattsonController.Gesture.Point, point: "Cross Section");
+            Gesture(WattsonController.Gesture.Point, point: "Cross Section", moveTo: "Platform Point"); // back up to his home spot (Scene 6 starts him there)
             Show("Cross Section");
             Hide("Drift Arrow");
             Cue("callout hideall");

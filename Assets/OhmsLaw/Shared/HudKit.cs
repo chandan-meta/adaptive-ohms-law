@@ -112,16 +112,17 @@ namespace OhmsLaw
 
     }
 
-    // Normal / hover / pressed / on / disabled / focused for a HUD button (design v3): a soft scale (1.03 hover, 0.97
-    // pressed), a white wash on hover and press, the "on" fill for a toggle that is on (CC) or a choice that is current,
-    // 36 % when not interactable, a 3 px spark ring while Tab has the keyboard focus on it. Colours are set per role
+    // Normal / hover / pressed / on / disabled / focused for a HUD button (kids UI): a soft scale (1.03 hover, 0.97
+    // pressed), a wash on hover and press (or hoverFill, the primary's gold), the edge lit cyan on hover, the "on" fill for
+    // a toggle that is on (CC) or a choice that is current, 36 % when not interactable, a 3 px cyan-glow ring while Tab has
+    // the keyboard focus on it. Every change settles in LessonPanel.ButtonSeconds (140 ms). Colours are set per role
     // (control, primary, secondary ...); a tap on a disabled button calls disabledTap so the HUD can say why. Unscaled
     // time; no scale under reduced motion.
     public class HudButton : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler, IPointerClickHandler
     {
         public Image fill, outline;
         public bool active;
-        public Color fillColor = Color.clear, activeFill = new Color(1f, 1f, 1f, 0.14f), outlineColor = Color.clear, activeOutline = Color.clear;
+        public Color fillColor = Color.clear, activeFill = new Color(1f, 1f, 1f, 0.14f), outlineColor = Color.clear, activeOutline = Color.clear, hoverFill = Color.clear;
         public float hoverScale = 1.03f, pressScale = 0.97f, corner = 18f;
         public System.Action disabledTap;
 
@@ -151,27 +152,33 @@ namespace OhmsLaw
         void Update()
         {
             bool on = Interactable;
-            float target = !on ? 1f : pressed ? pressScale : hover ? hoverScale : 1f;
+            bool live = on && group.interactable;   // a choice row locked after the pick (MCQPanel.Select) keeps its look under the pointer
+            float target = !live ? 1f : pressed ? pressScale : hover ? hoverScale : 1f;
             if (ReducedMotion.On) target = 1f;
-            float ease = 1f - Mathf.Exp(-16f * Time.unscaledDeltaTime);
-            scale = Mathf.Lerp(scale, target, 1f - Mathf.Exp(-18f * Time.unscaledDeltaTime));
+            float ease = 1f - Mathf.Exp(-3f * Time.unscaledDeltaTime / LessonPanel.ButtonSeconds);   // ~95 % of the way in ButtonSeconds
+            scale = Mathf.Lerp(scale, target, ease);
             transform.localScale = Vector3.one * scale;
             // Written only while dimming or easing back: otherwise the group's alpha belongs to whoever fades it (the chapter
             // chip, the choice rows), and writing it every frame would undo their fades.
             float to = on ? 1f : 0.36f;
             if (dim != to)
             {
-                dim = Mathf.Abs(dim - to) < 0.01f ? to : Mathf.Lerp(dim, to, 1f - Mathf.Exp(-12f * Time.unscaledDeltaTime));
+                dim = Mathf.Abs(dim - to) < 0.01f ? to : Mathf.Lerp(dim, to, ease);
                 group.alpha = dim;
             }
             if (fill)
             {
                 var c = active ? activeFill : fillColor;
-                if (hover && on) c = Wash(c, 0.08f);
-                if (pressed && on) c = Wash(c, 0.12f);
+                if (hover && live) c = hoverFill.a > 0f ? hoverFill : Wash(c, 0.08f);
+                if (pressed && live) c = Wash(c, 0.12f);
                 fill.color = Color.Lerp(fill.color, c, ease);
             }
-            if (outline) outline.color = Color.Lerp(outline.color, active ? activeOutline : outlineColor, ease);
+            if (outline)
+            {
+                var o = active ? activeOutline : outlineColor;
+                if (hover && live) o = UI.Alpha(LessonPanel.Glow, Mathf.Max(o.a, 0.9f));   // the edge lights up cyan
+                outline.color = Color.Lerp(outline.color, o, ease);
+            }
 
             bool focused = HudKeys.Focused(gameObject);
             if (focused && !ring)
@@ -180,7 +187,7 @@ namespace OhmsLaw
                 rect.offsetMin = new Vector2(-4f, -4f);
                 rect.offsetMax = new Vector2(4f, 4f);
                 rect.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-                ring = UI.Outline(rect, LessonPanel.Spark, corner + 4f, 3f);
+                ring = UI.Outline(rect, LessonPanel.Glow, corner + 4f, 3f);
             }
             if (ring && ring.enabled != focused) ring.enabled = focused;
         }
@@ -207,7 +214,7 @@ namespace OhmsLaw
             {
                 var side = UI.Rect("Side " + i, root, Vector2.zero, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero).gameObject.AddComponent<RawImage>();
                 side.texture = Dashes;
-                side.color = UI.Alpha(LessonPanel.Spark, 0.9f);
+                side.color = UI.Alpha(LessonPanel.Accent, 0.9f);
                 side.raycastTarget = false;
                 edge.sides[i] = side;
             }

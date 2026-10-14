@@ -12,7 +12,7 @@ namespace OhmsLaw.Editor
     {
         public const int Hz = 44100;
         const float Tau = (float)(Math.PI * 2);
-        public static readonly string[] Loops = { "WireHum", "RoomTone", "PadLab", "PadWire", "StudyTone" };
+        public static readonly string[] Loops = { "WireHum", "RoomTone", "PadLab", "PadWire", "StudyTone", "PadIntro", "PadLabTheme", "CircuitHum" };
 
         public static Dictionary<string, Func<float[]>> Recipes() => new Dictionary<string, Func<float[]>>
         {
@@ -147,6 +147,65 @@ namespace OhmsLaw.Editor
             },
             ["PadLab"] = () => Pad(16f, new[] { 130.81f, 196f, 261.63f, 329.63f, 392f, 523.25f }, 0.5f, 0.25f),
             ["PadWire"] = () => Pad(16f, new[] { 110f, 130.81f, 164.81f, 220f, 261.63f }, 1.1f, 0.22f),
+            // The title (ModuleFlow plays it while the title screen holds Scene 4 at 0): a dark Am9 pad breathing under
+            // sparse bells, a question left open. Tails wrap round the seam; the reverb runs to its steady state first.
+            ["PadIntro"] = () =>
+            {
+                var b = Pad(24f, new[] { 110f, 164.81f, 220f, 261.63f, 329.63f, 493.88f }, 0.9f, 0.3f);                   // A2 E3 A3 C4 E4 B4
+                foreach (var (f, at) in new[] { (659.26f, 1.3f), (987.77f, 3.9f), (880f, 5.6f), (1318.51f, 8.7f), (1046.5f, 10.4f), (987.77f, 13.6f), (783.99f, 16.9f), (880f, 18.5f), (659.26f, 21.2f) })
+                    Bell(b, f, at, 0.09f);                                                                                 // E5 B5 A5 E6 C6 B5 G5 A5 E5, none on the seam
+                Verb(b, 0.15f, 0.7f, 2);
+                return Level(b, 0.3f);
+            },
+            // The modern lab (Scenes 8-13): 72 bpm, ten bars, Cmaj7 Em7 Am7 Fmaj7 Gadd9 two bars each. A brighter pad (a
+            // triangle under each detuned pair) crossfades between chords, round the seam too, under a soft plucked
+            // eighth-note arpeggio that rests on the last beat of every chord. Plucks sit 40 ms off the seam.
+            ["PadLabTheme"] = () =>
+            {
+                const float eighth = 60f / 72f / 2f, chord = 16 * eighth, seconds = 5 * chord;                             // 0.417 s, 6.67 s, 33.3 s
+                var b = Buf(seconds);
+                var pads = new[]
+                {
+                    new[] { 130.81f, 196f, 246.94f, 329.63f, 392f },      // C3 G3 B3 E4 G4
+                    new[] { 164.81f, 246.94f, 293.66f, 392f, 493.88f },   // E3 B3 D4 G4 B4
+                    new[] { 110f, 164.81f, 196f, 261.63f, 329.63f },      // A2 E3 G3 C4 E4
+                    new[] { 174.61f, 220f, 261.63f, 329.63f, 440f },      // F3 A3 C4 E4 A4
+                    new[] { 98f, 146.83f, 246.94f, 392f, 440f },          // G2 D3 B3 G4 A4
+                };
+                var arps = new[]
+                {
+                    new[] { 261.63f, 329.63f, 392f, 523.25f },            // C4 E4 G4 C5
+                    new[] { 246.94f, 329.63f, 392f, 493.88f },            // B3 E4 G4 B4
+                    new[] { 220f, 261.63f, 329.63f, 440f },               // A3 C4 E4 A4
+                    new[] { 220f, 261.63f, 349.23f, 440f },               // A3 C4 F4 A4
+                    new[] { 196f, 246.94f, 293.66f, 392f },               // G3 B3 D4 G4
+                };
+                int[] pattern = { 0, 1, 2, 3, 2, 1, 2, 3, 0, 2, 1, 3, 2, 1, -1, -1 };                                        // eighths over the two bars, -1 = rest
+                for (int c = 0; c < 5; c++)
+                    for (int i = 0; i < 5; i++)
+                    {
+                        var amp = Window(seconds, c * chord, (c + 1) * chord, 0.6f, 0.25f / (1 + 0.5f * i) * (i % 2 == 0 ? 1 : -1));
+                        Loop(b, pads[c][i] - 10 / seconds, amp); Loop(b, pads[c][i] + 10 / seconds, t => 0.6f * amp(t));   // 0.6 Hz beat: a slow shimmer
+                        Loop(b, pads[c][i], t => 0.25f * amp(t), Tri);
+                    }
+                for (int c = 0; c < 5; c++)
+                    for (int e = 0; e < 16; e++)
+                        if (pattern[e] >= 0) Pluck(b, arps[c][pattern[e]], c * chord + e * eighth + 0.04f, e == 0 ? 0.22f : e % 2 == 0 ? 0.17f : 0.12f);
+                Verb(b, 0.12f, 0.65f, 2);
+                return Level(b, 0.27f);
+            },
+            // A live circuit (Scene 10, the level following the current): mains hum with the 120 Hz harmonic on top as a
+            // transformer's is, one slow wobble per loop, and a faint sizzle buzzing at mains rate.
+            ["CircuitHum"] = () =>
+            {
+                var b = Buf(6f);
+                var partials = new[] { (60f, 0.5f), (120f, 1f), (180f, 0.45f), (240f, 0.2f), (300f, 0.12f), (360f, 0.06f), (480f, 0.03f) };
+                for (int i = 0; i < partials.Length; i++) { var (f, a) = partials[i]; float sign = i % 2 == 0 ? 1 : -1; Loop(b, f, t => sign * a * (0.82f + 0.18f * Cos(t / 6f))); }
+                var sizzle = Hiss(6f, 17, 5200, 0.3f);
+                Mul(sizzle, t => 0.5f + 0.5f * Math.Abs(Sin(60f * t)));                                                      // 120 Hz buzz, whole cycles, even about the seam
+                Mix(b, sizzle, 0.15f, 0);
+                return Level(b, 0.35f);
+            },
         };
 
         // Renders every recipe: length > 0, peak <= 0.85, and loops meet themselves (first/last 64-sample RMS within 10 %).
@@ -209,8 +268,36 @@ namespace OhmsLaw.Editor
         static void Tone(float[] b, float f, Func<float, float> amp, Func<float, float> wave = null, float phase = 0) => Add(b, _ => f, amp, wave, phase);
         // Two partials detuned by ±detune (a fraction of f): slow beating reads as warmth or shimmer.
         static void Pair(float[] b, float f, float detune, Func<float, float> amp, Func<float, float> wave = null) { Tone(b, f * (1 - detune), amp, wave); Tone(b, f * (1 + detune), amp, wave); }
-        // A looping partial: frequency snapped to whole cycles over the buffer, cosine phase (even about the seam).
-        static void Loop(float[] b, float f, Func<float, float> amp) { float seconds = b.Length / (float)Hz; Tone(b, (float)Math.Round(f * seconds) / seconds, amp, Sin, 0.25f); }
+        // A looping partial: frequency snapped to whole cycles over the buffer, cosine phase (a triangle at its peak): even about the seam.
+        static void Loop(float[] b, float f, Func<float, float> amp, Func<float, float> wave = null)
+        { float seconds = b.Length / (float)Hz; Tone(b, (float)Math.Round(f * seconds) / seconds, amp, wave ?? Sin, wave == null ? 0.25f : 0.5f); }
+        // One voice of a chord progression over a loop of `seconds`: on from `from` to `to`, crossfading over `edge` at both
+        // ends (the fades of neighbouring chords sum to one), the seam wrapped so the first chord fades in under the last.
+        static Func<float, float> Window(float seconds, float from, float to, float edge, float amp) => t =>
+        {
+            float u = t - from;
+            u -= seconds * (float)Math.Floor(u / seconds);
+            if (u > seconds - edge) u -= seconds;
+            return amp * Smooth((u + edge * 0.5f) / edge) * Smooth((to - from + edge * 0.5f - u) / edge);
+        };
+        // Bell: a slightly detuned fundamental, a faster octave and the inharmonic 2.76 partial that reads as metal, wrapped into the loop at `at`.
+        static void Bell(float[] b, float f, float at, float amp)
+        {
+            var n = Buf(3f);
+            Pair(n, f, 0.0015f, t => amp * Env(t, 0.003f, 1.1f));
+            Tone(n, 2 * f, t => 0.22f * amp * Env(t, 0.002f, 0.45f)); Tone(n, 2.76f * f, t => 0.14f * amp * Env(t, 0.002f, 0.3f)); Tone(n, 5.4f * f, t => 0.04f * amp * Env(t, 0.001f, 0.12f));
+            Mul(n, t => Smooth((3f - t) / 0.5f));
+            Wrap(b, n, 1, at);
+        }
+        // Pluck: a soft string, its upper harmonics dying first, a touch of pick noise, wrapped into the loop at `at`.
+        static void Pluck(float[] b, float f, float at, float amp)
+        {
+            var n = Buf(1f);
+            Tone(n, f, t => amp * Env(t, 0.004f, 0.4f)); Tone(n, 2 * f, t => 0.35f * amp * Env(t, 0.003f, 0.15f)); Tone(n, 3 * f, t => 0.1f * amp * Env(t, 0.002f, 0.07f));
+            Click(n, 0, 0.0015f, 2500, 0.12f * amp, (int)(f * 10 + at * 100));
+            Mul(n, t => Smooth((1f - t) / 0.2f));
+            Wrap(b, n, 1, at);
+        }
         // The wire's low hum: a 55 Hz saw rounded off by a low-pass, so it carries on small speakers too.
         static void Hum(float[] b, Func<float, float> amp) { var hum = new float[b.Length]; Tone(hum, 55, amp, Saw); LowPass(hum, _ => 300); Mix(b, hum, 0.35f, 0); }
 
@@ -249,21 +336,37 @@ namespace OhmsLaw.Editor
             for (int i = 0; i < n; i++) b[i] *= rms / r;
             return b;
         }
-        // A touch of room: four damped feedback combs (25–40 ms, mutually prime) averaged under the dry sound.
-        static void Verb(float[] b, float mix, float feedback)
+        // A touch of room: four damped feedback combs (25–40 ms, mutually prime) averaged under the dry sound. A loop asks
+        // for 2 passes: the combs run on through the buffer again and only the last pass is kept, so the room at the seam
+        // is the room mid-loop, not an empty one.
+        static void Verb(float[] b, float mix, float feedback, int passes = 1)
         {
             var wet = new float[b.Length];
             foreach (int d in new[] { 1117, 1327, 1559, 1753 })
             {
-                var line = new float[d]; float lp = 0;
-                for (int i = 0; i < b.Length; i++) { lp += (line[i % d] - lp) * 0.35f; line[i % d] = b[i] + lp * feedback; wet[i] += lp; }
+                var line = new float[d]; float lp = 0; int k = 0;
+                for (int pass = 1; pass <= passes; pass++)
+                    for (int i = 0; i < b.Length; i++, k++) { lp += (line[k % d] - lp) * 0.35f; line[k % d] = b[i] + lp * feedback; if (pass == passes) wet[i] += lp; }
             }
             for (int i = 0; i < b.Length; i++) b[i] += wet[i] * mix * 0.25f;
+        }
+        // Seamless hiss: white noise through the resonant band-pass at `centre` Hz for half the loop, mirrored into a palindrome, scaled to the given RMS.
+        static float[] Hiss(float seconds, int seed, float centre, float rms)
+        {
+            int n = (int)Math.Round(seconds * Hz), half = (n + 1) / 2, warm = Hz / 10;
+            var s = Noise(half + warm, seed); Svf(s, _ => centre, 0.8f, true);
+            var b = new float[n];
+            for (int i = 0; i < half; i++) b[i] = b[n - 1 - i] = s[warm + i];
+            float r = Rms(b, 0, n);
+            for (int i = 0; i < n; i++) b[i] *= rms / r;
+            return b;
         }
 
         static void Mul(float[] b, Func<float, float> amp) { for (int i = 0; i < b.Length; i++) b[i] *= amp(i / (float)Hz); }
         // Adds src * gain into dst from `at` seconds, clipped to dst.
         static void Mix(float[] dst, float[] src, float gain, float at) { int s = (int)(at * Hz); for (int i = Math.Max(0, -s); i < src.Length && s + i < dst.Length; i++) dst[s + i] += src[i] * gain; }
+        // The same into a loop, wrapping past the end to the start: a tail over the seam carries on.
+        static void Wrap(float[] dst, float[] src, float gain, float at) { int s = (int)(at * Hz), n = dst.Length; for (int i = 0; i < src.Length; i++) dst[(s + i) % n] += src[i] * gain; }
         static void Saturate(float[] b, float drive) { for (int i = 0; i < b.Length; i++) b[i] = (float)Math.Tanh(b[i] * drive) / drive; }
         static float Peak(float[] b) => b.Max(x => Math.Abs(x));
         static float Rms(float[] b, int from, int count) { double s = 0; for (int i = from; i < from + count; i++) s += b[i] * b[i]; return (float)Math.Sqrt(s / count); }

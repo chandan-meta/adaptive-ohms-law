@@ -29,6 +29,7 @@ namespace OhmsLaw
         [Tooltip("Shows Skip without a long-press.")] public bool debugMode;
         public float fadeSeconds = 0.6f;
         [Tooltip("Optional path or URL of the Scene 14 video, played after the finale. Empty holds on the finale.")] public string scene14Video;
+        [Tooltip("Looping bed under the title screen (the bank's PadIntro). Empty: the first scene's music bus carries it as its background clip with Play On Start off (Scene 4's builder sets that).")] public AudioClip titleMusic;
 
         public PlayableDirector Director { get; private set; }
         public WattsonAgent Agent { get; private set; }
@@ -102,6 +103,11 @@ namespace OhmsLaw
             if (ChapterBanner.Instance) ChapterBanner.Instance.Enter(chapter);
             if (PauseMenu.IsOpen) PauseMenu.Close();
             TitleScreen.MaybeOpen(scene.name);
+            if (TitleScreen.IsOpen)
+            {
+                if (titleBedRun != null) StopCoroutine(titleBedRun);
+                titleBedRun = StartCoroutine(TitleBed());
+            }
 
             // Medium tier for tablets: half the particles, no point-light shadows.
             if (Application.isMobilePlatform)
@@ -130,6 +136,62 @@ namespace OhmsLaw
             }
             foreach (var bus in FindObjectsByType<AudioBus>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 if (bus.kind == AudioBus.Kind.Voice && bus.TryGetComponent(out AudioSource source)) VoiceChannel.Register(source);
+        }
+
+        // ------------------------------------------------------------------ title music
+
+        // While the title screen holds the first scene's Timeline at 0, PadIntro loops on a music bus of its own (the learner's
+        // music slider and the ducker apply as to every bed). Once the title closes it fades out over 0.6 s as the Timeline's
+        // own bed eases in: no gap, no double bed. Continue leaves the scene under that same fade.
+        const float TitleBedGain = 0.35f, TitleBedFade = 0.6f;
+        AudioSource titleBed;
+        AudioBus titleBus;
+        Coroutine titleBedRun;
+        bool titleBedWarned;
+
+        // The clip: `titleMusic`, else the background clip the scene's music bus carries without playing it.
+        AudioClip TitleClip()
+        {
+            if (titleMusic) return titleMusic;
+            foreach (var bus in FindObjectsByType<AudioBus>(FindObjectsSortMode.None))
+                if (bus.kind == AudioBus.Kind.Music && bus.bgm && !bus.playOnStart) return bus.bgm;
+            return null;
+        }
+
+        IEnumerator TitleBed()
+        {
+            var clip = TitleClip();
+            if (!clip)
+            {
+                if (!titleBedWarned) Debug.LogWarning("ModuleFlow: no title music (PadIntro): the title screen stays silent.", this);
+                titleBedWarned = true;
+                yield break;
+            }
+            if (!titleBed)
+            {
+                var go = new GameObject("Title Music");
+                go.SetActive(false); // the bus reads its gain in Awake
+                go.transform.SetParent(transform, false);
+                titleBed = go.AddComponent<AudioSource>();
+                titleBed.playOnAwake = false;
+                titleBed.spatialBlend = 0f;
+                titleBed.loop = true;
+                titleBus = go.AddComponent<AudioBus>();
+                titleBus.kind = AudioBus.Kind.Music;
+                titleBus.gain = TitleBedGain;
+                go.SetActive(true);
+            }
+            titleBus.gain = TitleBedGain;
+            titleBed.clip = clip;
+            titleBed.Play();
+            while (TitleScreen.IsOpen) yield return null;
+            for (float t = 0; t < 1f; t += Time.unscaledDeltaTime / TitleBedFade)
+            {
+                titleBus.gain = TitleBedGain * (1f - t);
+                yield return null;
+            }
+            titleBed.Stop();
+            titleBedRun = null;
         }
 
         public bool IsPaused(PauseReason reason) => (paused & reason) != 0;

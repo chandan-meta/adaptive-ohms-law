@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace OhmsLaw.Editor
@@ -18,6 +19,23 @@ namespace OhmsLaw.Editor
         public static readonly Vector3 StudyCamC = new Vector3(0f, 1.3f, -2.45f), StudyLookC = new Vector3(0f, 0.9f, 0.1f);
         public const float StudyFov = 38f;
         public static readonly Vector3 SourceSide = new Vector3(-0.75f, 1.4f, 0.8f); // behind and above the source, inside the frame the wide panel leaves free (Bench Study)
+        // The ammeter's face as the first reading lands (between the 1 V and 2 V steps): 0.93 m from the dial, from a little
+        // left and above so Wattson at Source Side (behind, left) stays out of the frame; FOV 30 holds the dial, the needle at
+        // 0.20 A and the digital plate above it (a billboard, it turns to this lens); the live strip is HUD. The dial sits on
+        // the authored centre, so the dock's crop (PanelFraming) keeps it; the voltmeter's edge shows at the right.
+        static readonly Vector3 MeterCloseCamC = new Vector3(-0.62f, 1.22f, -0.74f), MeterCloseLookC = new Vector3(-0.28f, 0.95f, 0.08f);
+        const float MeterCloseFov = 30f;
+
+        // The beds WP-A ships (PadLabTheme for the lab from Scene 8's reveal on, CircuitHum once current flows). A bed the
+        // director cannot find fades the bed out (SceneDirector.Bed), so a clip missing from the bank at build time falls
+        // back to the old one here, logged.
+        public static string LabTheme(IReadOnlyDictionary<string, AudioClip> sounds) => Bed(sounds, "PadLabTheme", "PadLab");
+        public static string Bed(IReadOnlyDictionary<string, AudioClip> sounds, string clip, string fallback)
+        {
+            if (sounds.TryGetValue(clip, out var found) && found) return clip;
+            Debug.Log($"Sound bank has no '{clip}' yet (WP-A); the bed cue uses '{fallback}'.");
+            return fallback;
+        }
 
         protected override void Dialogue()
         {
@@ -74,13 +92,14 @@ namespace OhmsLaw.Editor
             MeterPlates(true);
             Marker("Source Side", SourceSide);
             Vcam("Bench Study", StudyCamC, StudyLookC, StudyFov, refs["Bench Point"].transform, lensMedium);
+            Vcam("Meter Close", MeterCloseCamC, MeterCloseLookC, MeterCloseFov, refs["AMMETER"].transform, lensWide); // the deep lens: dial and plate both sharp
         }
 
         protected override void Beats()
         {
             Shot("Bench Study"); // match-cut: Scene 9's last frame (circuit complete, key closed, voltage carried over)
             Ambience("RoomTone");
-            Music("PadLab");
+            Music(LabTheme(sounds));
             Cue("rig.voltage 0", "start low: the source turns down to zero");
             Show("Meter Plates");
             Cue("table.rows 0", "the empty observation table (V and I) in the dock; the dock widens");
@@ -96,7 +115,14 @@ namespace OhmsLaw.Editor
             Line("S10_L01", 0.1);
             Gate("S10_Set1V", "Panel: 'Set the voltage to 1 V.' (slider steps above 1 V dim). Once it holds: 'Observe the current reading.', row 1 records from the live meters with a confirmation chime, point 1 plots.",
                 "S10_Set1V_H");
+            // The first reading has landed (row 1: 1.0 V, 0.20 A): a cut onto the ammeter's face, the needle at 0.20 A and its
+            // plate, then back onto the whole bench before the 2 V step opens with its line ("One volt, and the ammeter reads
+            // 0.20 amperes..."): the slider is HUD, and the gate framing stays Bench Study, settled 0.2 s before the gate.
+            Shot("Meter Close", cut: true);
             Gesture(WattsonController.Gesture.Point, point: "AMMETER");
+            Visual("Close on the ammeter: the needle at 0.20 A, the plate reads 0.20 A", 2.6);
+            Shot("Bench Study");
+            Wait(1.2);
             Gate("S10_Set2V", "Panel: 'Set the voltage to 2 V.' → observe → row 2 records, point 2 plots.", "S10_Set2V_GO", "S10_Set2V_H");
 
             // The wager: before the 3 V step the learner predicts the reading (recorded, not judged yet). He points at the

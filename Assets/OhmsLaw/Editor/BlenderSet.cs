@@ -28,25 +28,36 @@ namespace OhmsLaw.Editor
         // The lab's glass is plain grey in Blender: here it is clear glass, a faint cyan, the floor ring and posts lit from
         // within. The screens and light strips glow from emission maps the exporter makes (Tools/sets/lab.json "glow").
         // "Material.001" is the user's Ohm's-law mural wrapped round the walls: a self-lit display, a little under the screens.
+        // The rack screens glow over the exporter's 1.6 (the 2026-10-14 audit: the lab read dim and cold); "Material", the
+        // dark-green board, carries a faint flat emission so it is not a black rectangle under the cove light (a `default`
+        // base colour keeps the JSON's). Round_Floor is glossier than its 0.5 roughness so the table's lit ring reflects in it.
         public static readonly BlenderSet Lab = new BlenderSet("Assets/OhmsLaw/Shared/Art/LabSet", "LabSet",
-            new Dictionary<string, (Color, Color, bool)> { ["Material.001"] = (Color.white, Color.white * 0.9f, true) },
+            new Dictionary<string, (Color, Color, bool)>
+            {
+                ["Material.001"] = (Color.white, Color.white * 0.9f, true),
+                ["Rack_And_Frame"] = (Color.white, Color.white * 2.4f, false),
+                ["Material"] = (default, new Color(0.02f, 0.06f, 0.035f), false),
+            },
             new Dictionary<string, (Color, Color)>
         {
             ["Glass"] = (new Color(0.62f, 0.86f, 1f, 0.16f), new Color(0.05f, 0.16f, 0.24f)),
             ["Glass1"] = (new Color(0.5f, 0.85f, 1f, 0.24f), new Color(0.04f, 0.16f, 0.28f)), // brighter, the floor ring read as a pale band across the floor
-        });
+        },
+            new Dictionary<string, float> { ["Round_Floor"] = 0.7f });
 
         public readonly string Folder, Model, Json;
         readonly Dictionary<string, (Color baseColor, Color emission, bool emissionMap)> glows;
         readonly Dictionary<string, (Color tint, Color emission)> glass;
+        readonly Dictionary<string, float> smoothness;
 
-        BlenderSet(string folder, string name, Dictionary<string, (Color, Color, bool)> glows = null, Dictionary<string, (Color, Color)> glass = null)
+        BlenderSet(string folder, string name, Dictionary<string, (Color, Color, bool)> glows = null, Dictionary<string, (Color, Color)> glass = null, Dictionary<string, float> smoothness = null)
         {
             Folder = folder;
             Model = folder + "/" + name + ".fbx";
             Json = folder + "/" + name + ".json";
             this.glows = glows ?? new Dictionary<string, (Color, Color, bool)>();
             this.glass = glass ?? new Dictionary<string, (Color, Color)>();
+            this.smoothness = smoothness ?? new Dictionary<string, float>();
         }
 
         public bool Exists => File.Exists(Model);
@@ -87,7 +98,7 @@ namespace OhmsLaw.Editor
                 var baseColor = new Color(e.baseColor[0], e.baseColor[1], e.baseColor[2], 1f);
                 var emission = e.emission != null && e.emission.Length == 3 ? new Color(e.emission[0], e.emission[1], e.emission[2]) : Color.black;
                 bool emissionMap = false;
-                if (glows.TryGetValue(e.name, out var glow)) { baseColor = glow.baseColor; emission = glow.emission; emissionMap = glow.emissionMap; }
+                if (glows.TryGetValue(e.name, out var glow)) { if (glow.baseColor.a > 0f) baseColor = glow.baseColor; emission = glow.emission; emissionMap = glow.emissionMap; }
                 bool clear = glass.TryGetValue(e.name, out var pane);
                 if (clear) { baseColor = pane.tint; emission = pane.emission; }
 
@@ -100,7 +111,7 @@ namespace OhmsLaw.Editor
                 mat.SetTexture("_MetallicGlossMap", mask);
                 Keyword(mat, "_METALLICSPECGLOSSMAP", mask);
                 mat.SetFloat("_Metallic", clear ? 0f : e.metallic);
-                mat.SetFloat("_Smoothness", clear ? 0.95f : mask ? 1f : 1f - e.roughness); // with the map, the slider scales its alpha
+                mat.SetFloat("_Smoothness", clear ? 0.95f : smoothness.TryGetValue(e.name, out var gloss) ? gloss : mask ? 1f : 1f - e.roughness); // with the map, the slider scales its alpha
 
                 var normal = Texture(e.normalMap, TextureRole.Normal);
                 mat.SetTexture("_BumpMap", normal);

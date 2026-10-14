@@ -30,7 +30,8 @@ namespace OhmsLaw
         public bool fieldOn;
         [Tooltip("Ohm-niscope time-freeze: no drift, a little random motion only, electrons frosted.")] public bool frozen;
         [Range(0, 1), Tooltip("Collisions with the lattice ions (Scene 12): the drift slows and electrons bounce.")] public float impede;
-        public float carrierSize = 0.26f;
+        public float carrierSize = 0.3f;
+        [Tooltip("The electrons' body colour (the glyph's HDR face lifts it to a glow); clear (alpha 0) takes the theme's charge colour.")] public Color carrierColor = new Color(0.35f, 0.85f, 1f);
 
         [Header("Following one electron")]
         [Tooltip("A short trail behind each tracer electron (one per line, spread along the stream). Off with reduced motion.")] public LineRenderer[] trails = new LineRenderer[0];
@@ -38,7 +39,11 @@ namespace OhmsLaw
 
         [Header("Wire")]
         [Tooltip("Glass colour of the conduit, alpha included; the frost pales it while frozen.")] public Color conduitColor = new Color(0.31f, 0.82f, 1f, 0.12f);
-        [Range(0, 1), Tooltip("Target visibility of the lattice ions; they fade toward it.")] public float latticeVisibility;
+        [Tooltip("Self-light of the glass as a fraction of its colour: a faint glow so the tube reads in the dark.")] public float conduitGlow = 0.12f;
+        [Range(0, 1), Tooltip("Target visibility of the lattice ions; they fade toward it (set before Awake: shown at once, no fade).")] public float latticeVisibility;
+        [Tooltip("Colour of the lattice ions (the metal's own atoms): copper-orange in Scenes 5-6, grey-green nichrome in Scene 12.")] public Color ionTint = new Color(0.62f, 0.66f, 0.56f);
+        [Tooltip("Ion size as a fraction of the conduit radius: 0.42 for Scene 12's lattice, 0.2 for copper's small ions.")] public float ionSize = 0.42f;
+        [Tooltip("Placement jitter of the ions in metres (seeded once, they never move): a real lattice is not machined.")] public float ionJitter;
         [Tooltip("Target radius of the conduit in metres: a cue narrows it (Scene 12), never below minRadiusFraction of the built radius and never above it.")]
         public float tunnelRadius = 0.6f;
         [Range(0.5f, 1f), Tooltip("The narrowing metaphor stays subtle: never below this fraction of the built radius.")]
@@ -57,6 +62,7 @@ namespace OhmsLaw
 
         [Header("Parts")]
         public ParticleSystem carriers;
+        [Tooltip("A soft additive halo under every carrier (same positions, larger, fainter); none when unset.")] public ParticleSystem halos;
         public ParticleSystem lattice;
         public Renderer tunnel;
         [Tooltip("Cross-section ring (unit radius, child ring scaled 1.1); follows the conduit radius. Electrons flash and count only while it is shown.")] public Transform crossSection;
@@ -69,13 +75,14 @@ namespace OhmsLaw
 
         const float TrailStep = 0.06f;  // seconds between trail points
         const int TrailPoints = 16;     // about one second of path
+        const float HaloScale = 2.6f, HaloAlpha = 0.45f; // the halo sprite over the carrier's size, and its alpha over the carrier's
         static readonly int BaseColor = Shader.PropertyToID("_BaseColor"), EmissionColor = Shader.PropertyToID("_EmissionColor");
-        static readonly Color FrostTint = new Color(0.42f, 0.6f, 1f), IonTint = new Color(0.62f, 0.66f, 0.56f); // frost: an ice blue the cyan-white carriers visibly shift to
+        static readonly Color FrostTint = new Color(0.42f, 0.6f, 1f); // an ice blue the cyan carriers visibly shift to
 
         Vector3[] home, offset, velocity, position;   // home: the electron's place in the stream (drifts); offset: its random motion
         float[] flash, size, alpha;
         bool[] pending, tracer, wrapped;
-        ParticleSystem.Particle[] particles, ions;
+        ParticleSystem.Particle[] particles, halo, ions;
         Vector3[][] trail;
         int[] trailCount, tracerIndex;
         float[] trailWidth;
@@ -114,6 +121,7 @@ namespace OhmsLaw
             tracer = new bool[count];
             wrapped = new bool[count];
             particles = new ParticleSystem.Particle[count];
+            halo = new ParticleSystem.Particle[count];
             float spacing = length / count;
             for (int i = 0; i < count; i++)
             {
@@ -139,31 +147,34 @@ namespace OhmsLaw
             }
 
             var palette = UI.Theme;
-            tint = palette ? palette.charge : new Color(0.84f, 0.98f, 1f);
+            tint = carrierColor.a > 0 ? carrierColor : palette ? palette.charge : new Color(0.84f, 0.98f, 1f);
             Restore();
-            if (carriers)
+            foreach (var system in new[] { carriers, halos })
             {
-                var main = carriers.main;
+                if (!system) continue;
+                var main = system.main;
                 if (main.maxParticles < count) main.maxParticles = count;
-                if (!carriers.isPlaying) carriers.Play();
+                if (!system.isPlaying) system.Play();
             }
 
-            // Lattice ions: a hexagonal column of dull spheres along the conduit, larger than the electrons; they fade in.
+            // Lattice ions: a hexagonal column of dull spheres along the conduit (the metal's own atoms) on a regular grid, with at
+            // most a tiny seeded placement jitter, never moving. Scene 12's nichrome ions are larger than the electrons and fade in
+            // on cue; Scenes 5-6 show small copper ones from the first frame (latticeVisibility is set before Awake, so no fade).
             var grid = new System.Collections.Generic.List<ParticleSystem.Particle>();
-            float ring = tunnelRadius * 0.55f, ionSize = tunnelRadius * 0.42f;
+            var seed = new System.Random(7);
+            float ring = tunnelRadius * 0.55f, ionDiameter = tunnelRadius * ionSize;
+            Vector3 Jitter() => ionJitter <= 0 ? Vector3.zero : new Vector3((float)seed.NextDouble() - 0.5f, (float)seed.NextDouble() - 0.5f, (float)seed.NextDouble() - 0.5f) * (2f * ionJitter);
             for (float x = -length / 2 + 0.5f; x < length / 2 - 0.3f; x += 0.5f)
                 for (int s = 0; s < 7; s++)
                 {
                     float a = s * Mathf.PI / 3f + (Mathf.Round(x * 2) % 2 == 0 ? 0 : Mathf.PI / 6f); // alternate slices turn half a step
-                    var p = s == 6 ? new Vector3(x, 0, 0) : new Vector3(x, Mathf.Cos(a) * ring, Mathf.Sin(a) * ring);
-                    grid.Add(new ParticleSystem.Particle { position = p, startSize = ionSize, remainingLifetime = 1e6f, startLifetime = 1e6f });
+                    var p = (s == 6 ? new Vector3(x, 0, 0) : new Vector3(x, Mathf.Cos(a) * ring, Mathf.Sin(a) * ring)) + Jitter();
+                    grid.Add(new ParticleSystem.Particle { position = p, startSize = ionDiameter, remainingLifetime = 1e6f, startLifetime = 1e6f });
                 }
             ions = grid.ToArray();
-            if (lattice)
-            {
-                lattice.SetParticles(ions, 0);
-                if (!lattice.isPlaying) lattice.Play();
-            }
+            shownLattice = latticeVisibility;
+            if (lattice && !lattice.isPlaying) lattice.Play(); // first: Play() on a stopped system restarts it and would drop the ions set before it
+            ApplyLattice();
             Cavern();
         }
 
@@ -248,6 +259,7 @@ namespace OhmsLaw
             var cam = Camera.main;
             Vector3 eye = cam ? transform.InverseTransformPoint(cam.transform.position) : Vector3.one * 1e4f;
             Color body = Color.Lerp(tint, FrostTint, frost);
+            bool haloOn = halos;
 
             for (int i = 0; i < count; i++)
             {
@@ -297,8 +309,17 @@ namespace OhmsLaw
                 particles[i].startSize = size[i] * (tracer[i] ? 1.15f : 1f) + (calm ? 0f : 0.1f * flash[i]);
                 particles[i].startColor = colour;
                 particles[i].remainingLifetime = particles[i].startLifetime = 1e6f;
+                if (haloOn)
+                {
+                    // The halo: the same spot, larger and fainter, in the body colour (ice blue while frozen), under the sphere.
+                    halo[i].position = p;
+                    halo[i].startSize = particles[i].startSize * HaloScale;
+                    halo[i].startColor = new Color(body.r, body.g, body.b, a * HaloAlpha);
+                    halo[i].remainingLifetime = halo[i].startLifetime = 1e6f;
+                }
             }
             if (carriers) carriers.SetParticles(particles, count);
+            if (haloOn) halos.SetParticles(halo, count);
 
             Trails(dt, calm);
             Lattice(dt);
@@ -382,7 +403,14 @@ namespace OhmsLaw
         {
             if (!lattice || shownLattice == latticeVisibility) return;
             shownLattice = Mathf.MoveTowards(shownLattice, latticeVisibility, dt * 0.6f); // fades in over ~1.7 s
-            var ionColor = new Color(IonTint.r, IonTint.g, IonTint.b, shownLattice);
+            ApplyLattice();
+        }
+
+        // The ions at the visibility shown now: their tint with that alpha, none at all at zero.
+        void ApplyLattice()
+        {
+            if (!lattice) return;
+            var ionColor = new Color(ionTint.r, ionTint.g, ionTint.b, shownLattice);
             for (int i = 0; i < ions.Length; i++) ions[i].startColor = ionColor;
             lattice.SetParticles(ions, shownLattice > 0 ? ions.Length : 0);
         }
@@ -395,7 +423,7 @@ namespace OhmsLaw
                 var glass = Color.Lerp(conduitColor, new Color(FrostTint.r, FrostTint.g, FrostTint.b, conduitColor.a + 0.08f), frost);
                 tunnel.GetPropertyBlock(block);
                 block.SetColor(BaseColor, glass);
-                block.SetColor(EmissionColor, new Color(glass.r, glass.g, glass.b) * 0.12f); // a faint self-glow so the glass reads in the dark
+                block.SetColor(EmissionColor, new Color(glass.r, glass.g, glass.b) * conduitGlow); // a faint self-glow so the glass reads in the dark (under the bloom threshold)
                 tunnel.SetPropertyBlock(block);
             }
             var ringScale = new Vector3(radius, radius, 1); // unit-radius rings around the conduit

@@ -7,6 +7,7 @@ using TMPro;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace OhmsLaw.Editor
 {
@@ -420,20 +421,23 @@ namespace OhmsLaw.Editor
             Debug.Log($"{SceneId}: lab set from Blender, {parts.Count} parts, bounds {all.min} to {all.max}");
         }
 
-        // The round lab is closed (no window, no daylight): a cool overhead key on the bench with soft shadows, the ceiling
-        // cove as a ring of soft blue points, the display wall behind the bench as a blue practical, a warm-neutral front fill
-        // for faces and a cool rim on Ohm's spot. The set's emissive screens and strips bloom; the probe sees the room once.
+        // The round lab is closed (no window, no daylight): a warm overhead key on the bench with soft shadows and its lamp
+        // cone seen (dust drifting in it), the ceiling cove as a ring of soft blue points (the cool contrast), the board under
+        // a slightly warm wash with a blue practical below it for the backs of the figures, a warm front fill for faces and a
+        // cool rim on Ohm's spot. The set's emissive screens and strips bloom; the probe sees the room once. The 2026-10-14
+        // audit found the lab dim and cold after the warm study (and the polished grade had kept the classroom's 0.2 exposure):
+        // the ambient is lifted and warm at the equator, the background a step up, every practical brighter.
         // Names differ from the classroom's (Window Key, Ceiling Fill, Bench Light, Rim) so CinematicPolish's warm grade of
-        // those lights leaves these alone.
+        // those lights leaves these alone; LabContinuityTest and the looks (LabLooks) depend on them too.
         void LabSetLighting(Transform lab)
         {
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.46f, 0.56f, 0.72f);
-            RenderSettings.ambientEquatorColor = new Color(0.33f, 0.37f, 0.45f);
-            RenderSettings.ambientGroundColor = new Color(0.11f, 0.12f, 0.14f);
+            RenderSettings.ambientSkyColor = new Color(0.5f, 0.58f, 0.72f);
+            RenderSettings.ambientEquatorColor = new Color(0.46f, 0.42f, 0.38f);
+            RenderSettings.ambientGroundColor = new Color(0.16f, 0.15f, 0.14f);
             RenderSettings.fog = false;
-            camera.backgroundColor = new Color(0.03f, 0.05f, 0.08f);
+            camera.backgroundColor = new Color(0.05f, 0.08f, 0.12f);
 
             var root = Node("Lighting", lab).transform;
             Light Spot(string name, Vector3 at, Vector3 aim, Color color, float intensity, float range, float angle, LightShadows shadows)
@@ -461,20 +465,25 @@ namespace OhmsLaw.Editor
             }
 
             // The key sits just under the magnet rig (its bottom is at 2.11; inside the rig, the coils threw wedges of shadow
-            // across the bench) and toward the cameras so the meter faces get it; at 4 the light bench top went white.
-            var key = Spot("Lab Key", new Vector3(0f, 2.05f, -1.0f), DeskTopC + new Vector3(0f, 0f, 0.15f), new Color(0.93f, 0.96f, 1f), 2.6f, 4.5f, 75f, LightShadows.Soft);
+            // across the bench) and toward the cameras so the meter faces get it; warm now, at the low end of the audit's
+            // 3.2-3.6 (at 4, cool, the light bench top went white; the exposure is 0.45 in the polished grade too now).
+            var key = Spot("Lab Key", new Vector3(0f, 2.05f, -1.0f), DeskTopC + new Vector3(0f, 0f, 0.15f), new Color(1f, 0.93f, 0.8f), 3.2f, 4.5f, 75f, LightShadows.Soft);
             key.shadowStrength = 0.7f;
             for (int i = 0; i < 6; i++)
             {
                 float a = (i + 0.5f) * Mathf.PI / 3f;
-                Point("Cove " + (i + 1), new Vector3(Mathf.Sin(a) * 3.6f, 2.45f, Mathf.Cos(a) * 3.6f), new Color(0.55f, 0.8f, 1f), 0.9f, 4.5f);
+                var at = new Vector3(Mathf.Sin(a) * 3.6f, 2.45f, Mathf.Cos(a) * 3.6f);
+                Point("Cove " + (i + 1), at, new Color(0.55f, 0.8f, 1f), 1.6f, 4.5f);
+                // Its gold twin for the finale: off and at zero until the "finale" look fades it up (and the blue one down).
+                Point("Finale Cove " + (i + 1), at, new Color(1f, 0.78f, 0.45f), 0f, 4.5f).enabled = false;
             }
             // The back wall's display is now a dark green board (the .blend's "Material" panel over it, centre (0, 1.64, 5.55)):
-            // a soft neutral wash so it reads as a board, and a weaker blue practical below it for the backs of the figures.
-            Spot("Board Wash", new Vector3(0f, 2.7f, 3.0f), new Vector3(0f, 1.64f, 5.55f), new Color(0.95f, 0.98f, 1f), 1.8f, 5f, 75f, LightShadows.None);
-            Point("Display Glow", new Vector3(0f, 1.2f, 4.2f), new Color(0.38f, 0.62f, 1f), 1.2f, 4f);
-            Spot("Face Fill", new Vector3(0.4f, 2.0f, -2.6f), new Vector3(0f, 1.25f, 0.6f), new Color(1f, 0.95f, 0.88f), 1.0f, 6.5f, 70f, LightShadows.None);
+            // a soft, slightly warm wash so it reads as a board, and a blue practical below it for the backs of the figures.
+            Spot("Board Wash", new Vector3(0f, 2.7f, 3.0f), new Vector3(0f, 1.64f, 5.55f), new Color(1f, 0.96f, 0.9f), 2.6f, 5f, 75f, LightShadows.None);
+            Point("Display Glow", new Vector3(0f, 1.2f, 4.2f), new Color(0.38f, 0.62f, 1f), 1.8f, 4f);
+            Spot("Face Fill", new Vector3(0.4f, 2.0f, -2.6f), new Vector3(0f, 1.25f, 0.6f), new Color(1f, 0.9f, 0.78f), 1.5f, 6.5f, 70f, LightShadows.None);
             Spot("Lab Rim", new Vector3(0.8f, 2.6f, 3.2f), OhmFeetC + Vector3.up * 1.3f, new Color(0.62f, 0.8f, 1f), 2.5f, 5f, 60f, LightShadows.None);
+            LabShaft();
 
             // One capture at start: the lab reflected in the bench top, the meter glass and the floor.
             var probe = Node("Reflection Probe", root, new Vector3(0f, 1.5f, 0f)).AddComponent<ReflectionProbe>();
@@ -486,7 +495,64 @@ namespace OhmsLaw.Editor
             probe.boxProjection = true;
             probe.resolution = 128;
 
-            GlobalPost(root, "Classroom_Global", bloom: 0.6f, vignette: 0.2f, exposure: 0.45f);
+            var volume = GlobalPost(root, "Classroom_Global", bloom: 0.6f, vignette: 0.2f, exposure: 0.45f);
+            LabLooks(root, volume);
+        }
+
+        // The lamp over the table, seen: a soft warm cone from under the magnet rig down to the table top (it fades out before
+        // the apparatus) with slow dust motes drifting in it. Under "Classroom Ceiling", as the study's God Rays sit under its
+        // window side: Scene 8 keeps both hidden until the ceiling spreads in, and they grow with it. The cone is faint (the
+        // only board it crosses in the wide shots is the empty slab) and still; the motes thin and dim under reduced motion.
+        void LabShaft()
+        {
+            var ceiling = refs["Classroom Ceiling"].transform;
+            ShaftCone("Lab Shaft", ceiling, ceiling.InverseTransformPoint(new Vector3(0f, 2.08f, 0f)), 1.25f, 1.0f, new Color(1f, 0.9f, 0.72f, 0.05f));
+            var motes = Emitter("Lab Motes", ceiling, ceiling.InverseTransformPoint(new Vector3(0f, 1.45f, 0f)), Glow("Glow_LabMote", Hdr(new Color(1f, 0.92f, 0.75f), 1.6f)), ps =>
+            {
+                var main = ps.main;
+                main.prewarm = true; // in the cone from the first frame
+                main.startLifetime = new ParticleSystem.MinMaxCurve(5f, 9f);
+                main.startSpeed = new ParticleSystem.MinMaxCurve(0.015f, 0.05f);
+                main.startSize = new ParticleSystem.MinMaxCurve(0.006f, 0.014f);
+                main.gravityModifier = 0.002f; // a slow sink
+                main.maxParticles = 80;
+                main.simulationSpace = ParticleSystemSimulationSpace.World;
+                var emission = ps.emission;
+                emission.rateOverTime = 7f;
+                var shape = ps.shape;
+                shape.shapeType = ParticleSystemShapeType.Box;
+                shape.scale = new Vector3(1.3f, 1.1f, 1.3f);
+                shape.randomDirectionAmount = 1f;
+            });
+            motes.gameObject.AddComponent<ReducedMotionFx>().calm = 0.35f;
+        }
+
+        // The lab's two lighting states for the director's 'look' cue: "classroom" is the room as built; "finale" (Scene 13,
+        // 'look 2.0 finale' on Ohm's return) is the same room warmer and brighter: the key up a quarter, the gold coves up and
+        // the blue ones down, the fills up, a warmer and lifted ambient and background, and its own post volume (a touch more
+        // exposure, a warm filter). The finale's lights and volume start off; the crossfade owns them from the cue (the shared
+        // probe stays on because the finale is listed last). Scene 8 installs its own study -> classroom pair over this one.
+        void LabLooks(Transform lighting, Volume classroomVolume)
+        {
+            var finaleVolume = GlobalPost(lighting, "Finale_Global", bloom: 0.6f, vignette: 0.18f, exposure: 0.6f);
+            finaleVolume.name = "Finale Volume";
+            finaleVolume.weight = 0f;
+            if (finaleVolume.sharedProfile.TryGet<ColorAdjustments>(out var colour)) { colour.colorFilter.Override(new Color(1f, 0.95f, 0.86f)); EditorUtility.SetDirty(colour); }
+            var classroom = CaptureLook("classroom", lighting);
+            classroom.volume = classroomVolume;
+            var finale = CaptureLook("finale", lighting);
+            finale.volume = finaleVolume;
+            for (int i = 0; i < finale.lights.Length; i++)
+            {
+                string name = finale.lights[i].name;
+                if (name.StartsWith("Finale Cove")) finale.intensities[i] = 1.4f;
+                else finale.intensities[i] *= name == "Lab Key" ? 1.25f : name == "Face Fill" ? 1.3f : name == "Board Wash" ? 1.15f : name == "Display Glow" ? 1.2f : name.StartsWith("Cove") ? 0.6f : 1f;
+            }
+            finale.ambientSky = new Color(0.6f, 0.6f, 0.66f);
+            finale.ambientEquator = new Color(0.62f, 0.52f, 0.42f);
+            finale.ambientGround = new Color(0.22f, 0.19f, 0.16f);
+            finale.background = new Color(0.09f, 0.1f, 0.13f);
+            director.looks = new[] { classroom, finale };
         }
 
         // ------------------------------------------------------------------ lighting

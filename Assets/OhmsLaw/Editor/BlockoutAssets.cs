@@ -17,6 +17,7 @@ namespace OhmsLaw.Editor
         public const string Root = Scene04Builder.Root, Shared = Scene04Builder.Shared;
         const string SymbolFont = Shared + "/UI/Fonts/DejaVuSans-Bold.ttf";
         const string Symbols = "Ω∝Δ∆→÷×−±·°";
+        const string DisplayFont = Shared + "/UI/Fonts/Fredoka-SemiBold.ttf", DisplayAsset = Shared + "/Resources/Fredoka SDF.asset";
 
         // Scene names in play order. Scene 4 is the Scene 4 build; the rest are the blockouts.
         public static readonly string[] SceneOrder =
@@ -30,8 +31,39 @@ namespace OhmsLaw.Editor
             var palette = AssetDatabase.LoadAssetAtPath<ModulePalette>(Shared + "/ModulePalette.asset");
             if (!palette) throw new InvalidOperationException("Run Ohm's Law > Build Scene 04 first; it creates the palette, font and module root.");
             EnsureSymbols(palette.font);
+            EnsureDisplayFont(palette.font);
             UI.Theme = palette;
             return palette;
+        }
+
+        // The kids UI's display face: a Fredoka SemiBold (OFL, Shared/UI/Fonts) atlas in Shared/Resources, made the way the
+        // Nunito SDF is (Scene04Builder.BuildPalette) and loaded at runtime by UI.DisplayFont. Nunito is its fallback, so a
+        // glyph Fredoka lacks (Ω, ∝, the arrows) comes from Nunito or the symbol atlas behind it.
+        static void EnsureDisplayFont(TMP_FontAsset body)
+        {
+            var display = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(DisplayAsset);
+            if (!display)
+            {
+                var source = AssetDatabase.LoadAssetAtPath<Font>(DisplayFont);
+                if (!source) { Debug.LogWarning("Display font missing: " + DisplayFont); return; }
+                Directory.CreateDirectory(Shared + "/Resources");
+                display = TMP_FontAsset.CreateFontAsset(source, 90, 9, GlyphRenderMode.SDFAA, 1024, 1024);
+                AssetDatabase.CreateAsset(display, DisplayAsset);
+                display.material.name = "Fredoka SDF Material";
+                display.atlasTexture.name = "Fredoka SDF Atlas";
+                AssetDatabase.AddObjectToAsset(display.material, display);
+                AssetDatabase.AddObjectToAsset(display.atlasTexture, display);
+                display.TryAddCharacters(" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~…–—’‘“”°×÷=Ω", out string missing);
+                if (!string.IsNullOrEmpty(missing)) Debug.Log("Fredoka SDF: from the fallback: " + missing);
+                // Written to disk now: a later refresh would otherwise reload the asset without its atlas and material.
+                EditorUtility.SetDirty(display);
+                AssetDatabase.SaveAssets();
+            }
+            if (body && !display.fallbackFontAssetTable.Contains(body))
+            {
+                display.fallbackFontAssetTable.Add(body);
+                EditorUtility.SetDirty(display);
+            }
         }
 
         // The module font lacks ∝ and →, so a DejaVu Sans atlas with the maths symbols is attached as a fallback.

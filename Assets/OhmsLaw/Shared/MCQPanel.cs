@@ -7,24 +7,35 @@ using UnityEngine.UI;
 namespace OhmsLaw
 {
     // A multiple-choice question in the lesson panel's MCQ block: the question (quantity words in their colours) and 2-4
-    // option rows, each a full-width Raised button 64 px tall with its letter in a badge. Select() marks the pick (paper
-    // row, ink text) and steps the others back. The caller decides what an answer means and writes it to LearnerSession.
+    // option rows, each a full-width Raised button 64 px tall with its letter in a badge. Select() marks the pick
+    // (electric-blue row, ink text) and steps the others back. The caller decides what an answer means and writes it to
+    // LearnerSession; a graded quick check then tells the panel the verdict with Mark() (SceneDirector.Gates.QuickCheck,
+    // judge: true), or hands `correctIndex` to the constructor and Select() grades the pick itself. Either way the row
+    // turns success green or error red (ink text, a check or a cross), a chip says "Correct!" / "Not quite" and fades
+    // after ChipSeconds, and a wrong row shakes. correctIndex -1 (the default) leaves the pick unmarked: Scene 6's
+    // prediction, and the 3 V wager the bench settles later.
     public class MCQPanel
     {
-        const float Badge = 40f, OptionFont = 22f, QuestionFont = 26f, HintFont = 17f, RowHeight = 64f;
+        const float Badge = 40f, OptionFont = 22f, QuestionFont = 26f, HintFont = 17f, RowHeight = 64f, ChipHeight = 36f;
+        public const float ChipSeconds = 1.5f;
 
-        // Answer marks on the option tiles (white text stays readable on each).
-        public static readonly Color RightMark = new Color(0.2f, 0.5f, 0.25f), WrongMark = new Color(0.5f, 0.2f, 0.2f), PartMark = new Color(0.55f, 0.42f, 0.12f);
+        // Answer marks on the option rows (ink text on each): right, wrong, part right.
+        public static readonly Color RightMark = LessonPanel.Success, WrongMark = LessonPanel.Error, PartMark = LessonPanel.Gold;
 
         readonly RectTransform block;
         readonly RectTransform panel;
         readonly Image[] options;
         readonly bool[] disabled;
         readonly TextMeshProUGUI question, hint;
+        readonly int correctIndex;
+        RectTransform chip;
+        Image chipFill, chipIcon;
+        TextMeshProUGUI chipText;
         public int Picked { get; private set; } = -1;
 
-        public MCQPanel(string questionText, string[] optionTexts)
+        public MCQPanel(string questionText, string[] optionTexts, int correctIndex = -1)
         {
+            this.correctIndex = correctIndex;
             var lesson = LessonPanel.Instance;
             lesson.Clear("MCQ");
             block = lesson.Block("MCQ");
@@ -33,6 +44,7 @@ namespace OhmsLaw
             // v5: a question tagged "[QC]" is a quick check, not a prediction (the tag never reaches the screen or the agent).
             bool quick = questionText != null && questionText.StartsWith("[QC]");
             if (quick) questionText = questionText.Substring(4).TrimStart();
+            LessonPanel.Brackets(block, quick);   // the quick check is a title-bearing card; the prediction and the law tiles are not
             LessonPanel.Eyebrow(panel, quick ? "Quick check" : "Your prediction").gameObject.name = "Eyebrow";   // the agent reads "Label" as the question
             question = LessonPanel.Text(panel, LessonPanel.Quantities(questionText), QuestionFont, LessonPanel.Paper);
             var gap = UI.Rect("Gap", panel, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
@@ -113,7 +125,8 @@ namespace OhmsLaw
                 if (options[i] && options[i].TryGetComponent(out Button button)) button.interactable = on && !disabled[i];
         }
 
-        // The pick: its row turns paper with ink text and an ink badge; the others step back (45 %). Never a right/wrong mark.
+        // The pick: its row turns electric blue with ink text and an ink badge; the others step back (45 %). A right/wrong
+        // mark only when the panel was given the correct option (else the caller's Mark(), or none).
         public void Select(int index)
         {
             for (int i = 0; i < options.Length; i++)
@@ -130,16 +143,66 @@ namespace OhmsLaw
                 group.alpha = chosen ? 1f : 0.45f;
                 group.interactable = false;
             }
+            if (correctIndex >= 0 && index >= 0) Mark(index, index == correctIndex ? RightMark : WrongMark);
         }
 
-        public void Mark(int index, Color color) { if (index >= 0 && index < options.Length && options[index]) options[index].color = color; }
+        // The verdict on a row: it takes the mark's colour with ink text, a chip says so ("Correct!" with a check, "Not
+        // quite" with a cross, "Nearly" for a part mark) and fades after ChipSeconds, and a wrong row shakes (fades only
+        // under reduced motion). The fill goes through the row's HudButton, which otherwise eases it back every frame.
+        public void Mark(int index, Color color)
+        {
+            if (index < 0 || index >= options.Length || !options[index]) return;
+            Fill(index, color);
+            bool right = color == RightMark, part = color == PartMark;
+            Chip(right ? "Correct!" : part ? "Nearly" : "Not quite", color, right ? "check" : "x");
+            if (!right && !part && !ReducedMotion.On && LessonPanel.Instance) LessonPanel.Instance.StartCoroutine(Shake());
+        }
+
+        void Fill(int index, Color color)
+        {
+            var row = options[index].transform;
+            if (row.TryGetComponent(out HudButton hud))
+            {
+                hud.fillColor = hud.activeFill = color;
+                hud.outlineColor = hud.activeOutline = color;
+                hud.hoverFill = Color.clear;
+            }
+            options[index].color = color;
+            foreach (var label in row.GetComponentsInChildren<TextMeshProUGUI>()) label.color = label.transform.parent.name == "Letter" ? LessonPanel.Paper : LessonPanel.Ink;
+            var badge = row.Find("Letter");
+            if (badge && badge.TryGetComponent(out Image disc)) disc.color = LessonPanel.Ink;
+        }
+
+        // The verdict chip under the options: a hugging pill in the mark's colour, an icon and a word in ink.
+        void Chip(string text, Color color, string icon)
+        {
+            if (!panel) return;
+            if (!chip)
+            {
+                var holder = LessonPanel.Row("Chip", panel, 0f);
+                LessonPanel.Fixed(holder, ChipHeight);
+                chip = LessonPanel.Row("Pill", holder, 8f);
+                chip.GetComponent<HorizontalLayoutGroup>().padding = new RectOffset(14, 16, 0, 0);
+                LessonPanel.Fixed(chip, ChipHeight);
+                chipFill = UI.Panel(chip, color, true, ChipHeight / 2f);
+                chipFill.raycastTarget = false;
+                chipIcon = LessonPanel.Icon(chip, icon, 16f, LessonPanel.Ink);
+                chipText = LessonPanel.Text(chip, text, 16f, LessonPanel.Ink, TextAlignmentOptions.MidlineLeft);
+                chipText.textWrappingMode = TextWrappingModes.NoWrap;
+                chip.gameObject.AddComponent<ChipFade>();
+            }
+            chipFill.color = color;
+            chipIcon.sprite = Icons.Get(icon);
+            chipText.text = text;
+            chip.GetComponent<ChipFade>().Restart();   // no sound of its own: the gate's Done() chimes in the same frame
+        }
 
         // A tried option keeps its mark and can no longer be picked (retries offer the others).
         public void Disable(int index, Color mark)
         {
             if (index < 0 || index >= options.Length || !options[index]) return;
             disabled[index] = true;
-            options[index].color = mark;
+            Fill(index, mark);
             options[index].GetComponent<Button>().interactable = false;
         }
 
@@ -150,9 +213,10 @@ namespace OhmsLaw
             hint.gameObject.SetActive(!string.IsNullOrEmpty(text));
         }
 
+        // A wrong pick: the panel shakes sideways for 0.45 s (nothing under reduced motion).
         public IEnumerator Shake()
         {
-            if (!panel) yield break;
+            if (!panel || ReducedMotion.On) yield break;
             var home = panel.anchoredPosition;
             for (float t = 0; t < 0.45f; t += Time.deltaTime)
             {
@@ -169,6 +233,32 @@ namespace OhmsLaw
             var lesson = LessonPanel.Instance;
             if (lesson) lesson.Clear("MCQ");
             else Object.Destroy(panel.gameObject);
+        }
+    }
+
+    // The verdict chip's life: shown at once, held for MCQPanel.ChipSeconds, then a 0.3 s fade (a cut under reduced
+    // motion) and gone. Unscaled time: the Timeline is held at the gate.
+    public class ChipFade : MonoBehaviour
+    {
+        const float FadeSeconds = 0.3f;
+        CanvasGroup group;
+        float t;
+
+        public void Restart()
+        {
+            if (!group && !TryGetComponent(out group)) group = gameObject.AddComponent<CanvasGroup>();
+            t = 0f;
+            group.alpha = 1f;
+            gameObject.SetActive(true);
+        }
+
+        void Update()
+        {
+            t += Time.unscaledDeltaTime;
+            if (t < MCQPanel.ChipSeconds) return;
+            float alpha = ReducedMotion.On ? 0f : 1f - Mathf.Clamp01((t - MCQPanel.ChipSeconds) / FadeSeconds);
+            group.alpha = alpha;
+            if (alpha <= 0f) gameObject.SetActive(false);
         }
     }
 }

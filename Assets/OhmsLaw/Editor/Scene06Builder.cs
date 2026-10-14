@@ -63,17 +63,18 @@ namespace OhmsLaw.Editor
             Music("PadWire");
             Gesture(WattsonController.Gesture.Greet);
             Visual("Wattson turns toward the learner", 0.6);
-            Shot("Wire Wattson"); // close on him for the greeting and the freeze: the magic the scene hangs on (in the wide it was a 130 px figure and the burst went unseen)
-            Line("S06_L01");
+            Shot("Wire Wattson"); // close on him for the freeze and the greeting: the magic the scene hangs on (in the wide it was a 130 px figure and the burst went unseen)
 
-            // First the freeze, and the counter goes with it (a held number beside a rising gauge would read as an answer);
-            // then the voltage rise on the + terminal and its gauge. The drift never changes on screen.
+            // First the freeze, in the two-shot before he speaks, and the counter goes with it (a held number beside a rising
+            // gauge would read as an answer); then "Detective test." on his face, and the voltage rise on the + terminal and
+            // its gauge back in the wide. The drift never changes on screen.
             Gesture(WattsonController.Gesture.RaiseGadget, point: "Card Terminal +", gadget: true);
             Cue("wire.freeze 1", "electrons frozen (a little random motion only) until the scene ends, so the drift never reveals the answer");
             Cue("wire.ticks 0"); Cue("wire.count 0"); Cue("counter 0");
             Show("[VFX] time-freeze (Ohm-niscope holds the carriers)");
             Sfx("Highlight");
-            Visual("The Ohm-niscope freezes the electrons in the two-shot: the cold pulse from his gadget, frost round the conduit, the charges turn ice-blue and stop drifting; the counter is put away", 1.2);
+            Visual("The Ohm-niscope freezes the electrons in the two-shot: the cold pulse from his gadget, frost round the conduit, the charges and their halos turn ice-blue and stop drifting; the counter is put away", 1.2);
+            Line("S06_L01");
             Shot("Wire Inside"); // back to the wide for the voltage rise and the question; the gauge pops in as the 1 s blend lands
             Show("Battery Readout", 0.6);
             Cue("boost Card Terminal +", "Wattson raises the battery voltage: the + terminal brightens as its V gauge rises", 0.6);
@@ -108,12 +109,15 @@ namespace OhmsLaw.Editor
         // The + terminal's own readout: a level gauge standing on top of the + block (front-left of its cap), its blue fill
         // rising from 30 % to 80 % over 1.4 s when it is shown (a legacy Animation clip, so the show cue restarts it), marked
         // "V" above its slot. Up there it has clear space over the conduit's + end, away from the "+ positive" label and the
-        // stream, at 1.5x: on the floor it was 45 x 130 px, the smallest thing in the frame, crowding the label.
+        // stream, at 1.6x (on the floor it was 45 x 130 px, the smallest thing in the frame, crowding the label): ~110 px wide,
+        // its top 100 px under the frame's edge in the closer "Wire Inside". On the Blender machine it stands in a slot, its
+        // base 0.25 m into the machine's top, so the taller housing keeps clear of the top edge.
         void BatteryReadout()
         {
-            const float width = 0.44f, height = 1.5f, depth = 0.3f, face = -0.05f, scale = 1.5f;
+            const float width = 0.44f, height = 1.5f, depth = 0.3f, face = -0.05f, scale = 1.6f;
             const float slotWidth = 0.2f, slotHeight = 1.1f, slotY = -0.12f, edge = 0.012f;
-            var gauge = Node("Battery Readout", null, PlusBlock + new Vector3(-0.35f, (BlenderSet.Wire.Exists ? 2.66f : 1.8f) + scale * height / 2, -0.35f)); // on the block's cap (1.8 m over its centre), or on the Blender machine's top (2.66)
+            bool set = BlenderSet.Wire.Exists;
+            var gauge = Node("Battery Readout", null, PlusBlock + new Vector3(set ? -0.6f : -0.35f, (set ? 2.66f - 0.25f : 1.8f) + scale * height / 2, -0.35f)); // on the block's cap (1.8 m over its centre), or sunk into the Blender machine's top (2.66), 0.6 m left of its centre: clear of the dock
             gauge.transform.rotation = Quaternion.Euler(0, 45, 0);
             gauge.transform.localScale = Vector3.one * scale;
             var pop = gauge.AddComponent<PopIn>();

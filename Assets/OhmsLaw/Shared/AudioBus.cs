@@ -30,7 +30,7 @@ namespace OhmsLaw
         public float gain = 1f;
 
         [Header("Background Music (music bus only)")]
-        [Tooltip("Played by a music bus when the scene starts, e.g. Assets/OhmsLaw/Shared/Art/bgm.mp3.")]
+        [Tooltip("Played by a music bus when the scene starts, e.g. Assets/OhmsLaw/Shared/Art/bgm.mp3. With Play On Start off the bus only carries the clip: Scene 4's music bus holds the title bed (PadIntro) this way for ModuleFlow.")]
         public AudioClip bgm;
 
         [Tooltip("Play the background music automatically when the scene starts.")]

@@ -88,7 +88,7 @@ namespace OhmsLaw
                 var element = steps[i].GetComponent<LayoutElement>();
                 element.preferredWidth = element.minWidth = small ? (isNow ? 26f : 14f) : (isNow ? 44f : 26f);
                 element.preferredHeight = element.minHeight = small ? 4f : 5f;
-                steps[i].color = i < now ? LessonPanel.Spark : isNow ? LessonPanel.Paper : new Color(1f, 1f, 1f, 0.24f);
+                steps[i].color = i < now ? LessonPanel.Accent : isNow ? LessonPanel.Paper : new Color(1f, 1f, 1f, 0.24f);
             }
         }
     }
@@ -127,8 +127,9 @@ namespace OhmsLaw
             var fitter = block.gameObject.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             LessonPanel.Card(block, 1f, 22f);   // solid: a board or a poster behind never mixes with the title (4 % glass let lit chalk through)
+            LessonPanel.Brackets(block, true);   // a title-bearing card
             kicker = LessonPanel.Eyebrow(block, "", LessonPanel.Spark);
-            title = LessonPanel.Text(block, "", 54f, LessonPanel.Paper);
+            title = UI.Display(LessonPanel.Text(block, "", 54f, LessonPanel.Paper));   // Fredoka: the chapter title
             title.textWrappingMode = TextWrappingModes.NoWrap;
             purpose = LessonPanel.Text(block, "", 23f, UI.Alpha(LessonPanel.Paper, 0.9f), TextAlignmentOptions.TopLeft, false);
             cardRail = Rail.Create(block, false);
@@ -255,7 +256,7 @@ namespace OhmsLaw
         void Update()
         {
             bool on = get != null && get();
-            track.color = on ? LessonPanel.Spark : new Color(1f, 1f, 1f, 0.24f);
+            track.color = on ? LessonPanel.Accent : new Color(1f, 1f, 1f, 0.24f);
             knobImage.color = on ? LessonPanel.Ink : LessonPanel.Paper;
             float x = on ? 46f : 18f;
             knob.anchoredPosition = new Vector2(ReducedMotion.On ? x : Mathf.Lerp(knob.anchoredPosition.x, x, 1f - Mathf.Exp(-18f * Time.unscaledDeltaTime)), 0f);
@@ -325,7 +326,7 @@ namespace OhmsLaw
             var left = LessonPanel.Stack("Left", menu.card, 12f);
             Width(left, 656f);
             menu.eyebrow = LessonPanel.Eyebrow(left, "");
-            menu.title = LessonPanel.Text(left, "", 42f, LessonPanel.Paper);
+            menu.title = UI.Display(LessonPanel.Text(left, "", 42f, LessonPanel.Paper));   // Fredoka: the chapter title
             menu.purpose = LessonPanel.Text(left, "", 20f, LessonPanel.Muted, TextAlignmentOptions.TopLeft, false);
             var actions = LessonPanel.Row("Actions", left, 10f);
             LessonPanel.Fixed(actions, LessonPanel.ButtonHeight);
@@ -423,7 +424,7 @@ namespace OhmsLaw
                 number.fontStyle = FontStyles.Bold;
                 LessonPanel.Icon(rect, isNow ? "play" : open ? "replay" : "lock", 18f, isNow ? LessonPanel.Paper : LessonPanel.Muted);
                 var hud = button.GetComponent<HudButton>();
-                if (isNow) { hud.fillColor = LessonPanel.HoverFill; hud.outlineColor = hud.activeOutline = LessonPanel.Paper; }
+                if (isNow) { hud.fillColor = LessonPanel.HoverFill; hud.outlineColor = hud.activeOutline = LessonPanel.Glow; }
                 button.interactable = open;
                 hud.disabledTap = () => { unlock.text = "Reach this chapter in the story first."; unlock.color = LessonPanel.Spark; };
             }
@@ -586,19 +587,23 @@ namespace OhmsLaw
             block.anchoredPosition = new Vector2(120, 96);
             block.sizeDelta = new Vector2(780, 0);
             block.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            LessonPanel.Brackets(block, true, -14f);   // the title block: corner brackets just outside it
             LessonPanel.Eyebrow(block, "A Wattson investigation", LessonPanel.Spark, 18f).characterSpacing = 12f;
-            var title = LessonPanel.Text(block, "OHM'S LAW", 110f, new Color(1f, 0.77f, 0.42f));
+            var title = UI.Display(LessonPanel.Text(block, "OHM'S LAW", 110f, LessonPanel.Gold));   // Fredoka in gold, the reference's title
             title.textWrappingMode = TextWrappingModes.NoWrap;
             title.characterSpacing = -2f;
             LessonPanel.Fixed(title.rectTransform, 128f);
+            // The bolt motif under the title: a thin electric-blue rule, the bolt, a fainter tail (the reference's pulse line).
+            var motif = LessonPanel.Row("Motif", block, 8f);
+            LessonPanel.Fixed(motif, 20f);
+            Rule(motif, 150f, UI.Alpha(LessonPanel.Accent, 0.9f));
+            LessonPanel.Icon(motif, "bolt", 18f, LessonPanel.Accent);
+            Rule(motif, 90f, UI.Alpha(LessonPanel.Accent, 0.45f));
             var lead = LessonPanel.Text(block, "A Journey of Curiosity,\nCurrent and Discovery", 30f, UI.Alpha(LessonPanel.Paper, 0.96f), TextAlignmentOptions.TopLeft, false);
             lead.margin = new Vector4(0, 0, 120, 0);
             var actions = LessonPanel.Row("Actions", block, 14f);
             LessonPanel.Fixed(actions, 68f);
-            var start = LessonPanel.Pill("Start", actions, "START JOURNEY", StartCase, LessonPanel.Kind.Secondary, "bolt", 68f, 25f);   // v5: the bolt in a gold frame
-            var state = start.GetComponent<HudButton>();
-            state.fillColor = new Color(0.035f, 0.17f, 0.26f, 0.98f);
-            state.outlineColor = new Color(1f, 0.77f, 0.42f);
+            LessonPanel.Pill("Start", actions, "START JOURNEY", StartCase, LessonPanel.Kind.Primary, "bolt", 68f, 25f);   // the one amber action
             LessonPanel.Text(block, "EXPLORE   ·   EXPERIMENT   ·   DISCOVER", 18f, LessonPanel.Spark);
             view.continueButton = LessonPanel.Pill("Continue", actions, "Continue", ContinueCase, LessonPanel.Kind.Secondary, null, 68f, 22f).gameObject;
             view.meta = LessonPanel.Text(block, "", 18f, LessonPanel.Muted, TextAlignmentOptions.TopLeft, false);
@@ -607,6 +612,18 @@ namespace OhmsLaw
             view.curtain.raycastTarget = false;
             screen.gameObject.SetActive(false);
             return view;
+        }
+
+        // A 2 px rule of a fixed width in a row (the title's bolt motif).
+        static void Rule(Transform row, float width, Color color)
+        {
+            var rect = UI.Rect("Rule", row, new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(width, 2));
+            var element = rect.gameObject.AddComponent<LayoutElement>();
+            element.preferredWidth = element.minWidth = width;
+            element.preferredHeight = element.minHeight = 2f;
+            var image = rect.gameObject.AddComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
         }
 
         void Update()

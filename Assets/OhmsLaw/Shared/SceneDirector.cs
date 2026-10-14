@@ -196,13 +196,45 @@ namespace OhmsLaw
         AudioClip Sound(string name) => sounds.FirstOrDefault(c => c && c.name == name);
 
         // One-shot from the bank, pitched (1 = as recorded). A missing clip is silent, never an error.
+        // A pitched one-shot needs a source of its own: PlayOneShot follows its source's pitch for as long as the clip plays,
+        // so setting it and putting it back in one call played every VoltStep and Plot at 1. A pitched call takes an idle
+        // source cloned beside `sfx` (same bus kind and gain, so the learner's slider and the ducker apply as usual) and
+        // leaves the pitch on it until the clip ends; plain calls keep using `sfx` itself.
         public void Play(string name, float pitch = 1f)
         {
             var clip = Sound(name);
             if (!clip || !sfx) return;
-            sfx.pitch = pitch;
-            sfx.PlayOneShot(clip);
-            sfx.pitch = 1f;
+            var source = Mathf.Approximately(pitch, 1f) ? sfx : pitched.Find(s => s && !s.isPlaying);
+            if (!source)
+            {
+                if (pitched.Count < 4) { source = Clone(sfx); pitched.Add(source); AudioDucker.RescanSoon(); }
+                else source = pitched[0]; // all four busy: the first takes the new pitch mid-clip, no worse than before
+            }
+            source.pitch = pitch;
+            source.PlayOneShot(clip);
+        }
+
+        readonly List<AudioSource> pitched = new List<AudioSource>();
+
+        static AudioSource Clone(AudioSource of)
+        {
+            var go = new GameObject(of.name + " pitched");
+            go.SetActive(false); // the bus reads its gain in Awake
+            go.transform.SetParent(of.transform, false);
+            var source = go.AddComponent<AudioSource>();
+            source.playOnAwake = false;
+            source.spatialBlend = of.spatialBlend;
+            source.outputAudioMixerGroup = of.outputAudioMixerGroup;
+            if (of.TryGetComponent(out AudioBus bus))
+            {
+                var mine = go.AddComponent<AudioBus>();
+                mine.kind = bus.kind;
+                mine.gain = bus.gain;
+                source.volume = bus.gain * AudioBus.Get(bus.kind);
+            }
+            else source.volume = of.volume;
+            go.SetActive(true);
+            return source;
         }
 
         readonly Dictionary<AudioSource, Coroutine> fades = new Dictionary<AudioSource, Coroutine>();

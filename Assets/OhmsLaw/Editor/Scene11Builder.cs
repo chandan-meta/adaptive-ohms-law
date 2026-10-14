@@ -48,7 +48,7 @@ namespace OhmsLaw.Editor
             // Match-cut from Scene 10: the same data in the dock (the cues rebuild it), rows 1-2 still highlighted.
             Shot("Bench Study");
             Ambience("RoomTone");
-            Music("PadLab");
+            Music(Scene10Builder.LabTheme(sounds));
             Cue("table.rows 5");
             Cue("table.highlight 0 1");
             Cue("readings.top 1");

@@ -83,6 +83,30 @@ namespace OhmsLaw
             return label;
         }
 
+        static TMP_FontAsset display;
+        static bool displayLooked;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() { display = null; displayLooked = false; }
+
+        // The display face (kids UI): Fredoka SDF, built by BlockoutAssets into Shared/Resources with the body font as its
+        // fallback; the body font itself until that asset exists. Display text only: titles, hero plates, readouts, the stamp.
+        public static TMP_FontAsset DisplayFont
+        {
+            get
+            {
+                if (!display && !displayLooked) { displayLooked = true; display = Resources.Load<TMP_FontAsset>("Fredoka SDF"); }
+                return display ? display : Theme ? Theme.font : null;
+            }
+        }
+
+        public static TextMeshProUGUI Display(TextMeshProUGUI label)
+        {
+            var font = DisplayFont;
+            if (label && font) label.font = font;
+            return label;
+        }
+
         public static Button Button(string name, Transform parent, Vector2 anchor, Vector2 pivot, Vector2 position, Vector2 size, string text, UnityAction onClick, float fontSize = ButtonFont)
         {
             var rect = Rect(name, parent, anchor, pivot, position, new Vector2(Mathf.Max(size.x, MinTarget), Mathf.Max(size.y, MinTarget)));
@@ -196,7 +220,7 @@ namespace OhmsLaw
     // runs while the Timeline is held at a gate. Added by code only (never serialised), hence it may live in UI.cs.
     public class UIFade : MonoBehaviour
     {
-        public float inSeconds = 0.25f, outSeconds = 0.18f;
+        public float inSeconds = LessonPanel.PanelSeconds, outSeconds = 0.18f;   // exits faster than entries
 
         CanvasGroup group;
         bool dismissed;

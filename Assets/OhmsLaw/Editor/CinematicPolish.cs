@@ -72,15 +72,23 @@ namespace OhmsLaw.Editor
                     {
                         if (!volume.sharedProfile.name.Contains("Global")) continue;
                         var original = volume.sharedProfile;
-                        string destination = Art + "/" + original.name.Replace("_Polished", "") + "_Polished.asset";
+                        string baseName = original.name.Replace("_Polished", "");
+                        string destination = Art + "/" + baseName + "_Polished.asset";
                         if (!AssetDatabase.LoadAssetAtPath<VolumeProfile>(destination)) AssetDatabase.CopyAsset(AssetDatabase.GetAssetPath(original), destination);
                         var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(destination);
                         volume.sharedProfile = profile;
                         bool electric = profile.name.Contains("Electron");
-                        if (profile.TryGet<Bloom>(out var bloom)) { bloom.intensity.Override(electric ? 0.75f : 0.3f); bloom.threshold.Override(1.1f); bloom.scatter.Override(electric ? 0.7f : 0.62f); }
+                        if (profile.TryGet<Bloom>(out var bloom)) { bloom.intensity.Override(electric ? 0.45f : 0.3f); bloom.threshold.Override(1.1f); bloom.scatter.Override(electric ? 0.7f : 0.62f); }
                         if (profile.TryGet<FilmGrain>(out var grain)) grain.intensity.Override(0.025f);
                         if (profile.TryGet<Vignette>(out var vignette)) vignette.intensity.Override(electric ? 0.22f : 0.18f);
-                        if (profile.TryGet<ColorAdjustments>(out var colour)) { colour.contrast.Override(8f); colour.saturation.Override(-5f); }
+                        if (profile.TryGet<ColorAdjustments>(out var colour))
+                        {
+                            colour.contrast.Override(8f); colour.saturation.Override(-5f);
+                            // The copy is made once, so it kept whatever exposure the builder had at the time (the lab sat at the
+                            // classroom's 0.2 while its builder means 0.45). The builder's profile owns the exposure: read it every apply.
+                            var built = AssetDatabase.LoadAssetAtPath<VolumeProfile>(SceneBuilderBase.Art + "/Post/" + baseName + ".asset");
+                            if (built && built.TryGet<ColorAdjustments>(out var builder)) colour.postExposure.Override(builder.postExposure.value);
+                        }
                         EditorUtility.SetDirty(profile);
                     }
                     foreach (var wattson in all.Select(t => t.GetComponent<WattsonController>()).Where(w => w))
@@ -161,7 +169,7 @@ namespace OhmsLaw.Editor
         // pillar hall if a saved scene still carries it, and re-bakes the floor's probe.
         static void PolishWire(WireInterior wire)
         {
-            wire.carrierSize = 0.22f;
+            wire.carrierSize = 0.30f;
             wire.conduitColor.a = 0.075f;
             foreach (var trail in wire.trails) if (trail) { trail.widthMultiplier = 0.035f; trail.numCapVertices = 3; }
             // The polished copies were made once from older builder values, and the material pass swaps them in: refresh each

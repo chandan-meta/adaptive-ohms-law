@@ -85,7 +85,7 @@ namespace OhmsLaw.Editor
             // Match-cut from Scene 11: the same data in the dock and V ∝ I centre screen.
             Shot("Bench Study");
             Ambience("RoomTone");
-            Music("PadLab");
+            Music(Scene10Builder.LabTheme(sounds));
             Cue("table.rows 5"); Cue("readings.top 1"); Cue("panel Table 0", "as Scene 11 left it: the graph in the dock", 0.05);
             Cue("graph.axes 1"); Cue("graph.plot 5"); Cue("graph.line 2");
             Cue("hero V ∝ I|directly proportional, for this wire at constant temperature", "as Scene 11 left it");

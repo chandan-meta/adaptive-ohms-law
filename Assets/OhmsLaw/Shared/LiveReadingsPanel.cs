@@ -70,7 +70,8 @@ namespace OhmsLaw
             var label = UI.Label(rect, "", size, color, TextAlignmentOptions.Midline);
             label.textWrappingMode = TextWrappingModes.NoWrap;
             label.overflowMode = TextOverflowModes.Overflow;
-            label.fontStyle = size > 30 ? FontStyles.Bold : FontStyles.Normal;
+            label.fontStyle = FontStyles.Normal;
+            if (size > 30) UI.Display(label);   // the values in the display face (Fredoka); the notes stay in the body face
             return label;
         }
 

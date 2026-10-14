@@ -13,17 +13,21 @@ namespace OhmsLaw
     {
         [Tooltip("Music volume while a voice speaks, as a fraction of normal.")] [Range(0, 1)] public float music = 0.3f;
         [Tooltip("Effects and every other non-voice source while a voice speaks.")] [Range(0, 1)] public float effects = 0.55f;
-        public float attackSeconds = 0.15f, releaseSeconds = 0.6f;
+        // The release holds the duck across the gaps between consecutive lines (Say() leaves 0.3 s, the Timeline often under
+        // a second), so a rhythmic bed (PadLabTheme's arpeggio) does not swell and dip between sentences.
+        public float attackSeconds = 0.15f, releaseSeconds = 1.0f;
 
         public float Amount { get; private set; } // 0 = normal, 1 = fully ducked
         readonly Dictionary<AudioSource, (float normal, float applied)> ducked = new Dictionary<AudioSource, (float, float)>();
         AudioSource[] sources = new AudioSource[0];
         float rescanIn;
+        static AudioDucker instance;
 
-        void OnEnable() => SceneManager.sceneLoaded += Rescan;
+        void OnEnable() { instance = this; SceneManager.sceneLoaded += Rescan; }
 
         void OnDisable()
         {
+            if (instance == this) instance = null;
             SceneManager.sceneLoaded -= Rescan;
             foreach (var pair in ducked) if (pair.Key) pair.Key.volume = pair.Value.normal;
             ducked.Clear();
@@ -31,6 +35,9 @@ namespace OhmsLaw
         }
 
         void Rescan(Scene scene, LoadSceneMode mode) => rescanIn = 0;
+
+        // A source made at runtime (SceneDirector's pitched one-shots) is ducked from its first frame, not after the next 1 s scan.
+        public static void RescanSoon() { if (instance) instance.rescanIn = 0; }
 
         void LateUpdate()
         {

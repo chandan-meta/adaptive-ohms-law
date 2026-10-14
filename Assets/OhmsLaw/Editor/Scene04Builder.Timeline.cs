@@ -201,7 +201,13 @@ namespace OhmsLaw.Editor
             var music = musicTrack.CreateClip(sfx["PadLab"]);
             music.start = 0;
             music.duration = total;
+            music.easeInDuration = 0.8; // START closes the title: ModuleFlow fades its PadIntro bed out over 0.6 s while this one comes up
             ((AudioPlayableAsset)music.asset).loop = true;
+            // The title bed rides on the music bus without playing from it: ModuleFlow plays PadIntro on a bus of its own
+            // while the title screen holds this Timeline at 0 (a music bus's bgm with Play On Start off only carries the clip).
+            var musicBus = s.music.GetComponent<AudioBus>();
+            musicBus.bgm = sfx["PadIntro"];
+            musicBus.playOnStart = false;
             var ambienceTrack = timeline.CreateTrack<AudioTrack>(null, "Ambience");
             director.SetGenericBinding(ambienceTrack, s.ambience);
             var ambience = ambienceTrack.CreateClip(sfx["StudyTone"]);

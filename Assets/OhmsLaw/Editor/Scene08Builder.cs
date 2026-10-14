@@ -403,15 +403,17 @@ namespace OhmsLaw.Editor
             Wait(Act);
             Show(RoomFx);
             Sfx("LabSweep");
-            Ambience("RoomTone", 1.0);
-            Cue("look 2.8 classroom", "light, ambient, fog, background, post and reflections crossfade to the classroom");
-            Cue("glide 3.4 Cam Bench Orbit", "the camera sweeps 20 degrees round the bench and pulls back onto Bench Wide's pose");
-            Shot("Bench Wide", offset: 3.0);                                     // blends in over the glide's last second: Scene 9's first frame
             Cue("appear 1.8 Time Wave", "the time wave: a ring of light grows out from the bench, past the walls");
-            Hide("Time Wave", 2.0);
             Cue("fade 0.12 0.1", "a brief exposure lift at the wave"); // ponytail: a 12 % white veil stands in for an exposure override; a Volume weight ramp if it reads as a fade
             Cue("fade 0 0.8", "", 0.25);
             Cue("fx Room Wave");
+            Wait(0.6);                                                          // the ring stands over the bench on its own before the room answers (audit: it showed for one frame)
+            Ambience("RoomTone", 1.0);
+            Music(Scene10Builder.LabTheme(sounds));                             // the lab's own bed from the reveal on (WP-A's PadLabTheme; PadLab until it ships)
+            Cue("look 2.8 classroom", "light, ambient, fog, background, post and reflections crossfade to the classroom");
+            Cue("glide 3.4 Cam Bench Orbit", "the camera sweeps 20 degrees round the bench and pulls back onto Bench Wide's pose");
+            Shot("Bench Wide", offset: 3.0);                                     // blends in over the glide's last second: Scene 9's first frame
+            Hide("Time Wave", 2.0);                                             // 2.6 s after it appeared: full size for the look's first 0.8 s
             Gesture(WattsonController.Gesture.Idle, moveTo: "Wattson Home", offset: 0.6); // after the thrust, over to where Scene 9 starts him
             Cue("spread 1.2 Classroom Floor", "", 0.1);
             Cue("retract 0.9 Study Back", "", 0.35);

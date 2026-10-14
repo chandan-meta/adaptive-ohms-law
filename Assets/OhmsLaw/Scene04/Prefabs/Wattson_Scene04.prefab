@@ -531,7 +531,7 @@ MonoBehaviour:
   - {fileID: 5917189542754127493}
   flare: {fileID: 5497263873566374806}
   flash: {fileID: 4701898586858038965}
-  flarePeak: 2.5
+  flarePeak: 1.6
   timeScale: 1
 --- !u!1 &3438985104319094395
 GameObject:

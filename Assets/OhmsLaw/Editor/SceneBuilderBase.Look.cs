@@ -315,6 +315,35 @@ namespace OhmsLaw.Editor
             renderer.shadowCastingMode = ShadowCastingMode.Off;
         }
 
+        // The God Rays idea as a lamp cone: four fins through the axis from `apex` (bright, the soft texture's centre) opening
+        // to `radius` at `length` below it (transparent), additive and double-sided, so a camera sees two or three fins
+        // overlap into a soft column with faded edges. The mesh is in the parent's space with the apex at `apex`.
+        protected MeshRenderer ShaftCone(string name, Transform parent, Vector3 apex, float length, float radius, Color glow)
+        {
+            var shaft = Node(name, parent, apex);
+            shaft.AddComponent<MeshFilter>().sharedMesh = MeshAsset(name.Replace(" ", ""), mesh =>
+            {
+                var vertices = new List<Vector3>();
+                var uvs = new List<Vector2>();
+                var triangles = new List<int>();
+                for (int i = 0; i < 4; i++)
+                {
+                    var across = Quaternion.Euler(0f, i * 45f, 0f) * Vector3.right * radius;
+                    int v = vertices.Count;
+                    vertices.AddRange(new[] { Vector3.zero, Vector3.zero, Vector3.down * length + across, Vector3.down * length - across });
+                    uvs.AddRange(new[] { new Vector2(0.45f, 0.5f), new Vector2(0.55f, 0.5f), new Vector2(1f, 1f), new Vector2(0f, 1f) });
+                    triangles.AddRange(new[] { v, v + 1, v + 2, v, v + 2, v + 3 });
+                }
+                mesh.SetVertices(vertices);
+                mesh.SetUVs(0, uvs);
+                mesh.SetTriangles(triangles, 0);
+            });
+            var renderer = shaft.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = Glow("Glow_" + name.Replace(" ", ""), glow);
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            return renderer;
+        }
+
         // Dark, coloured look for the inside of a wire: no window, the tint as fog, stronger bloom.
         protected void WireLighting(Color tint)
         {
@@ -344,7 +373,7 @@ namespace OhmsLaw.Editor
             GlobalPost(root, "Wire_Global", bloom: 1.2f, vignette: 0.32f, exposure: 0.15f);
         }
 
-        protected void GlobalPost(Transform root, string name, float bloom, float vignette, float exposure)
+        protected Volume GlobalPost(Transform root, string name, float bloom, float vignette, float exposure)
         {
             var profile = Profile(name, p =>
             {
@@ -367,6 +396,7 @@ namespace OhmsLaw.Editor
             var volume = Node("Global Volume", root).AddComponent<Volume>();
             volume.isGlobal = true;
             volume.sharedProfile = profile;
+            return volume;
         }
 
         protected static VolumeProfile Profile(string name, Action<VolumeProfile> setup)

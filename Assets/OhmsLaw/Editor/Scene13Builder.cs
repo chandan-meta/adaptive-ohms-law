@@ -50,6 +50,10 @@ namespace OhmsLaw.Editor
             Wattson(Scene12Builder.RevealSide, Scene10Builder.StudyCamC); // where Scene 12 leaves him, above its ohm plate
             Vcam("Bench Study", Scene10Builder.StudyCamC, Scene10Builder.StudyLookC, Scene10Builder.StudyFov, refs["Bench Point"].transform, lensMedium);
             Vcam("Finale", FinaleCamC, FinaleLookC, 42f, refs["Bench Point"].transform, lensMedium);
+            // The finale dolly (audit finding 10): 0.4 m along the Finale axis toward Ohm and the bench through S13_N01
+            // ("push 11"; a cut there under reduced motion). The composer keeps the bench centred; Wattson at Front Point ends
+            // with his left edge about 88 % out to the free frame's edge; the end card holds this pushed-in pose.
+            Marker("Cam Finale Goal", FinaleCamC + (FinaleLookC - FinaleCamC).normalized * 0.4f);
             Marker("Front Point", FrontPoint);
 
             // Georg Ohm, back for the finale: behind the bench, presenting, hidden until the law has its name.
@@ -97,7 +101,7 @@ namespace OhmsLaw.Editor
             // Match-cut from Scene 12: R in the readings strip and this wire's 5 Ω in the dock (the ohm plate goes with the cut).
             Shot("Bench Study");
             Ambience("RoomTone");
-            Music("PadLab");
+            Music(Scene10Builder.LabTheme(sounds));
             Cue("readings.r 1"); Cue("readings.top 1"); // the finale keeps only the three readings and the law: no table, no graph
             Formula("this wire:  5.0 V ÷ 1.00 A = 5.0 Ω"); // the ohm, as Scene 12 left it, in the dock (the bench stays clear)
             Gesture(WattsonController.Gesture.Talking, moveTo: "Tray Point");
@@ -136,7 +140,9 @@ namespace OhmsLaw.Editor
             Line("S13_L06", 0.1);
             Visual("The name holds centre screen; the lab warms", 0.8);
             Cue("hero.clear", "the plate gives way to Ohm: the case-closed card carries the law at the end");
+            Cue("look 2.0 finale", "the lab warms for Ohm (WP-L's look; a look name the director lacks only logs a warning)");
             Cue("appear 0.9 Georg Ohm", "Georg Ohm reappears behind the bench, presenting");
+            Cue("push 11 Cam Finale", "a slow dolly toward Ohm and the bench through the summary");
             Cue("ohm.pose Present", "", 0.2);
             Cue("ohm.look Main Camera", "", 0.2);
             Line("S13_N01", 0.3);

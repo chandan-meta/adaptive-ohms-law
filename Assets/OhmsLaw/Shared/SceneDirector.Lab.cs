@@ -13,6 +13,7 @@ namespace OhmsLaw
     //   rise    [s] <name>   grow its height up from its pivot (walls and furniture with the pivot on the floor)
     //   spread  [s] <name>   grow across X and Z from its pivot (a floor spreading out from under the bench)
     //   glide   [s] <name>   slide to the marker "<name> Goal" (its position and scale), staying level
+    //   push    [s] <name>   a camera dolly: glide to "<name> Goal", or a cut to it under reduced motion (Scenes 9, 13)
     //   settle  [s] <name>   lift, move and set down on "<name> Goal"
     //   fx      <name>       play a one-shot effect object (shown, hidden again when its particles are done); thinned
     //                        under reduced motion
@@ -59,12 +60,12 @@ namespace OhmsLaw
                     Morph(Ref(name), verb, seconds, name);
                     return true;
                 }
-                case "glide": case "settle":
+                case "glide": case "settle": case "push":
                 {
                     var (seconds, name) = Timed(words, rest, 0.8f);
                     var go = Ref(name);
                     var goal = Ref(name + " Goal");
-                    if (go && goal) Move(go.transform, goal.transform, seconds, verb == "settle");
+                    if (go && goal) Move(go.transform, goal.transform, verb == "push" && ReducedMotion.On ? 0f : seconds, verb == "settle");
                     else Debug.LogWarning($"{sceneId}: '{verb}' needs '{name}' and '{name} Goal' in the director's refs", this);
                     return true;
                 }
@@ -117,11 +118,12 @@ namespace OhmsLaw
         }
 
         // To the goal marker's position and scale (the marker is a scene root, so its scale is the part's target local
-        // scale under an unscaled parent). settle lifts in an arc and sets down; glide stays level.
+        // scale under an unscaled parent). settle lifts in an arc and sets down; glide stays level; 0 s is a cut.
         void Move(Transform t, Transform goal, float seconds, bool lift)
         {
             if (moving.Contains(t)) return;
             if ((t.position - goal.position).sqrMagnitude < 1e-6f && (t.localScale - goal.localScale).sqrMagnitude < 1e-6f) return;
+            if (seconds <= 0f) { t.position = goal.position; t.localScale = goal.localScale; return; } // "push" under reduced motion
             moving.Add(t);
             StartCoroutine(MoveRun(t, goal, seconds, lift && !ReducedMotion.On));
         }

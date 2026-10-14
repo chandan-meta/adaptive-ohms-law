@@ -581,7 +581,7 @@ namespace OhmsLaw
             var block = lesson.Fresh("MCQ", null, 12f);
             var view = block.gameObject.AddComponent<LawTiles>();
             LessonPanel.Eyebrow(block, "Build the law");
-            view.line = LessonPanel.Text(block, "", 56f, LessonPanel.Paper, TextAlignmentOptions.Center);
+            view.line = UI.Display(LessonPanel.Text(block, "", 56f, LessonPanel.Paper, TextAlignmentOptions.Center));   // the law in the display face
             LessonPanel.OneLine(view.line, 56f);
             var row = LessonPanel.Row("Tiles", block, 10f);
             row.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = true;

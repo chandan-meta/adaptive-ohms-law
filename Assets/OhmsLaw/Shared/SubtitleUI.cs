@@ -4,20 +4,21 @@ using UnityEngine.UI;
 
 namespace OhmsLaw
 {
-    // Captions for every spoken line, scripted or AI, in the HUD's caption bar (LessonPanel.Caption): the speaker in
-    // small spark caps over the line in large warm white, centred. The bar hugs the line (at most 1080 px, two lines a
-    // page; longer text pages through, each page coming up when the voice reaches its first word) and sits centred in
-    // the part of the frame the dock leaves free, clear of Ask Wattson. It fades in and out (0.25 s); CC OFF hides it.
+    // Captions for every spoken line, scripted or AI, in the HUD's caption bar (LessonPanel.Caption): Wattson's face and
+    // the speaker in small spark caps over the line in large warm white, centred. The bar hugs the line (at most 1080 px,
+    // two lines a page; longer text pages through, each page coming up when the voice reaches its first word) and sits
+    // centred in the part of the frame the dock leaves free, clear of Ask Wattson. It fades in and out (0.22 s); CC OFF
+    // hides it.
     public class SubtitleUI : MonoBehaviour
     {
         public static SubtitleUI Instance { get; private set; }
 
-        const float PadX = 28f, SideClear = 48f, AvatarClear = 200f;
+        const float PadX = 28f, SideClear = 48f, AvatarClear = 200f, FaceSize = 36f, SpeakerRow = 40f;
 
         RectTransform box;
         CanvasGroup group;
         TextMeshProUGUI speaker, body;
-        Image bolt;   // v5: a small bolt before WATTSON
+        RectTransform face;   // Wattson's face (the Ask avatar's portrait, in a blue ring) before WATTSON
         LayoutElement bodySize;
         object owner;
         bool shown;
@@ -56,9 +57,28 @@ namespace OhmsLaw
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
             box.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            var who = LessonPanel.Row("Speaker", box, 6f, TextAnchor.MiddleCenter);
-            LessonPanel.Fixed(who, LessonPanel.SpeakerFont * 1.25f);
-            bolt = LessonPanel.Icon(who, "bolt", 14f, LessonPanel.Spark);
+            var who = LessonPanel.Row("Speaker", box, 8f, TextAnchor.MiddleCenter);
+            LessonPanel.Fixed(who, SpeakerRow);
+            // The face: the portrait in a circular mask inside a thin electric-blue ring (as the Ask avatar draws it).
+            face = UI.Rect("Face", who, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(FaceSize, FaceSize));
+            var faceSize = face.gameObject.AddComponent<LayoutElement>();
+            faceSize.preferredWidth = faceSize.minWidth = faceSize.preferredHeight = faceSize.minHeight = FaceSize;
+            var ring = face.gameObject.AddComponent<Image>();
+            ring.sprite = UI.Circle();
+            ring.color = LessonPanel.Accent;
+            ring.raycastTarget = false;
+            var disc = UI.Rect("Disc", face, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (FaceSize - 4f));
+            var discImage = disc.gameObject.AddComponent<Image>();
+            discImage.sprite = UI.Circle();
+            discImage.color = LessonPanel.Ink;
+            discImage.raycastTarget = false;
+            disc.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+            if (UI.Theme && UI.Theme.wattsonFace)
+            {
+                var portrait = UI.Stretch("Portrait", disc).gameObject.AddComponent<RawImage>();
+                portrait.texture = UI.Theme.wattsonFace;
+                portrait.raycastTarget = false;
+            }
             speaker = UI.Label(who, "", LessonPanel.SpeakerFont, LessonPanel.Spark, TextAlignmentOptions.Center);
             speaker.characterSpacing = 8f;
             speaker.fontStyle = FontStyles.Bold;
@@ -79,7 +99,7 @@ namespace OhmsLaw
             // While Ask Wattson is open only his answer is captioned: the lesson's paused line waits behind the conversation.
             bool visible = shown && (!AskWattsonUI.IsOpen || owner is WattsonAgent);
             float target = visible ? 1f : 0f;
-            group.alpha = ReducedMotion.On ? target : Mathf.MoveTowards(group.alpha, target, Time.unscaledDeltaTime / 0.25f);
+            group.alpha = ReducedMotion.On ? target : Mathf.MoveTowards(group.alpha, target, Time.unscaledDeltaTime / LessonPanel.PanelSeconds);
             if (visible) Layout();
         }
 
@@ -99,7 +119,7 @@ namespace OhmsLaw
             float one = body.GetPreferredValues(body.text, 99999f, 0f).x;
             bool wraps = one > maxText;
             float textWidth = wraps ? maxText : Mathf.Ceil(one) + 4f;
-            float speakerWidth = speaker.GetPreferredValues(speaker.text, 99999f, 0f).x + (bolt.gameObject.activeSelf ? 20f : 0f);
+            float speakerWidth = speaker.GetPreferredValues(speaker.text, 99999f, 0f).x + (face.gameObject.activeSelf ? FaceSize + 8f : 0f);
             bodySize.preferredHeight = bodySize.minHeight = LineHeight(wraps ? 2 : 1);
             box.sizeDelta = new Vector2(Mathf.Max(textWidth, speakerWidth) + 2f * PadX, box.sizeDelta.y);
             box.anchoredPosition = new Vector2(free / 2f, LessonPanel.BottomInset);
@@ -116,7 +136,7 @@ namespace OhmsLaw
             {
                 speakerShown = speakerName;
                 speaker.text = (speakerName ?? "").ToUpperInvariant();
-                bolt.gameObject.SetActive(speaker.text.StartsWith("WATTSON"));
+                face.gameObject.SetActive(speaker.text.StartsWith("WATTSON"));
             }
             if (body.text != text)
             {

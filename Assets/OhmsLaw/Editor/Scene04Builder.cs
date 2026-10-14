@@ -611,8 +611,10 @@ namespace OhmsLaw.Editor
         // The Ohm-niscope's glow, kept under bloom's clip point (the v5 frames: raised, its rings and flare bloomed into a white
         // halo over his face, and in Scene 8 the flare blew out the bench): brass rings with a cyan glint, a soft lens flash.
         static Material NiscopeRing(Color accent) => Lit("NiscopeRing", new Color(0.83f, 0.66f, 0.3f), 1f, 0.75f, Hdr(accent, 1f));
-        static Material NiscopeLens(Color accent) => Glow("Glow_Lens", Hdr(accent, 1.2f));
-        const float NiscopeFlare = 2.5f;
+        // 2026-10-14 audit (SH08, S04_L05): at 1.2 / 2.5 the flash quad (2.2x at the burst) and the flare still bloomed into a
+        // white blob over the rings. The lens stays under the bloom threshold and the flare lights him, not the frame.
+        static Material NiscopeLens(Color accent) => Glow("Glow_Lens", Hdr(accent, 0.7f));
+        const float NiscopeFlare = 1.6f;
 
         // Scene-only wiring: flight path and what he looks at.
         static void WireWattson(Stage s, WattsonController w, SceneAgentContext context)
