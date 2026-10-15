@@ -4,9 +4,9 @@
    "name": "aed17867_73dc_40e7_b301_196488626816",
    "baseMap": "futuristic_machine_3d_model_basecolor.jpg",
    "baseColor": [
-    0.800000011920929,
-    0.800000011920929,
-    0.800000011920929,
+    0.9063,
+    0.9063,
+    0.9063,
     1.0
    ],
    "metallic": 0.0,
@@ -28,17 +28,17 @@
    "name": "Wire_BadgeFace_4FD1FF_Polished",
    "baseMap": "",
    "baseColor": [
-    0.09300000220537186,
-    0.2460000067949295,
-    0.30000001192092896,
+    0.3372,
+    0.5331,
+    0.5838,
     1.0
    ],
    "metallic": 0.0,
    "roughness": 1.0,
    "emission": [
-    0.1550000011920929,
-    0.4099999964237213,
-    0.5
+    0.4302,
+    0.6726,
+    0.7354
    ],
    "normalMap": "",
    "maskMap": "",
@@ -52,9 +52,9 @@
    "name": "yellow_light",
    "baseMap": "",
    "baseColor": [
-    0.4000000059604645,
-    0.4000000059604645,
-    0.4000000059604645,
+    0.6652,
+    0.6652,
+    0.6652,
     1.0
    ],
    "metallic": 0.0,
@@ -98,7 +98,7 @@
   },
   {
    "name": "Industrial_Hexagonal_Scifi_Grating",
-   "baseMap": "black_Metal_Grill_004_Base_Color_alpha.png",
+   "baseMap": "Electricity_Powers_a_Brighter_Tomorrow.png",
    "baseColor": [
     1,
     1,
@@ -112,30 +112,6 @@
     0.0,
     0.0
    ],
-   "normalMap": "black_Metal_Grill_004_Normal_gl.png",
-   "maskMap": "Industrial_Hexagonal_Scifi_Grating_metallic_smoothness.png",
-   "alphaClip": true,
-   "tiling": [
-    1.0,
-    1.0
-   ]
-  },
-  {
-   "name": "Material.002",
-   "baseMap": "Futuristic_Sci-Fi_Interface_Panel_Collection.png",
-   "baseColor": [
-    1,
-    1,
-    1,
-    1
-   ],
-   "metallic": 0.0,
-   "roughness": 0.5,
-   "emission": [
-    0,
-    0,
-    0
-   ],
    "normalMap": "",
    "maskMap": "",
    "alphaClip": false,
@@ -148,8 +124,8 @@
    "name": "Glow_WireBadgeHalo_4FD1FF",
    "baseMap": "",
    "baseColor": [
-    0.3100000023841858,
-    0.8199999928474426,
+    0.5926,
+    0.9163,
     1.0,
     1.0
    ],
@@ -169,60 +145,12 @@
    ]
   },
   {
-   "name": "tripo_40782d13_af1c_4afd_b6e2_100c6ba03aa4",
-   "baseMap": "futuristic_wall_panel_3d_model_basecolor.jpg",
-   "baseColor": [
-    0.800000011920929,
-    0.800000011920929,
-    0.800000011920929,
-    1.0
-   ],
-   "metallic": 0.0,
-   "roughness": 0.5,
-   "emission": [
-    0,
-    0,
-    0
-   ],
-   "normalMap": "",
-   "maskMap": "",
-   "alphaClip": false,
-   "tiling": [
-    1,
-    1
-   ]
-  },
-  {
-   "name": "Material.001",
-   "baseMap": "",
-   "baseColor": [
-    0.800000011920929,
-    0.800000011920929,
-    0.800000011920929,
-    1.0
-   ],
-   "metallic": 0.0,
-   "roughness": 0.5,
-   "emission": [
-    0,
-    0,
-    0
-   ],
-   "normalMap": "",
-   "maskMap": "",
-   "alphaClip": false,
-   "tiling": [
-    1,
-    1
-   ]
-  },
-  {
    "name": "tripo_65e94f68_5248_4593_b680_3eec64f757fc",
    "baseMap": "space_ring_3d_model_basecolor.jpg",
    "baseColor": [
-    0.800000011920929,
-    0.800000011920929,
-    0.800000011920929,
+    0.9063,
+    0.9063,
+    0.9063,
     1.0
    ],
    "metallic": 0.0,
@@ -244,9 +172,9 @@
    "name": "tripo_7985deb1_9aaa_4c10_b33e_587444e1659a.001",
    "baseMap": "sci-fi_circular_platform_3d_model_basecolor.001.jpg",
    "baseColor": [
-    0.800000011920929,
-    0.800000011920929,
-    0.800000011920929,
+    0.9063,
+    0.9063,
+    0.9063,
     1.0
    ],
    "metallic": 0.0,

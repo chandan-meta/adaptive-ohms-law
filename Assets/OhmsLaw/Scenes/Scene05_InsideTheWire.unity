@@ -13303,6 +13303,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 1
   gain: 1
+  trim: 1
+  group: 
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1
@@ -34127,6 +34129,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 2
   gain: 0.35
+  trim: 1
+  group: 
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1
@@ -45174,6 +45178,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 0
   gain: 1
+  trim: 1
+  group: 
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1
@@ -72417,6 +72423,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 1
   gain: 0.5
+  trim: 1
+  group: 
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1

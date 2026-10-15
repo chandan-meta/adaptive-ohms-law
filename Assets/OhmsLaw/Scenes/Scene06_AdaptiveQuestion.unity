@@ -248,6 +248,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 1
   gain: 1
+  trim: 1
+  group: 
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1
@@ -28670,6 +28672,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 0
   gain: 1
+  trim: 1
+  group: 
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1
@@ -38994,7 +38998,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 68
   m_IsActive: 1
 --- !u!4 &1266429340
 Transform:
@@ -44588,6 +44592,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 2
   gain: 0.35
+  trim: 1
+  group: 
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1
@@ -45492,6 +45498,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.AudioBus
   kind: 1
   gain: 0.5
+  trim: 1
+  group: 
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using UnityEditor.SceneManagement;
 using TMPro;
 using UnityEditor;
 using UnityEngine;
@@ -92,7 +93,7 @@ namespace OhmsLaw.Editor
             // Scenes 5 and 6: the set made in Blender (Editor/BlenderSet.cs) replaces the code-built floor, terminal blocks, cables and
             // copper lattice; the conduit, bands, badges, ring, electrons and counter stay built here (the lesson drives them).
             var setModel = nichrome ? null : BlenderSet.Wire.Load();
-            if (setModel) WireSetGlow(("yellow_light", 0.45f), ("Material.002", 0.35f), ("Glow_WireBadgeHalo_4FD1FF", 1.2f)); // the floor strips and the Earth screen ran every frame; the halo ring is the room's one cool accent
+            if (setModel) WireSetGlow(WireGlows); // the floor strips and the Earth screen ran every frame; the halo ring is the room's one cool accent
             Color space = nichrome ? Color.Lerp(SpaceBlue, tint * 0.45f, 0.7f) : setModel ? SetHaze : CopperHaze; // the metal's own dark
             Color grid = Color.Lerp(ConduitBlue, tint, nichrome ? 0.85f : 0f);
             Color atom = Color.Lerp(CopperTint, tint, nichrome ? 0.85f : 0f);
@@ -658,6 +659,41 @@ namespace OhmsLaw.Editor
         // The Blender set's glows as this stage wants them. BlenderSet.Wire.Load() (just run) writes its own HDR emission into the
         // set's materials each build (strips ×2, the backdrop screen ×1.2, the halo ring ×2); scaled here by material name, so the
         // strips land at ×0.9, the screen at ×0.42 and the ring at ×2.4: the room keeps its identity under the conduit, not over it.
+        static readonly (string material, float factor)[] WireGlows = { ("yellow_light", 0.45f), ("Material.002", 0.35f), ("Glow_WireBadgeHalo_4FD1FF", 1.2f) };
+
+        // After the user re-exports Exports/InsideTheWire/InsideTheWire.blend (Tools/blend_to_unity_set.py -> WireSet.fbx): the saved
+        // Scenes 5 and 6 hold the set as a prefab instance of that FBX, so the geometry follows the file by itself. This refreshes
+        // what does not: the importer's material remap + glows (BlenderSet.Wire.Load), the static flags of new parts and the
+        // reflection probe bake. Nothing else in the scene is rebuilt: the user hand-edits these scenes.
+        [MenuItem("Ohm's Law/Sets/Refresh wire set in Scenes 5, 6 (no rebuild)")]
+        public static void RefreshWireSet()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode) throw new System.InvalidOperationException("Stop play mode first.");
+            var model = BlenderSet.Wire.Load();
+            if (!model) throw new System.InvalidOperationException("Wire set missing: " + BlenderSet.Wire.Folder);
+            WireSetGlow(WireGlows);
+            AssetDatabase.SaveAssets();
+            var setup = EditorSceneManager.GetSceneManagerSetup();
+            var report = new System.Text.StringBuilder("Wire set refreshed: " + model.name + "\n");
+            foreach (var path in new[] { "Assets/OhmsLaw/Scenes/Scene05_InsideTheWire.unity", "Assets/OhmsLaw/Scenes/Scene06_AdaptiveQuestion.unity" })
+            {
+                var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
+                var roots = scene.GetRootGameObjects();
+                var set = roots.SelectMany(r => r.GetComponentsInChildren<Transform>(true)).FirstOrDefault(t => t.name == "Wire Set (Blender)");
+                if (!set) { report.Append(path + ": no 'Wire Set (Blender)' instance\n"); continue; }
+                foreach (var t in set.GetComponentsInChildren<Transform>(true)) GameObjectUtility.SetStaticEditorFlags(t.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.ReflectionProbeStatic);
+                var renderers = set.GetComponentsInChildren<Renderer>();
+                var bounds = renderers.Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
+                var probe = roots.SelectMany(r => r.GetComponentsInChildren<ReflectionProbe>(true)).FirstOrDefault(p => p.mode == UnityEngine.Rendering.ReflectionProbeMode.Baked);
+                if (probe && probe.bakedTexture) Lightmapping.BakeReflectionProbe(probe, AssetDatabase.GetAssetPath(probe.bakedTexture));
+                EditorSceneManager.MarkSceneDirty(scene);
+                EditorSceneManager.SaveScene(scene);
+                report.Append($"{System.IO.Path.GetFileName(path)}: {renderers.Length} parts {string.Join(", ", set.Cast<Transform>().Select(c => c.name))}; bounds {bounds.min} to {bounds.max}; probe {(probe ? "re-baked" : "none")}\n");
+            }
+            EditorSceneManager.RestoreSceneManagerSetup(setup);
+            Debug.Log(report.ToString());
+        }
+
         static void WireSetGlow(params (string material, float factor)[] glows)
         {
             foreach (var (name, factor) in glows)
