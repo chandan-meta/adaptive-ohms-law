@@ -9,7 +9,8 @@ SITE=Builds/WebGL
 big=$(find "$SITE" -type f -size +95M)
 [ -z "$big" ] || { echo "over GitHub's 100 MB file limit: $big"; exit 1; }
 touch "$SITE/.nojekyll"
-export GIT_INDEX_FILE="$ROOT/.git/gh-pages.index"
+# The git directory as git itself names it: Git for Windows cannot use a /d/... path from this shell.
+export GIT_INDEX_FILE="$(git rev-parse --absolute-git-dir)/gh-pages.index"
 rm -f "$GIT_INDEX_FILE"
 git --work-tree="$SITE" add -A -f . || exit 1
 tree=$(git write-tree) || exit 1
