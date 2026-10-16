@@ -16,8 +16,11 @@ namespace OhmsLaw.Editor
     public static class LabShots
     {
         static readonly string[] Cameras = { "Cam Bench Wide", "Cam Bench Close", "Cam Bench Present", "Cam Table Close" };
-        // The whole room from its entrance end toward the board, framed like the user's lighting reference (Scene 9 only).
-        static readonly Vector3 RoomCam = new Vector3(0f, 1.7f, -5.9f), RoomLook = new Vector3(0f, 1.4f, 4f);
+        // Scene 9 only: the whole room from its entrance end toward the board, framed like the user's lighting reference
+        // (inside the 85 % lab, whose entrance wall is at z -5.6), and along the bench top at table height, so the
+        // apparatus feet show on the top.
+        static readonly Vector3 RoomCam = new Vector3(0f, 1.6f, -5.0f), RoomLook = new Vector3(0f, 1.35f, 3.4f);
+        static readonly Vector3 EdgeCam = new Vector3(-1.7f, 0.86f, -0.95f), EdgeLook = new Vector3(0.2f, 0.82f, 0.1f);
 
         [MenuItem("Ohm's Law/Polish/Lab stills (Scenes 9-13)")]
         public static void Run()
@@ -37,7 +40,11 @@ namespace OhmsLaw.Editor
                     foreach (var vcam in vcams)
                         Shot(scene, vcam.transform.position, vcam.LookAt ? Quaternion.LookRotation(vcam.LookAt.position - vcam.transform.position) : vcam.transform.rotation,
                             vcam.Lens.FieldOfView, "Logs/LabSet/" + id + "_" + vcam.name.Replace("Cam ", "").Replace(' ', '_') + ".png");
-                    if (id == "Scene09") Shot(scene, RoomCam, Quaternion.LookRotation(RoomLook - RoomCam), 55f, "Logs/LabSet/Scene09_Room.png");
+                    if (id == "Scene09")
+                    {
+                        Shot(scene, RoomCam, Quaternion.LookRotation(RoomLook - RoomCam), 55f, "Logs/LabSet/Scene09_Room.png");
+                        Shot(scene, EdgeCam, Quaternion.LookRotation(EdgeLook - EdgeCam), 40f, "Logs/LabSet/Scene09_Bench_Edge.png");
+                    }
                 }
             }
             finally

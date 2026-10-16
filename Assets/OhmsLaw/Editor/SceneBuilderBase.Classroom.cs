@@ -23,9 +23,14 @@ namespace OhmsLaw.Editor
         // ---- The classroom frame (metres). Floor y 0, desk top y 0.80, back wall z 2.6, side walls x ±3.2, ceiling 3.0 ----
         public const float ClassroomFloorY = 0f, ClassroomDeskY = 0.80f, ClassroomWallZ = 2.6f, ClassroomHalfWidth = 3.2f, ClassroomCeilingY = 3f;
         public static readonly Vector3 DeskTopC = new Vector3(0f, ClassroomDeskY, 0f);           // desk / bench top centre, 2.0 x 0.9 m
-        // Ohm behind the desk, facing -Z; with the Blender lab (BlenderSet.Lab) behind its centre table (1.52 m deep), on its floor.
+        // Ohm behind the desk, facing -Z; with the Blender lab (BlenderSet.Lab) behind its centre table (1.29 m deep), on its floor.
         public static Vector3 OhmFeetC => BlenderSet.Lab.Exists ? new Vector3(0f, LabFloorY, 1.5f) : new Vector3(0f, 0f, 0.75f);
-        public const float LabFloorY = -0.24f; // the lab set's floor: its centre table, top on the bench top (0.80), is 1.04 m tall
+        // The user's lab stands at 85 % (2026-10-16, the user: its 1.04 m bench towered over the apparatus at full size). The
+        // scale pivots on the bench top centre, which stays on DeskTopC, so the apparatus still stands on the top; InLab places
+        // a point of the full-size lab (the room's lights and probe are laid out at full size).
+        public const float LabScale = 0.85f;
+        public const float LabFloorY = ClassroomDeskY - 1.04f * LabScale; // the lab set's floor: its centre table is 1.04 m tall
+        static Vector3 InLab(Vector3 fullSize) => DeskTopC + (fullSize - DeskTopC) * LabScale;
         public static readonly Vector3 WattsonHomeC = new Vector3(-1.05f, 1.4f, 0.3f);           // flying left of the desk, inside the frame the lesson panel leaves free (Bench Wide: 56-79 % up)
         // Cameras, all on -Z. Bench Wide = board + Ohm + desk (Scene07_two_clues); Bench Close = the apparatus row
         // (Scene09_series_ammeter); Bench Present = the row with Ohm's head in frame (Scene08_modern_apparatus_presented);
@@ -398,6 +403,7 @@ namespace OhmsLaw.Editor
             var room = Node("Room", lab).transform;
             var set = (GameObject)PrefabUtility.InstantiatePrefab(model, scene);
             set.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity); // the FBX holds the .blend's coordinates
+            set.transform.localScale *= LabScale; // measured scaled, so the top lands on the bench top at this size
             var table = set.transform.Cast<Transform>().Where(p => p.name.StartsWith("Center_Table")).Select(p => RenderBounds(p.gameObject)).ToList();
             if (table.Count == 0) throw new InvalidOperationException("The lab set has no Center_Table part (Tools/sets/lab.json \"names\").");
             var top = table.Aggregate((a, b) => { a.Encapsulate(b); return a; });
@@ -509,7 +515,7 @@ namespace OhmsLaw.Editor
                 return light;
             }
 
-            // Low (18 degrees) through the window wall at x -5, slanting toward the back of the room: long patches on the floor
+            // Low (18 degrees) through the window wall, slanting toward the back of the room: long patches on the floor
             // beside and behind the bench and across the back counters, as in the reference.
             var sun = Node("Lab Sun", root).AddComponent<Light>();
             sun.type = LightType.Directional;
@@ -519,19 +525,22 @@ namespace OhmsLaw.Editor
             sun.shadows = LightShadows.Soft;
             sun.shadowStrength = 0.92f;
             RenderSettings.sun = sun;
-            var key = Spot("Lab Key", new Vector3(0.3f, 3.7f, -1.3f), DeskTopC + new Vector3(0f, 0f, 0.1f), new Color(1f, 0.9f, 0.76f), 7f, 7f, 60f, LightShadows.Soft);
+            // The room's lights are laid out on the full-size lab and placed with it (InLab); intensity goes with the square of
+            // the scale and range with the scale, so they light the smaller room as they lit the full one.
+            float k = LabScale * LabScale;
+            var key = Spot("Lab Key", InLab(new Vector3(0.3f, 3.7f, -1.3f)), DeskTopC + new Vector3(0f, 0f, 0.1f), new Color(1f, 0.9f, 0.76f), 7f * k, 7f * LabScale, 60f, LightShadows.Soft);
             key.shadowStrength = 0.55f;
             for (int i = 0; i < 6; i++)
             {
                 // The ceiling's warm fill, two rows of three under the cove, aimed down (as points they lit hot circles on the
                 // ceiling); each has a gold twin the "finale" look fades up.
-                var at = new Vector3(i % 2 == 0 ? -2.6f : 2.6f, 3.6f, -3.8f + i / 2 * 3.7f);
-                Spot("Cove " + (i + 1), at, at + Vector3.down, new Color(1f, 0.88f, 0.72f), 3.6f, 8f, 130f, LightShadows.None);
-                Spot("Finale Cove " + (i + 1), at, at + Vector3.down, new Color(1f, 0.74f, 0.42f), 0f, 8f, 130f, LightShadows.None).enabled = false;
+                var at = InLab(new Vector3(i % 2 == 0 ? -2.6f : 2.6f, 3.6f, -3.8f + i / 2 * 3.7f));
+                Spot("Cove " + (i + 1), at, at + Vector3.down, new Color(1f, 0.88f, 0.72f), 3.6f * k, 8f * LabScale, 130f, LightShadows.None);
+                Spot("Finale Cove " + (i + 1), at, at + Vector3.down, new Color(1f, 0.74f, 0.42f), 0f, 8f * LabScale, 130f, LightShadows.None).enabled = false;
             }
-            // The board (centre (-0.51, 1.8, 5.38)), from close under the ceiling so the hanging symbols stay out of the beam.
-            Spot("Board Wash", new Vector3(-0.5f, 3.75f, 4.0f), new Vector3(-0.5f, 1.8f, 5.38f), new Color(1f, 0.93f, 0.84f), 4.5f, 6f, 80f, LightShadows.None);
-            Spot("Window Fill", new Vector3(-4.7f, 2.4f, 0f), new Vector3(0f, 0.9f, 0.3f), new Color(1f, 0.86f, 0.68f), 9f, 9f, 100f, LightShadows.None); // the bright panes' bounce, aimed away from their wall
+            // The board (centre (-0.51, 1.8, 5.38) at full size), from close under the ceiling so the hanging symbols stay out of the beam.
+            Spot("Board Wash", InLab(new Vector3(-0.5f, 3.75f, 4.0f)), InLab(new Vector3(-0.5f, 1.8f, 5.38f)), new Color(1f, 0.93f, 0.84f), 4.5f * k, 6f * LabScale, 80f, LightShadows.None);
+            Spot("Window Fill", InLab(new Vector3(-4.7f, 2.4f, 0f)), new Vector3(0f, 0.9f, 0.3f), new Color(1f, 0.86f, 0.68f), 9f * k, 9f * LabScale, 100f, LightShadows.None); // the bright panes' bounce, aimed away from their wall
             Spot("Face Fill", new Vector3(0.4f, 2.0f, -2.6f), new Vector3(0f, 1.25f, 0.6f), new Color(1f, 0.88f, 0.72f), 1.8f, 6.5f, 70f, LightShadows.None);
             Spot("Lab Rim", new Vector3(-1.2f, 2.4f, 3.4f), OhmFeetC + Vector3.up * 1.3f, new Color(1f, 0.78f, 0.5f), 4f, 6f, 50f, LightShadows.None);
             LabMotes();
@@ -540,8 +549,8 @@ namespace OhmsLaw.Editor
             probe.mode = ReflectionProbeMode.Realtime;
             probe.refreshMode = ReflectionProbeRefreshMode.OnAwake;
             probe.timeSlicingMode = ReflectionProbeTimeSlicingMode.AllFacesAtOnce;
-            probe.size = new Vector3(10f, 4.2f, 12.1f); // the room: x ±5, floor to ceiling, z -6.5 .. 5.7
-            probe.center = new Vector3(0f, 0.36f, -0.4f);
+            probe.size = new Vector3(10f, 4.2f, 12.1f) * LabScale; // the room: at full size x ±5, floor to ceiling, z -6.5 .. 5.7
+            probe.center = InLab(new Vector3(0f, 1.86f, -0.4f)) - probe.transform.position;
             probe.boxProjection = true;
             probe.resolution = 256; // the polished floor mirrors it
 
@@ -610,7 +619,7 @@ namespace OhmsLaw.Editor
             for (int i = 0; i < finale.lights.Length; i++)
             {
                 string name = finale.lights[i].name;
-                if (name.StartsWith("Finale Cove")) finale.intensities[i] = 3.2f;
+                if (name.StartsWith("Finale Cove")) finale.intensities[i] = 3.2f * LabScale * LabScale;
                 else finale.intensities[i] *= name == "Lab Sun" ? 1.15f : name == "Lab Key" ? 1.2f : name == "Face Fill" ? 1.3f : name == "Board Wash" ? 1.15f
                     : name == "Window Fill" ? 1.2f : name.StartsWith("Cove") ? 0.6f : 1f;
             }
