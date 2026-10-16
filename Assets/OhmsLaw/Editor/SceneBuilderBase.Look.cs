@@ -273,8 +273,23 @@ namespace OhmsLaw.Editor
             string path = Art + "/Post/Probe_" + SceneId + "_" + name + ".exr";
             probe.mode = ReflectionProbeMode.Baked;
             bool wasActive = probe.gameObject.activeInHierarchy;
-            if (Lightmapping.BakeReflectionProbe(probe, path)) probe.bakedTexture = AssetDatabase.LoadAssetAtPath<Texture>(path);
-            else Debug.LogWarning(SceneId + ": reflection probe '" + name + "' did not bake (active: " + wasActive + "); its mirrors will fall back to the ambient probe.");
+            // Only this scene in the capture: a build opens beside the scene the editor had open (Scene 4's study shares this
+            // frame and was baked into the lab's reflections), so every other loaded scene is hidden while the probe renders.
+            var others = Enumerable.Range(0, UnityEngine.SceneManagement.SceneManager.sceneCount).Select(UnityEngine.SceneManagement.SceneManager.GetSceneAt)
+                .Where(s => s != scene && s.isLoaded).SelectMany(s => s.GetRootGameObjects()).Where(g => g.activeSelf).ToList();
+            foreach (var g in others) g.SetActive(false);
+            try
+            {
+                if (Lightmapping.BakeReflectionProbe(probe, path))
+                {
+                    // Custom, pointing at the bake: a Baked probe keeps its texture only in a lighting data asset, which these
+                    // scenes do not have, so after a reload every mirror fell back to the default navy reflection.
+                    probe.mode = ReflectionProbeMode.Custom;
+                    probe.customBakedTexture = AssetDatabase.LoadAssetAtPath<Texture>(path);
+                }
+                else Debug.LogWarning(SceneId + ": reflection probe '" + name + "' did not bake (active: " + wasActive + "); its mirrors will fall back to the ambient probe.");
+            }
+            finally { foreach (var g in others) g.SetActive(true); }
         }
 
         protected Light Flame(string name, Transform root, Vector3 position, float intensity, float range, bool shadows)

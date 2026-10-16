@@ -127,8 +127,11 @@ namespace OhmsLaw.Editor
             Interim(Source, SourceStudyC + new Vector3(0f, 0f, 0.01f), 0.8f);
             var bench = refs["Bench"].transform;
             Goal("Bench");
+            bench.gameObject.SetActive(true); // hidden above; RenderBounds only measures what is shown
+            var benchSize = RenderBounds(bench.gameObject).size; // the lab set's centre table, or the clean bench
+            bench.gameObject.SetActive(false);
             bench.position = new Vector3(OhmDeskC.x, bench.position.y, OhmDeskC.z);
-            bench.localScale = new Vector3(1.61f / BenchWidth, 1f, 0.66f / BenchDepth);
+            bench.localScale = new Vector3(1.61f / benchSize.x, 1f, 0.66f / benchSize.z);
             var ohm = refs["Georg Ohm"].transform;
             Goal("Georg Ohm").transform.position = ohm.position + Vector3.forward * 0.12f;
 

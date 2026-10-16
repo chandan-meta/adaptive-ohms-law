@@ -16,6 +16,8 @@ namespace OhmsLaw.Editor
     public static class LabShots
     {
         static readonly string[] Cameras = { "Cam Bench Wide", "Cam Bench Close", "Cam Bench Present", "Cam Table Close" };
+        // The whole room from its entrance end toward the board, framed like the user's lighting reference (Scene 9 only).
+        static readonly Vector3 RoomCam = new Vector3(0f, 1.7f, -5.9f), RoomLook = new Vector3(0f, 1.4f, 4f);
 
         [MenuItem("Ohm's Law/Polish/Lab stills (Scenes 9-13)")]
         public static void Run()
@@ -32,7 +34,10 @@ namespace OhmsLaw.Editor
                     if (path == null) continue;
                     var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
                     var vcams = scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<CinemachineCamera>(true)).Where(v => Cameras.Contains(v.name));
-                    foreach (var vcam in vcams) Shot(scene, vcam, "Logs/LabSet/" + id + "_" + vcam.name.Replace("Cam ", "").Replace(' ', '_') + ".png");
+                    foreach (var vcam in vcams)
+                        Shot(scene, vcam.transform.position, vcam.LookAt ? Quaternion.LookRotation(vcam.LookAt.position - vcam.transform.position) : vcam.transform.rotation,
+                            vcam.Lens.FieldOfView, "Logs/LabSet/" + id + "_" + vcam.name.Replace("Cam ", "").Replace(' ', '_') + ".png");
+                    if (id == "Scene09") Shot(scene, RoomCam, Quaternion.LookRotation(RoomLook - RoomCam), 55f, "Logs/LabSet/Scene09_Room.png");
                 }
             }
             finally
@@ -42,7 +47,7 @@ namespace OhmsLaw.Editor
             }
         }
 
-        static void Shot(Scene scene, CinemachineCamera vcam, string file)
+        static void Shot(Scene scene, Vector3 at, Quaternion rotation, float fov, string file)
         {
             var main = scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Camera>(true)).FirstOrDefault(c => c.CompareTag("MainCamera"));
             var go = new GameObject("Still Camera");
@@ -50,10 +55,8 @@ namespace OhmsLaw.Editor
             var cam = go.AddComponent<Camera>();
             if (main) cam.CopyFrom(main);
             cam.scene = scene;
-            var pose = vcam.transform;
-            var look = vcam.LookAt ? Quaternion.LookRotation(vcam.LookAt.position - pose.position) : pose.rotation;
-            go.transform.SetPositionAndRotation(pose.position, look);
-            cam.fieldOfView = vcam.Lens.FieldOfView;
+            go.transform.SetPositionAndRotation(at, rotation);
+            cam.fieldOfView = fov;
             go.AddComponent<UniversalAdditionalCameraData>().renderPostProcessing = true;
 
             const int width = 1280, height = 720;

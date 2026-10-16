@@ -521,7 +521,7 @@ namespace OhmsLaw.Editor
             go.transform.position += foot - new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
         }
 
-        static Bounds RenderBounds(GameObject go)
+        protected static Bounds RenderBounds(GameObject go)
         {
             var renderers = go.GetComponentsInChildren<Renderer>().Where(r => r.enabled).ToArray();
             if (renderers.Length == 0) return new Bounds(go.transform.position, Vector3.one);

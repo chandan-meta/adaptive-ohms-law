@@ -80,6 +80,11 @@ namespace OhmsLaw.Editor
                         if (!AssetDatabase.LoadAssetAtPath<VolumeProfile>(destination)) AssetDatabase.CopyAsset(AssetDatabase.GetAssetPath(original), destination);
                         var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(destination);
                         volume.sharedProfile = profile;
+                        // The lab's grade is its builder's (LabSetLighting / LabGrade, matched to the user's golden-hour reference):
+                        // mirrored whole, so a builder change reaches the scenes (the copy above is made only once).
+                        var labBuilt = baseName == "Classroom_Global" || baseName == "Finale_Global"
+                            ? AssetDatabase.LoadAssetAtPath<VolumeProfile>(SceneBuilderBase.Art + "/Post/" + baseName + ".asset") : null;
+                        if (labBuilt) { Mirror(labBuilt, profile); continue; }
                         bool electric = profile.name.Contains("Electron");
                         if (profile.TryGet<Bloom>(out var bloom)) { bloom.intensity.Override(electric ? 0.45f : 0.3f); bloom.threshold.Override(1.1f); bloom.scatter.Override(electric ? 0.7f : 0.62f); }
                         if (profile.TryGet<FilmGrain>(out var grain)) grain.intensity.Override(0.025f);
@@ -139,6 +144,30 @@ namespace OhmsLaw.Editor
         {
             EditorUtility.SetDirty(component);
             if (PrefabUtility.IsPartOfPrefabInstance(component)) PrefabUtility.RecordPrefabInstancePropertyModifications(component);
+        }
+
+        // The builder's profile onto its polished copy, component by component and value by value (a component the copy lacks
+        // is added as a sub-asset).
+        static void Mirror(VolumeProfile from, VolumeProfile to)
+        {
+            foreach (var source in from.components)
+            {
+                var target = to.components.FirstOrDefault(c => c.GetType() == source.GetType());
+                if (!target)
+                {
+                    target = to.Add(source.GetType());
+                    target.name = source.name;
+                    AssetDatabase.AddObjectToAsset(target, to);
+                }
+                target.active = source.active;
+                for (int i = 0; i < source.parameters.Count; i++)
+                {
+                    target.parameters[i].overrideState = source.parameters[i].overrideState;
+                    target.parameters[i].SetValue(source.parameters[i]);
+                }
+                EditorUtility.SetDirty(target);
+            }
+            EditorUtility.SetDirty(to);
         }
 
         static Material PolishMaterial(Material source)

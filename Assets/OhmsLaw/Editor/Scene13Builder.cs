@@ -41,6 +41,7 @@ namespace OhmsLaw.Editor
         protected override void Stage()
         {
             ClassroomSet(modernBench: true, audience: false);
+            LabBoardLaw(); // the lab board's own chalk (V = IR), hidden until the learner has built the law
             director.matchCutFrom = "Scene12_Resistance";
             director.rig = Rig(assembled: true, keyClosed: true, voltage: 5);
             director.rig.showPath = false;
@@ -137,6 +138,7 @@ namespace OhmsLaw.Editor
             Visual("The name holds centre screen; the lab warms", 0.8);
             Cue("hero.clear", "the plate gives way to Ohm: the case-closed card carries the law at the end");
             Cue("look 2.0 finale", "the lab warms for Ohm (WP-L's look; a look name the director lacks only logs a warning)");
+            Cue("rise 1.4 Board Law", "the lab's board writes up the law the learner just built (its chalk, wiped until now)");
             Cue("appear 0.9 Georg Ohm", "Georg Ohm reappears behind the bench, presenting");
             Cue("push 11 Cam Finale", "a slow dolly toward Ohm and the bench through the summary");
             Cue("ohm.pose Present", "", 0.2);

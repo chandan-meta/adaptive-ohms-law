@@ -45,6 +45,7 @@ bpy.ops.object.select_all(action="DESELECT")
 counts = {}
 for ob in picked:
     world = ob.matrix_world.copy()
+    ob.animation_data_clear()  # a static set: an FBX take left on a part re-keys it once unparented (one landed 440 m away)
     ob.parent = None
     ob.matrix_world = world  # parents (RootNode empties) are not exported
     base = next((v for k, v in names.items() if ob.name.startswith(k)), None)
@@ -66,7 +67,7 @@ def image_behind(socket, flips=None):
     if not node:
         return None
     if node.type == "TEX_IMAGE":
-        return node.image
+        return node.image if node.image and node.image.size[0] else None  # no pixels (a map the kit never shipped): no map
     if node.type == "INVERT" and flips is not None:
         flips.append(node)
     for i in node.inputs:
@@ -82,7 +83,7 @@ def base_colour(socket):
     node = linked_node(socket)
     if not node:
         return None, list(socket.default_value)
-    if node.type == "TEX_IMAGE" and node.image:
+    if node.type == "TEX_IMAGE" and node.image and node.image.size[0]:
         return node.image, None
     if node.type == "MIX" and node.blend_type == "MULTIPLY":
         a = next((i for i in node.inputs if i.name == "A" and i.type == "RGBA"), None)
@@ -191,10 +192,15 @@ for ob in picked:
             img, tint = base_colour(bsdf.inputs["Base Color"])
             opacity = image_behind(bsdf.inputs["Alpha"])
             if img and opacity:  # the cut-outs ride in the base map's alpha
+                link = bsdf.inputs["Alpha"].links[0]
+                own = link.from_node.type == "TEX_IMAGE" and link.from_socket.name == "Alpha"  # the image's own alpha, not a grey mask
                 rgba = pixels(img)
-                rgba[..., 3] = resized(pixels(opacity), rgba.shape[:2])[..., 0]
+                rgba[..., 3] = resized(pixels(opacity), rgba.shape[:2])[..., 3 if own else 0]
+                cut = rgba[..., 3] < 0.5
+                if cut.any() and not cut.all():
+                    rgba[cut, :3] = rgba[~cut, :3].mean(0)  # no white card bleeding into the edges and the mips
                 spec["baseMap"] = safe(re.sub(r"\.(jpe?g|png)", "", img.name, flags=re.I)) + "_alpha.png"
-                save_png(rgba, os.path.join(out, "Textures", spec["baseMap"]))
+                save_png(shrunk(rgba), os.path.join(out, "Textures", spec["baseMap"]))
                 spec["alphaClip"] = True
             elif img:
                 spec["baseMap"] = write_image(img)

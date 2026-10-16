@@ -25,25 +25,33 @@ namespace OhmsLaw.Editor
                 ["Material.002"] = (Color.white, Color.white * 1.2f, true),
             });
 
-        // The lab's glass is plain grey in Blender: here it is clear glass, a faint cyan, the floor ring and posts lit from
-        // within. The screens and light strips glow from emission maps the exporter makes (Tools/sets/lab.json "glow").
-        // "Material.001" is the user's Ohm's-law mural wrapped round the walls: a self-lit display, a little under the screens.
-        // The rack screens glow over the exporter's 1.6 (the 2026-10-14 audit: the lab read dim and cold); "Material", the
-        // dark-green board, carries a faint flat emission so it is not a black rectangle under the cove light (a `default`
-        // base colour keeps the JSON's). Round_Floor is glossier than its 0.5 roughness so the table's lit ring reflects in it.
+        // The physics lab (the user's lab.blend): its lamps glow here, HDR so they bloom: the ceiling cove and downlights
+        // ("Light1", orange in the kit) and the wall lights ("Light1.001") warm, the shelf strip lights ("Light9") a little
+        // softer, the test bulbs ("Bulb3", whose emission map the kit never shipped) warm along their base map, and the frosted
+        // window panes self-lit with the afternoon sun behind them (the panes glow, the glazing bars stay dark), as in the
+        // user's golden-hour reference. Glass: the shelf meters' covers ("Glass1"), the glassware ("lambert3", a flat grey in
+        // the kit) and the cabinet doors' panes ("mirror"). Smoothness: the kit's plants and vases come in mirror-smooth
+        // (roughness 0); the floor is polished so the sun patches and the windows reflect in it; the bench tops are semi-gloss.
         public static readonly BlenderSet Lab = new BlenderSet("Assets/OhmsLaw/Shared/Art/LabSet", "LabSet",
             new Dictionary<string, (Color, Color, bool)>
             {
-                ["Material.001"] = (Color.white, Color.white * 0.9f, true),
-                ["Rack_And_Frame"] = (Color.white, Color.white * 2.4f, false),
-                ["Material"] = (default, new Color(0.02f, 0.06f, 0.035f), false),
+                ["Light1"] = (Color.white, new Color(1f, 0.8f, 0.55f) * 3f, false),
+                ["Light1.001"] = (Color.white, new Color(1f, 0.8f, 0.55f) * 2.4f, false),
+                ["Light9"] = (Color.white, new Color(1f, 0.84f, 0.62f) * 2f, false),
+                ["Bulb3"] = (default, new Color(1f, 0.78f, 0.45f) * 1.4f, true),
+                ["Window_Glass_01"] = (Color.white, new Color(1f, 0.86f, 0.64f) * 2.2f, true),
             },
             new Dictionary<string, (Color, Color)>
-        {
-            ["Glass"] = (new Color(0.62f, 0.86f, 1f, 0.16f), new Color(0.05f, 0.16f, 0.24f)),
-            ["Glass1"] = (new Color(0.5f, 0.85f, 1f, 0.24f), new Color(0.04f, 0.16f, 0.28f)), // brighter, the floor ring read as a pale band across the floor
-        },
-            new Dictionary<string, float> { ["Round_Floor"] = 0.7f });
+            {
+                ["Glass1"] = (new Color(0.9f, 0.95f, 1f, 0.16f), Color.black),
+                ["lambert3"] = (new Color(0.82f, 0.93f, 0.95f, 0.22f), Color.black),
+                ["mirror"] = (new Color(0.75f, 0.84f, 0.88f, 0.3f), Color.black),
+            },
+            new Dictionary<string, float>
+            {
+                ["floor"] = 0.82f, ["pasted__Table_03"] = 0.55f, ["pasted__Table_02"] = 0.5f, ["front_table1"] = 0.5f,
+                ["leave03"] = 0.35f, ["leave04"] = 0.35f, ["Bark1"] = 0.15f, ["soil1"] = 0.05f, ["vase01"] = 0.5f, ["vase02"] = 0.5f,
+            });
 
         public readonly string Folder, Model, Json;
         readonly Dictionary<string, (Color baseColor, Color emission, bool emissionMap)> glows;
