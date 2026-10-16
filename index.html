@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
+    <title>AI OHM'S LAW</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="preload" as="image" href="TemplateData/loader.webp">
+    <link rel="stylesheet" href="TemplateData/style.css">
+  </head>
+  <body>
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <!-- The module's loading screen: the supplied artwork as it is (TemplateData/loader.webp), a live bar over its painted
+         one and a little drifting light. The artwork carries the title, so the bar's name is for screen readers only. -->
+    <div id="loader">
+      <div id="stage">
+        <div id="breath"></div>
+        <canvas id="dust"></canvas>
+        <div id="bar" role="progressbar" aria-label="Loading Ohm's Law Module" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="fill"></div></div>
+      </div>
+    </div>
+    <div id="unity-warning"></div>
+    <script>
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/WebGL.loader.js";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/WebGL.data.unityweb",
+        frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
+        codeUrl: buildUrl + "/WebGL.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "AI OHM'S LAW",
+        productVersion: "0.1.0",
+        autoSyncPersistentDataPath: true, // the learner's progress saves on change (the manual sync is deprecated)
+      };
+    </script>
+    <script src="TemplateData/loader.js"></script>
+  </body>
+</html>
