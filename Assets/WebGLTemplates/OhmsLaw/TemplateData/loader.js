@@ -86,7 +86,7 @@
     finishing = true;
     bar.classList.add("full");                                            // the pulse, 0.45 s
     setTimeout(function () { loader.classList.add("gone"); }, 650);       // a 0.2 s hold, then the 0.65 s fade
-    setTimeout(function () { running = false; loader.remove(); }, 1400);
+    setTimeout(function () { running = false; loader.remove(); fullscreen.hidden = !canFullscreen; }, 1400);
   }
 
   // Warnings fade after 5 s; errors stay.
@@ -98,6 +98,31 @@
     if (type != "error") setTimeout(function () { div.remove(); }, 5000);
   }
   config.showBanner = banner;
+
+  var fullscreen = document.getElementById("fullscreen-button"), page = document.documentElement;
+  var enterFullscreen = page.requestFullscreen || page.webkitRequestFullscreen;
+  var exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+  var canFullscreen = enterFullscreen && exitFullscreen && (document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  function syncFullscreen() {
+    var active = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    fullscreen.setAttribute("aria-pressed", String(active));
+    fullscreen.title = active ? "Exit fullscreen" : "Enter fullscreen";
+    fullscreen.setAttribute("aria-label", fullscreen.title);
+  }
+  document.addEventListener("fullscreenchange", syncFullscreen);
+  document.addEventListener("webkitfullscreenchange", syncFullscreen);
+  function fullscreenUnavailable() {
+    syncFullscreen();
+    banner("Fullscreen is unavailable here. Open the game in a browser tab and try again.", "warning");
+  }
+  fullscreen.addEventListener("click", function () {
+    var active = document.fullscreenElement || document.webkitFullscreenElement;
+    // Fullscreen the page so the exit button stays alongside the game's canvas.
+    try {
+      var request = active ? exitFullscreen.call(document) : enterFullscreen.call(page);
+      Promise.resolve(request).then(syncFullscreen).catch(fullscreenUnavailable);
+    } catch (error) { fullscreenUnavailable(); }
+  });
 
   var script = document.createElement("script");
   script.src = loaderUrl;

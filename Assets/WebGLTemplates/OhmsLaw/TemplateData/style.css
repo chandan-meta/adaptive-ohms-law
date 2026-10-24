@@ -1,5 +1,15 @@
 html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #01101c; }
 #unity-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: #01101c; outline: none; }
+#fullscreen-button {
+  position: fixed; left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); z-index: 4;
+  width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 1px solid #74634c;
+  border-radius: 10px; background: #1b1f22; color: #f5f0e6; cursor: pointer;
+}
+#fullscreen-button[hidden] { display: none; }
+#fullscreen-button:hover, #fullscreen-button[aria-pressed="true"] { background: #ffc45c; color: #15191d; border-color: #ffc45c; }
+#fullscreen-button:focus-visible { outline: 2px solid #fff9ec; outline-offset: 3px; }
+#fullscreen-button .collapse, #fullscreen-button[aria-pressed="true"] .expand { display: none; }
+#fullscreen-button[aria-pressed="true"] .collapse { display: initial; }
 
 /* The artwork's own rect (1672 x 941), cover-fitted and centred: it fills the window at its own aspect, cropping only
    outer edges, and --u is one artwork pixel, so everything on it keeps its place at any window size. */

@@ -31,11 +31,17 @@ namespace OhmsLaw.Editor
             PlayerSettings.WebGL.decompressionFallback = true;
             PlayerSettings.WebGL.dataCaching = true;
             PlayerSettings.WebGL.nameFilesAsHashes = true;
+#if UNITY_WEBGL
+            UnityEditor.WebGL.UserBuildSettings.codeOptimization = UnityEditor.WebGL.WasmCodeOptimization.DiskSize;
+#endif
             var scenes = new[] { ModulePlayerBuilder.ScenePath }
                 .Concat(BlockoutAssets.SceneOrder.Select(s => SceneBuilderBase.Root + "/Scenes/" + s + ".unity")).ToArray();
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = scenes, locationPathName = Output, target = BuildTarget.WebGL });
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = scenes, locationPathName = Output, target = BuildTarget.WebGL, options = BuildOptions.DetailedBuildReport });
 
             var log = new StringBuilder($"WebGL build {report.summary.result} in {report.summary.totalTime:hh\\:mm\\:ss}, {report.summary.totalErrors} errors\n");
+#if UNITY_WEBGL
+            log.AppendLine("WebAssembly code optimization: " + UnityEditor.WebGL.UserBuildSettings.codeOptimization);
+#endif
             foreach (var file in Directory.GetFiles(Output, "*", SearchOption.AllDirectories).OrderByDescending(f => new FileInfo(f).Length))
                 log.AppendLine($"{new FileInfo(file).Length / 1048576f,9:F2} MB  {file.Replace('\\', '/')}");
             log.AppendLine("\nLargest assets in the build (uncompressed):");
@@ -70,6 +76,22 @@ namespace OhmsLaw.Editor
                 web.compressionQuality = 75;
                 importer.SetPlatformTextureSettings(web);
                 importer.SaveAndReimport();
+            }
+            // Keep the wire room's close-up maps at their original resolution; crunch only its colour textures for download.
+            foreach (var path in AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/OhmsLaw/Shared/Art/WireSet/Textures" })
+                         .Select(AssetDatabase.GUIDToAssetPath).Where(path => Path.GetFileName(path).Contains("basecolor")))
+            {
+                if (!(AssetImporter.GetAtPath(path) is TextureImporter importer) || importer.textureType != TextureImporterType.Default || !importer.sRGBTexture) continue;
+                var web = importer.GetPlatformTextureSettings("WebGL");
+                if (web.overridden && web.crunchedCompression && web.compressionQuality == 100) continue;
+                if (!web.overridden) web.maxTextureSize = importer.maxTextureSize;
+                web.overridden = true;
+                web.crunchedCompression = true;
+                web.compressionQuality = 100;
+                importer.SetPlatformTextureSettings(web);
+                importer.SaveAndReimport();
+                var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                Debug.Log($"WebGL texture {Path.GetFileName(path)}: {texture.width}x{texture.height}, {texture.format}, quality {web.compressionQuality}");
             }
             PlayerSettings.SplashScreen.show = false;
             PlayerSettings.SplashScreen.showUnityLogo = false;

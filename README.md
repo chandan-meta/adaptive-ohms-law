@@ -2,7 +2,7 @@
 
 An interactive 3D learning module for teaching voltage, current, resistance, graph interpretation and Ohm's Law. Wattson guides learners through predictions, laboratory equipment, circuit construction, measurements, graphing and equation-building activities.
 
-[Play the current WebGL release](https://chandan-meta.github.io/adaptive-ohms-law/?v=20261024).
+[Play the current WebGL release](https://chandan-meta.github.io/adaptive-ohms-law/?v=20261024-fullscreen). The small button in the bottom-left corner enters or exits fullscreen when supported by the browser; Esc also exits.
 
 ## Requirements
 
@@ -25,6 +25,8 @@ The current module plays Scenes 04–13, including the study, wire interior, lab
 Use **Ohm's Law → Build WebGL** in Unity. If it switches the target platform, run the menu item again after importing finishes. The build is written to `Builds/WebGL` and its result to `Logs/WebGL/build.txt`.
 
 After a successful build, `bash Tools/publish_webgl.sh` publishes it to the existing GitHub Pages deployment branch without changing source files or the staged index. See `Docs/Optimization/WebGL_2026-10-24.md` for the current build verification and `Docs/UI_v2/UNITY_FIGMA_INTEGRATION.md` for the directly exported Figma artwork.
+
+Run `node Tools/test_webgl_template.cjs` to check fullscreen availability, loading state, enter/exit behavior and accessible labels. Release builds use Unity's Disk Size optimization alongside Brotli compression.
 
 ## Main features
 
