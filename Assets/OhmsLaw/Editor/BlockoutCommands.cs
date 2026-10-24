@@ -62,6 +62,41 @@ namespace OhmsLaw.Editor
             }
         }
 
+        // Batchmode play test with the editor closed: -executeMethod OhmsLaw.Editor.BlockoutCommands.BatchPlay -ohmPlay "all 2x miss".
+        // Starts BlockoutPlayTest (no window, so no screenshots), keeps the editor alive (run it without -quit) and exits
+        // with 0 on RESULT PASS, 1 otherwise. The watcher re-arms itself after any domain reload (SessionState).
+        const string BatchPlayKey = "ohm.batchplay";
+
+        public static void BatchPlay()
+        {
+            var args = Environment.GetCommandLineArgs();
+            int at = Array.IndexOf(args, "-ohmPlay");
+            string request = at >= 0 && at + 1 < args.Length ? args[at + 1] : "all 2x";
+            SessionState.SetBool(BatchPlayKey, true);
+            EditorApplication.update -= WatchBatchPlay;
+            EditorApplication.update += WatchBatchPlay;
+            BlockoutPlayTest.Run(request);
+        }
+
+        [InitializeOnLoadMethod]
+        static void RearmBatchPlay()
+        {
+            if (!SessionState.GetBool(BatchPlayKey, false)) return;
+            EditorApplication.update -= WatchBatchPlay;
+            EditorApplication.update += WatchBatchPlay;
+        }
+
+        static void WatchBatchPlay()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+            const string report = "Logs/Blockout/play-report.txt";
+            string text = File.Exists(report) ? File.ReadAllText(report) : "";
+            if (!text.Contains("RESULT ")) return;
+            SessionState.SetBool(BatchPlayKey, false);
+            EditorApplication.update -= WatchBatchPlay;
+            EditorApplication.Exit(text.Contains("RESULT PASS") ? 0 : 1);
+        }
+
         static void CheckRequests()
         {
             if (EditorApplication.isPlaying && File.Exists("Logs/ohm-stop.req")) { File.Delete("Logs/ohm-stop.req"); EditorApplication.ExitPlaymode(); return; }

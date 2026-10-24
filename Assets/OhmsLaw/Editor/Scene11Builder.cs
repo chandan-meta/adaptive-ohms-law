@@ -3,9 +3,10 @@ using UnityEngine;
 namespace OhmsLaw.Editor
 {
     // Scene 11: the discovery. The five points on the dock's graph are joined by a line that sweeps out from the
-    // origin; the table and graph come to the centre of the screen (the data stage) while the doubling is read off them;
-    // V ∝ I is revealed centre screen with a musical rise and Wattson's reaction. No challenge interrupts it: the learner
-    // sees why the relationship is true in their own data.
+    // origin; the table and graph come to the centre of the screen (the data stage) with Wattson beside them: he names
+    // the axes as each lights, then points at the first two rows and their points while the doubling is read off them;
+    // V ∝ I is revealed centre screen with a musical rise and his snap. No challenge interrupts it: the learner sees why
+    // the relationship is true in their own data.
     public class Scene11Builder : SceneBuilderBase
     {
         public override string SceneId => "Scene11";
@@ -18,6 +19,7 @@ namespace OhmsLaw.Editor
             L("S11_L04", "For this conductor that is the nichrome wire, while its temperature remains constant...the potential difference across it is directly proportional to the current flowing through it.", 9.0f);
             L("S11_L05", "But there's still one clue we haven't explained.", 2.8f);
             L("S11_N01", "Look at the pattern! Double the voltage, and the current doubles too. They change together in the same proportion.", 6.0f, proposed: true);
+            L("S11_N02", "Voltage up the side, current along the bottom.", 3.0f, proposed: true);
         }
 
         protected override SceneAgentContext Agent() => Context(
@@ -63,13 +65,23 @@ namespace OhmsLaw.Editor
             Gesture(WattsonController.Gesture.Greet);
             Line("S11_L01");
 
-            // The data stage: table and graph come to the centre of the screen while the doubling is read off them.
+            // The data stage: table and graph come to the centre of the screen with Wattson beside them. The axes first, each
+            // lit as he names it (V, volts, up the side; I, amperes, along the bottom), then the doubling read off the rows
+            // and their points, linked.
             Cue("stage 1", "data stage: the table and the graph move to the centre, in front of the bench");
             Gesture(WattsonController.Gesture.Talking);
-            Cue("graph.highlight 0 1", "points (0.20, 1.0) and (0.40, 2.0) highlight");
-            Cue("table.highlight 0 1");
+            Cue("graph.axis V", "the vertical axis lights: potential difference V, in volts", 0.4);
+            Cue("point.axis V", "Wattson points at the V axis", 0.4);
+            Cue("graph.axis I", "the horizontal axis lights: current I, in amperes", 1.7);
+            Cue("point.axis I", "then at the I axis", 1.7);
+            Wait(0.4);
+            Line("S11_N02", 0.2);
+            Cue("link 0 1", "rows 1 and 2 light with their points (0.20, 1.0) and (0.40, 2.0); a spark runs from each row to its point");
+            Cue("point.row 0", "Wattson points at row 1");
+            Cue("point.point 1", "then at point 2, where the doubled voltage lands", 2.6);
             Line("S11_N01");
             Cue("graph.pulse");
+            Cue("point.clear");
             Cue("graph.clear");
             Cue("table.clear");
             // The table and the graph stay in front through the formal statement and hand over to the plate on its last words.

@@ -8,16 +8,19 @@ namespace OhmsLaw
     // Gain ducking before the mixer: while a voice speaks (VoiceChannel.Speaking) every other AudioSource drops to a fraction of
     // its volume, and comes back when the voice stops. Runs in LateUpdate, after AudioBus.Update has written the bus
     // volumes for this frame; a source without a bus keeps the volume it had, remembered here. Created by ModuleFlow.
+    // The envelope eases (smoothstep on a linear clock) so neither the dip nor the return is ever heard as a step: the
+    // beds sink about 12 dB under narration, effects and ambience about 6 dB.
     [DefaultExecutionOrder(1000)]
     public class AudioDucker : MonoBehaviour
     {
-        [Tooltip("Music volume while a voice speaks, as a fraction of normal.")] [Range(0, 1)] public float music = 0.3f;
-        [Tooltip("Effects and every other non-voice source while a voice speaks.")] [Range(0, 1)] public float effects = 0.55f;
+        [Tooltip("Music volume while a voice speaks, as a fraction of normal.")] [Range(0, 1)] public float music = 0.25f;
+        [Tooltip("Effects and every other non-voice source while a voice speaks.")] [Range(0, 1)] public float effects = 0.5f;
         // The release holds the duck across the gaps between consecutive lines (Say() leaves 0.3 s, the Timeline often under
         // a second), so a rhythmic bed (PadLabTheme's arpeggio) does not swell and dip between sentences.
-        public float attackSeconds = 0.15f, releaseSeconds = 1.0f;
+        public float attackSeconds = 0.3f, releaseSeconds = 0.9f;
 
-        public float Amount { get; private set; } // 0 = normal, 1 = fully ducked
+        public float Amount { get; private set; } // 0 = normal, 1 = fully ducked (eased)
+        float clock; // the envelope's linear position; Amount is its smoothstep
         readonly Dictionary<AudioSource, (float normal, float applied)> ducked = new Dictionary<AudioSource, (float, float)>();
         AudioSource[] sources = new AudioSource[0];
         float rescanIn;
@@ -31,7 +34,7 @@ namespace OhmsLaw
             SceneManager.sceneLoaded -= Rescan;
             foreach (var pair in ducked) if (pair.Key) pair.Key.volume = pair.Value.normal;
             ducked.Clear();
-            Amount = 0;
+            Amount = clock = 0;
         }
 
         void Rescan(Scene scene, LoadSceneMode mode) => rescanIn = 0;
@@ -53,7 +56,8 @@ namespace OhmsLaw
         // One frame of ducking over `all` (public for the editor self-check).
         public void Step(float dt, bool speaking, AudioSource[] all)
         {
-            Amount = Mathf.MoveTowards(Amount, speaking ? 1 : 0, dt / Mathf.Max(0.01f, speaking ? attackSeconds : releaseSeconds));
+            clock = Mathf.MoveTowards(clock, speaking ? 1 : 0, dt / Mathf.Max(0.01f, speaking ? attackSeconds : releaseSeconds));
+            Amount = clock * clock * (3f - 2f * clock);
             foreach (var source in all)
             {
                 if (!source || VoiceChannel.IsVoice(source)) continue;

@@ -12,7 +12,11 @@ namespace OhmsLaw
     // Beds carry across chapter loads: a looping bus still playing at its own level when the module leaves the scene
     // (ModuleFlow.Leaving) is lifted out of it and plays on, and the next scene's bus of the same kind and name takes it
     // over at the same sample, so that scene's "music" / "ambience" cue for the same clip finds it playing (a no-op) and
-    // only a real change of bed crossfades. A bed nobody takes over stops once the new scene has loaded, as before.
+    // only a real change of bed crossfades. A bed nobody takes over stops once the new scene has loaded, as before. A bed
+    // still fading in when the scene ends (a music change just before a hand-off) is carried too and eases on up to its
+    // level in the next scene; one fading out is not carried (it was on its way out).
+    // Every music bus plays MusicLevel under its gain: the beds sit a little lower under the narration than they were built
+    // (a runtime trim, so the saved scenes need no rebuild).
     [RequireComponent(typeof(AudioSource))]
     public class AudioBus : MonoBehaviour
     {
@@ -35,6 +39,9 @@ namespace OhmsLaw
         [Tooltip("Mixer group by name (Music, Ambience, SFX, UI, Character, Electrical, Voice). Empty: by kind. A group the mixer lacks falls back to SFX.")]
         public string group;
 
+        [Tooltip("A looping bed still playing when the scene hands off is carried into the next one. Off for loops another script drives (the current's hum), which go with their scene.")]
+        public bool carry = true;
+
         [Header("Background Music (music bus only)")]
         [Tooltip("Played by a music bus when the scene starts, e.g. Assets/OhmsLaw/Shared/Art/bgm.mp3. With Play On Start off the bus only carries the clip: Scene 4's music bus holds the title bed (PadIntro) this way for ModuleFlow.")]
         public AudioClip bgm;
@@ -45,8 +52,13 @@ namespace OhmsLaw
         [Tooltip("Loop the background music.")]
         public bool loopBGM = true;
 
+        public const float MusicLevel = 0.85f;
+        public static float Level(Kind kind) => kind == Kind.Music ? MusicLevel : 1f;
+
         AudioSource source;
-        float level; // the gain this bus was built with: fades move gain, and a bed caught mid-fade is not carried
+        float level; // the gain this bus was built with: fades move gain
+        float lastGain, easeTo = -1f, eased;
+        bool falling; // the gain went down since the last frame: a fade-out in progress
         public float NominalGain => level;
         static AudioMixer mixer;
         static readonly Dictionary<string, AudioMixerGroup> groups = new Dictionary<string, AudioMixerGroup>();
@@ -90,7 +102,8 @@ namespace OhmsLaw
         void Awake()
         {
             source = GetComponent<AudioSource>();
-            level = gain;
+            level = lastGain = gain;
+            AudioDucker.RescanSoon(); // a bus made at runtime (a bed's crossfade twin, a pitched one-shot) is ducked from its first frame
             if (PlaysMusic)
             {
                 source.playOnAwake = false;
@@ -112,7 +125,8 @@ namespace OhmsLaw
 
         void Carry(string next)
         {
-            if (kind == Kind.Voice || !source || !source.loop || !source.isPlaying || gain < level - 0.001f) return;
+            if (!carry || kind == Kind.Voice || !source || !source.loop || !source.isPlaying) return;
+            if (gain < level - 0.001f && (falling || gain < 0.5f * level)) return; // fading out, or barely in: let it go
             if (gameObject.scene != SceneManager.GetActiveScene()) return; // the HUD's own buses already live outside it
             transform.SetParent(null, true);
             DontDestroyOnLoad(gameObject);
@@ -131,7 +145,10 @@ namespace OhmsLaw
                 source.clip = from.source.clip;
                 source.loop = true;
                 trim = from.trim;
-                source.volume = gain * trim * Get(kind);
+                // Carried mid fade-in: it starts where it was and eases on up to this bus's level.
+                float share = from.level > 0f ? Mathf.Clamp01(from.gain / from.level) : 1f;
+                if (share < 0.999f) { easeTo = gain; gain = eased = lastGain = gain * share; }
+                source.volume = gain * trim * Get(kind) * Level(kind);
                 source.Play();
                 source.timeSamples = from.source.timeSamples;
             }
@@ -145,9 +162,23 @@ namespace OhmsLaw
             carried.Clear();
         }
 
+        const float CarryEaseSeconds = 1.5f;
+
         void Update()
         {
-            if (source) source.volume = gain * trim * Get(kind);
+            if (easeTo >= 0f)
+            {
+                // Someone else (a crossfade) took the gain over: the carried ease stops.
+                if (!Mathf.Approximately(gain, eased)) easeTo = -1f;
+                else
+                {
+                    gain = eased = Mathf.MoveTowards(gain, easeTo, Time.unscaledDeltaTime * Mathf.Max(0.01f, easeTo) / CarryEaseSeconds);
+                    if (Mathf.Approximately(gain, easeTo)) easeTo = -1f;
+                }
+            }
+            falling = gain < lastGain - 1e-5f;
+            lastGain = gain;
+            if (source) source.volume = gain * trim * Get(kind) * Level(kind);
         }
 
         public void PlayBGM()

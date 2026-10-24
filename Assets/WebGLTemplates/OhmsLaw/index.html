@@ -40,6 +40,7 @@
         companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
         productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
         productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 1.5), // Keep Retina screens from multiplying the 3D render cost.
         autoSyncPersistentDataPath: true, // the learner's progress saves on change (the manual sync is deprecated)
       };
     </script>

@@ -3,11 +3,12 @@ using UnityEngine;
 namespace OhmsLaw.Editor
 {
     // Scene 12: Resistance, without leaving the laboratory. The camera pulls back to the physical test wire and a 3D
-    // pop-up card opens over the bench: two cut-away conductors, copper and nichrome, same voltage, length and thickness,
-    // their free electrons threading a lattice of ions; copper lets them through, nichrome scatters them (WireSample).
-    // A quick check names the one with the higher resistance. Then the learner's own data on the data stage: the V / I
-    // column fills, the ratio is the same every time, V ∝ I → V = kI → V/I = k → k is the resistance R → V = IR; the same
-    // answer from the graph's slope (rise over run); then the ohm, centre screen: R, the unit, Ω, 1 Ω = 1 V / 1 A.
+    // pop-up card opens over the bench: two cut-away conductors, copper and nichrome, same voltage, length, thickness and
+    // temperature, their free electrons threading a lattice of ions; copper lets them through, nichrome scatters them
+    // (WireSample). Resistance is named, then the detective challenge tests it (more resistance at the same voltage: the
+    // current?). Then the learner's own data on the data stage: the V / I column fills, the ratio is the same every time,
+    // V ∝ I → V = kI → V/I = k → k is the resistance R → V = IR; the same answer from the graph's slope (rise over run);
+    // then the ohm, centre screen: R, the unit, Ω, 1 Ω = 1 V / 1 A.
     public class Scene12Builder : SceneBuilderBase
     {
         public override string SceneId => "Scene12";
@@ -34,17 +35,15 @@ namespace OhmsLaw.Editor
             L("S12_L13", "So for a V-versus-I graph, the slope tells us the resistance of the nichrome wire XY.", 4.5f);
             L("S12_L14", "Resistance is measured in ohms.", 2.4f);
             L("S12_L15", "A conductor has a resistance of one ohm when a potential difference of one volt produces a current of one ampere.", 6.5f);
-            L("S12_N01", "Keep the voltage the same, but change the wire material. This one allows more current. The other opposes the flow more.", 6.5f, proposed: true);
             L("S12_N02", "Written with this symbol: omega.", 2.2f, proposed: true);
             L("S12_N03", "Our nichrome wire needs five volts for one ampere, so its resistance is five ohms.", 4.4f, proposed: true);
-            // Inside the metals, over the 3D pop-up, and the quick check.
-            L("S12_R01", "Zoom in. Inside any metal the atoms sit in a lattice, and the free electrons have to thread their way through it.", 6.4f, proposed: true);
-            L("S12_R02", "In copper the way is easy. The electrons slip past with few collisions, so the same push gives a big current.", 6.2f, proposed: true);
-            L("S12_R03", "In nichrome the lattice gets in the way far more. The electrons bump, scatter, lose headway. Same push, less current.", 7.0f, proposed: true);
-            L("S12_R04", "Every collision hands a little energy to the lattice as heat. That's why a nichrome wire warms up, and why a heater glows.", 6.8f, proposed: true);
-            L("S12_QC", "Quick check, detective. Same voltage, less current. Which wire has the higher resistance?", 5.2f, proposed: true);
-            L("S12_QC_R_If_S12_WhichResists_B", "Nichrome it is. More opposition, less current, higher resistance.", 4.0f, proposed: true);
-            L("S12_QC_R_If_S12_WhichResists_A", "Careful: copper let more current through, so it opposes less. Nichrome has the higher resistance.", 5.4f, proposed: true);
+            // Inside the metals, over the 3D pop-up: the fair-test conditions first, then one line per metal; then the
+            // detective challenge, once resistance has its name.
+            L("S12_R10", "Two wires: same length, same thickness, same temperature, same voltage. Only the metal is different.", 5.6f, proposed: true);
+            L("S12_R11", "Copper: the electrons slip through. A big current.", 3.0f, proposed: true);
+            L("S12_R12", "Nichrome: they bump and scatter. Same push, less current.", 3.6f, proposed: true);
+            L("S12_MR_Q", "Detective challenge: same voltage, more resistance. What happens to the current?", 4.6f, proposed: true);
+            L("S12_MR_R", "Right. More opposition, less current.", 2.6f, proposed: true);
         }
 
         protected override SceneAgentContext Agent() => Context(
@@ -53,6 +52,7 @@ namespace OhmsLaw.Editor
                 "Everything from Scenes 5 to 11: voltage (V, volt), current (I, ampere), the five readings, V ∝ I for the nichrome wire at constant temperature, the straight-line graph through the origin.",
                 "The 3D comparison showed two wires of the same length, thickness and temperature at the same voltage: inside a metal the atoms sit in a lattice and the free electrons thread through it; in copper they slip past with few collisions (big current), in nichrome they scatter and lose headway (less current). Each collision hands energy to the lattice as heat. Resistance limits the current; the charges are not destroyed.",
                 "The material of a conductor opposes the flow of current. That opposition is electrical resistance, symbol R. Nichrome has the higher resistance.",
+                "The detective challenge asked what happens to the current when the resistance increases at the same voltage: it decreases.",
                 "For the nichrome wire XY, V/I is the same for every reading (1.0 ÷ 0.20 = 5, 2.0 ÷ 0.40 = 5, ...). V ∝ I means V = kI, so V/I = k, and that constant k is the resistance R: V = IR.",
                 "The slope of the V-I graph (V vertical, I horizontal) is ΔV/ΔI = 2.0 V ÷ 0.40 A = 5, the resistance.",
                 "Resistance is measured in ohms (Ω). 1 Ω = 1 V / 1 A: one ohm when one volt produces one ampere. This wire: 5 Ω.",
@@ -76,7 +76,8 @@ namespace OhmsLaw.Editor
             // The pull-back to the physical test wire: a little wider and lower, the wire XY centred in the free frame, the
             // whole circuit from the source to the key inside it even with the wide dock.
             Vcam("Wire Study", new Vector3(0f, 1.15f, -2.2f), new Vector3(0f, 0.85f, -0.1f), 40f, refs["NICHROME WIRE — XY"].transform, lensMedium);
-            WireSampleStage(); // the copper / nichrome sample under the lab, rendered into the 3D pop-up
+            var sample = WireSampleStage(); // the copper / nichrome sample under the lab, rendered into the 3D pop-up
+            sample.caption = "same voltage · same length · same thickness · same temperature"; // a fair test: only the metal differs
             Note("resistance", "Resistance (R)", "How much a conductor opposes the flow of current. Same voltage, less current = more resistance. The charges are not lost: they just get through more slowly.");
         }
 
@@ -114,16 +115,16 @@ namespace OhmsLaw.Editor
             Music("BGM_Conductor_Mystery");
             Visual("The pop-up: a copper segment, magnified, its electrons threading the lattice", 0.8);
             Gesture(WattsonController.Gesture.Point, point: "NICHROME WIRE — XY");
-            Line("S12_R01");
-            Line("S12_R02");
+            Line("S12_R10");
+            Line("S12_R11");
             Gate("S12_SwapWire", "copper shows alone; the learner taps 'Swap in nichrome' (dock) or Enter: nichrome pops in under it, its electrons scattering hard and drifting slow. A drag on the card turns the sample.");
-            Line("S12_R03");
-            Line("S12_R04");
-            Gate("S12_WhichResists", "Quick check (MCQ, [QC]): 'Same voltage. Which wire has the higher resistance?' A Copper · B Nichrome; graded under Resistance; Wattson reacts per pick.",
-                "S12_QC", "S12_QC_R_If_S12_WhichResists_A", "S12_QC_R_If_S12_WhichResists_B");
-            Line("S12_N01");
+            Line("S12_R12");
+            // Resistance gets its name before anything asks about it: the note pops on his snap (the concept callout's cue).
             Cue("callout show resistance");
             Line("S12_L05");
+            Gesture(WattsonController.Gesture.Listening);
+            Gate("S12_MoreResistance", "Detective challenge (MCQ): 'Same voltage. If the resistance increases, what happens to the current?' A increases · B decreases · C stays the same; graded under Resistance. A miss marks the option out, shows a hint aimed at it, lights the resistance note and pulses the test wire; the learner picks again (a second miss shows the answer). Wattson: 'Right. More opposition, less current.'",
+                "S12_MR_Q", "S12_MR_R");
             Hide("Wire Sample"); // the pop-up closes on the real wire, still glowing: its opposition is what the data measures
             Visual("The real nichrome wire XY glows on the bench", 1.2);
             Hide("Wire Highlight");
@@ -141,7 +142,8 @@ namespace OhmsLaw.Editor
             Cue("readings.top 0", "the strip makes room: the stage's plate reaches the top of the free frame", 0.05);
             Cue("rig.readouts 0", "", 0.05);
             Cue("stage 1", "data stage: table, graph and formula come to the centre of the screen", 0.05);
-            Cue("table.ratio 1", "a new column V / I appears", 0.1);
+            Cue("table.ratio 1", "a new column V / I (V/A) appears", 0.1);
+            Cue("point.column 2", "Wattson points at the new column as it fills", 0.3);
             Visual("V / I column appears", 0.6);
             Cue("table.work 0", "1.0 ÷ 0.20 = 5"); Visual("", 0.9);
             Cue("table.work 1", "2.0 ÷ 0.40 = 5"); Visual("", 0.9);
@@ -152,7 +154,8 @@ namespace OhmsLaw.Editor
             Line("S12_L08", 0.2);
             Formula("V ∝ I");
             Formula("V = k I", 0.5);                                   // staggered: cues at one Timeline time fire in no fixed order
-            Formula("V ÷ I = k   (the same 5 every time)", 1.0);
+            Formula("V ÷ I = k   (5 V/A every time)", 1.0);
+            Cue("point.formula", "Wattson points at the reasoning under the data", 1.0);
             Line("S12_L09", 0.2);
             Formula("k = R   (the resistance)");
             Line("S12_L10");
@@ -167,9 +170,11 @@ namespace OhmsLaw.Editor
             Formula("V = I × R", 0.1);
             Line("S12_L11");
             Cue("graph.triangle 0 2", "rise and run between (0.20, 1.0) and (0.60, 3.0): ΔV = 2.0 V, ΔI = 0.40 A");
+            Cue("point.point 2", "Wattson points at the top of the rise, (0.60, 3.0)");
             Line("S12_L12", 0.2);
-            Formula("slope = ΔV ÷ ΔI = 2.0 V ÷ 0.40 A = 5");
+            Formula("slope = ΔV ÷ ΔI = 2.0 V ÷ 0.40 A = 5 V/A");
             Line("S12_L13");
+            Cue("point.clear");
             Cue("stage 0", "the data returns to the dock");
             Cue("rig.readouts 1");
             Cue("readings.top 1", "the live strip returns for the ohm");

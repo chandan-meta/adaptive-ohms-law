@@ -85,66 +85,38 @@ namespace OhmsLaw.Editor
             Debug.Log("Wrote Docs/FLOW.md");
         }
 
-        // Hand-written from the builders' Gate(...) calls and the gate contract (Docs/Polish/WOW_PLAN.md §8). Graded questions
-        // (Ask): a wrong pick gets its feedback line, a hint and a retry, at most twice, then the reveal; option A is correct.
+        // Hand-written from the builders' Gate(...) calls and Docs/Polish/REVISION_2026-10-22.md. The two detective challenges
+        // are graded: a miss marks the option out, shows a hint aimed at it (and a clue in the scene), and the learner picks
+        // again; a second miss shows the answer and goes on.
         const string Chart = @"flowchart TD
-    S04[Scene 4: Meet Wattson] -->|flash to white| S05[Scene 5: Inside the Wire]
-    S05 --> D{S05_Drift graded<br>A minus to plus / B plus to minus / C no overall direction}
-    D -->|A correct, C partial| S05b[Drift Arrow, S05_L06 ..]
-    D -->|B wrong| DH[S05_Drift_FB, hint S05_Drift_H, retry] --> D
-    D -->|out of retries| DX[S05_Drift_X over the running drift] --> S05b
-    S05b -->|match-cut, handoff state| S06[Scene 6: Adaptive Question]
-    S06 --> P{S06_Prediction ungraded<br>A Increase / B Decrease / C Stay the same}
-    P -->|stored in LearnerSession.prediction| S06R[S06_R_A/B/C, then S06_L03]
-    S06R -->|Ohm-niscope flash, fade white| S07[Scene 7: Back to Georg Ohm]
+    S04[Scene 4: Meet Wattson, tap the wire] -->|the wire bed plays on through the dive| S05[Scene 5: Inside the Wire]
+    S05 --> AV[S05_ApplyVoltage: tap the + terminal] --> S05b[V the push, I the charge per second]
+    S05b -->|match-cut, the bed carries| S06[Scene 6: Detective Test]
+    S06 --> P{S06_Prediction graded<br>V up, R constant: A increases / B decreases / C stays the same}
+    P -->|A| S06R[S06_R_A, then S06_L03]
+    P -->|B or C| PH[option out, hint, + terminal pulses, pick again] --> P
+    P -->|second miss| PX[answer shown] --> S06R
+    S06R -->|Ohm-niscope flash; the wire bed crossfades in Scene 7| S07[Scene 7: Back to Georg Ohm]
     S07 -->|match-cut| S08[Scene 8: Our Lab]
     S08 -->|match-cut, CircuitState| S09[Scene 9: Build the Circuit]
-    S09 --> G1[S09_PlaceAmmeter] --> G1b{S09_Conventional say gate}
-    G1b -->|picked B at S05_Drift| G1c[S09_Conventional_If_S05_Drift_B]
-    G1b -->|else| G1d[S09_Conventional]
-    G1c --> G2[S09_PlaceVoltmeter]
-    G1d --> G2
-    G2 --> G3[S09_CloseKey]
-    G3 -->|reminder chalk, showLearnerPrediction recalls Scene 6| S10[Scene 10: Experiment]
-    S10 --> G4[S10_Set1V, controls capped at 1 V] --> G5[S10_Record row 1, cap 1 V] --> G5b{S10_Predict2V ungraded<br>A 0.40 A / B 0.20 A / C 0.10 A}
-    G5b -->|stored in LearnerSession.s10Prediction2V| G5c[S10_Set2V] --> G5d[S10_Record2 row 2<br>the meter grades the prediction: S10_Predict2V_FA/_FB/_FC]
-    G5d -->|3-5 V auto-run, rows 3-5| G6{S10_Pattern graded}
-    G6 -->|A correct| G7[S10_Discover: V x 2 to I x 2]
-    G6 -->|wrong| W1[S10_Pattern_FB/_FC, S10_R_WRONG, re-ask]
-    W1 -->|Struggling Relationship| W1b[rows 1-2 highlighted, simpler question S10_Pattern_E]
-    W1 --> G6
-    W1b --> G6
-    G6 -->|out of retries| W2[V then I column sweep, S10_Pattern_X] --> G7
-    G7 -->|Scene 6 callback S10_Discover_FA/_FB/_FC| S11[Scene 11: Graph]
-    S11 --> T1[S11_Target: make the ammeter read 0.60 A<br>miss: S11_Target_H, 2nd miss: Wattson sets 3 V with _X, hit: _OK]
-    T1 -->|Confident Graph| T2[bonus 0.80 A: _GO2 / _X2 / _OK2] --> S12
-    T1 -->|else| S12[Scene 12: Resistance]
-    S12 --> R1{S12_Ratio graded<br>5 / 0.2 / 1.8}
-    R1 -->|A correct| R2
-    R1 -->|wrong| R1h[S12_Ratio_FB/_FC, hint _H, retry] --> R1
-    R1 -->|out of retries| R1x[S12_Ratio_X, row 3 fills] --> R2
-    R2{S12_AQ1 checkpointEnabled<br>skipped when Confident Relationship}
-    R2 -->|A correct, or skipped| G8
-    R2 -->|wrong| R2h[S12_AQ1_FB/_FC, AQ_EXPLAIN, retry on AQ_EASY] --> R2
-    R2 -->|out of retries| R2x[S12_AQ1_X: 2 V then 4 V on the readings strip] --> G8
-    G8{S12_Slope graded<br>5 / 0.2 / 2.5}
-    G8 -->|A correct| S12b[S12_L13 .. S12_L15, readings.r: the ohm is taught]
-    G8 -->|wrong| W3[S12_Slope_FB/_FC, hint _H, retry] --> G8
-    G8 -->|out of retries| W3x[S12_Slope_X] --> S12b
-    S12b -->|match-cut| S13[Scene 13: Ohm's Law]
-    S13 --> C{checkpointEnabled?}
-    C -->|yes| Q2{S13_AQ2 graded}
-    Q2 -->|A correct| AP
-    Q2 -->|wrong| Q2h[S13_AQ2_FB/_FC, hint _H, retry] --> Q2
-    Q2 -->|out of retries| Q2x[S13_AQ2_X] --> AP
-    C -->|no| AP[S13_Apply: make the ammeter read 0.80 A with V = IR<br>miss: S13_Apply_H, 2nd miss: Wattson sets 4 V with _X, hit: _OK]
-    AP --> RC{S13_Recap say gate}
-    RC -->|Struggling OhmsLaw| RC1[S13_Recap_If_Struggling_OhmsLaw]
-    RC -->|Struggling Resistance| RC2[S13_Recap_If_Struggling_Resistance]
-    RC -->|else| RC3[S13_Recap]
-    RC1 --> S13end[S13_L07]
-    RC2 --> S13end
-    RC3 --> S13end
-    S13end -->|UnitySectionComplete| V14[Scene 14 video card]";
+    S09 --> G1[S09_PlaceAmmeter: one tap, it flies in, in series] --> G2[S09_PlaceVoltmeter: one tap, across XY]
+    G2 -->|the key closes by itself| S10[Scene 10: Experiment]
+    S10 --> G4[S10_Set1V .. S10_Set5V: slider, rows record, points plot]
+    G4 --> ST[centre stage: rows 1-2 linked to their points, V x 2 to I x 2]
+    ST -->|S10_Callback on the Scene 6 first pick| S11[Scene 11: The Pattern]
+    S11 --> DL[S11_DrawLine] --> AX[centre stage: the axes named, the doubling read off, V ∝ I]
+    AX --> S12[Scene 12: Resistance]
+    S12 --> SW[S12_SwapWire: copper, then nichrome, same length, thickness, temperature, voltage] --> RN[resistance named]
+    RN --> Q2{S12_MoreResistance graded<br>same V, more R: A increases / B decreases / C stays the same}
+    Q2 -->|B| Q2R[S12_MR_R]
+    Q2 -->|A or C| Q2H[option out, hint, the resistance note and the wire light, pick again] --> Q2
+    Q2 -->|second miss| Q2X[answer shown] --> Q2R
+    Q2R --> RD[centre stage: V / I = 5 V/A every time, slope = ΔV ÷ ΔI, the ohm]
+    RD -->|match-cut| S13[Scene 13: Ohm's Law]
+    S13 --> LP[V, I, R arrive on his snaps] --> BL[S13_BuildLaw: tap V, I, R into V = I × R]
+    BL --> NM[OHM'S LAW, conditions, I = V ÷ R and R = V ÷ I, the bench sweeps 1-5 V]
+    NM --> END[case closed]
+    END -->|Explore Now| LAB[Ohm's Law lab: slider, meters, table, graph, R = V ÷ I check, resistance control, double-the-current challenge]
+    END -->|UnitySectionComplete| V14[Scene 14 video card]";
     }
 }

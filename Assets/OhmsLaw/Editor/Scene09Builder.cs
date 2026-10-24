@@ -3,11 +3,12 @@ using UnityEngine.Rendering;
 
 namespace OhmsLaw.Editor
 {
-    // Scene 9: Build the Circuit, guided. Every step is stated in the panel before the learner acts (select the
-    // ammeter, click the highlighted position, select the voltmeter, click its position, close the switch), with a live
-    // schematic on a glass board floating over the back of the bench: the ammeter in series, the voltmeter in parallel
-    // across XY, the key. The dock keeps the turn card. Bench Study holds the whole bench with Wattson behind it, so
-    // taps land where the learner looks.
+    // Scene 9: Build the Circuit, guided. Every step is stated in the panel before the learner acts: tap the ammeter (it
+    // flies into the loop, in series), tap the voltmeter (it flies in across XY, in parallel), and the circuit completes
+    // itself as the voltmeter lands (the key closes on its own). A note at each meter says what it measures, and a live
+    // schematic on a glass board over the back of the bench shows the same circuit: the ammeter in series, the voltmeter
+    // in parallel across XY, the key. Bench Study holds the whole bench with Wattson behind it, so taps land where the
+    // learner looks.
     public class Scene09Builder : SceneBuilderBase
     {
         public override string SceneId => "Scene09";
@@ -29,9 +30,7 @@ namespace OhmsLaw.Editor
             L("S09_L06", "Exactly. An ammeter is connected in series, so the same current passes through it and the test wire.", 5.5f);
             L("S09_L07", "And when we need the potential difference between the two ends of the wire... we use the voltmeter.", 5.0f);
             L("S09_L08", "That's why a voltmeter is connected in parallel across the nichrome wire.", 4.0f);
-            L("S09_L09", "Close the switch to complete the circuit.", 2.4f);
             L("S09_L10", "Investigation ready.", 1.6f);
-            L("S09_L11", "Remember your prediction?", 1.8f);
             L("S09_L12", "Let's find out.", 1.6f);
             L("S09_Conventional", "Plot twist: we draw conventional current plus to minus. Electrons drift minus to plus!", 4.4f, proposed: true);
         }
@@ -43,7 +42,7 @@ namespace OhmsLaw.Editor
                 "The nichrome wire XY is the test conductor; we will change the potential difference across it and measure the current through it.",
                 "The ammeter is connected in series so the same current passes through it and the test wire.",
                 "The voltmeter is connected in parallel across the two ends of the wire, X and Y, to measure the potential difference between them.",
-                "Closing the key completes the circuit so current can flow.",
+                "Once both meters are in, the key closes and completes the circuit so current can flow.",
                 "The schematic on the board over the bench shows the same circuit: conventional current is drawn from + to − around the loop; the free electrons themselves drift the other way, from − to +.",
             },
             new[] { "The readings", "The pattern between V and I", "V is proportional to I", "V = IR", "Resistance", "Ohms", "The Christmas-lights answer" },
@@ -63,11 +62,11 @@ namespace OhmsLaw.Editor
             // The panel's notes for each part (the cues name them).
             Callout("wire", refs["NICHROME WIRE — XY"], CalloutDef.Anchor.BottomCentre);
             Callout("source", refs["cells / controllable DC source"], CalloutDef.Anchor.TopLeft);
-            Callout("ammeter", refs["AMMETER"], CalloutDef.Anchor.TopCentre);
+            // What each meter measures, and how it is connected: up while it goes in and until the next step.
+            Callout("ammeter", refs["AMMETER"], "Ammeter · in series", "Measures the current I through XY, in amperes (A)", CalloutDef.Anchor.TopCentre);
             Callout("key", refs["switch / key"], CalloutDef.Anchor.TopRight);
-            Callout("voltmeter", refs["VOLTMETER"], CalloutDef.Anchor.MidRight);
+            Callout("voltmeter", refs["VOLTMETER"], "Voltmeter · in parallel", "Measures the voltage V across X and Y, in volts (V)", CalloutDef.Anchor.MidRight);
             BadgePulse();
-            KeyPulse();
             SchematicBoard();
             Vcam("Bench Study", Scene10Builder.StudyCamC, Scene10Builder.StudyLookC, Scene10Builder.StudyFov, refs["Bench Point"].transform, lensMedium);
             // Two slow dollies for the explanations (audit finding 4), each pushed 0.5 m along its own axis ("push" to
@@ -113,16 +112,6 @@ namespace OhmsLaw.Editor
             var glow = PulseGlow();
             foreach (var letter in new[] { "X", "Y" })
                 Halo(root.transform, letter, refs["Card " + letter].transform.position + Vector3.forward * 0.045f, 0.16f, 0.05f, glow);
-            Calm(root);
-            root.SetActive(false);
-            Ref(root);
-        }
-
-        // The key pulses while it waits to be closed: the same halo and rings, set just behind the lever.
-        void KeyPulse()
-        {
-            var root = Node("[VFX] Key pulse");
-            Halo(root.transform, "Key", refs["switch / key"].transform.position + new Vector3(0f, 0.09f, 0.08f), 0.36f, 0.1f, PulseGlow());
             Calm(root);
             root.SetActive(false);
             Ref(root);
@@ -186,48 +175,43 @@ namespace OhmsLaw.Editor
             Cue("callout hideall");
             Show("Schematic Board"); // the circuit schematic pops in on the glass board over the bench: the loop with the empty positions
 
-            // The ammeter: select it, then click the highlighted position (the gate writes both instructions). The camera
-            // dollies onto the tray while he says why; back on the whole bench (tray and glowing slot) 0.4 s before the gate.
+            // The ammeter: one tap and it flies into the loop, in series. The camera dollies onto the tray while he says why;
+            // back on the whole bench (tray and glowing slot) 0.4 s before the gate. His snap puts up the meter's note.
             Gesture(WattsonController.Gesture.Point, point: "AMMETER", moveTo: "Tray Point");
-            Cue("callout show ammeter");
-            Cue("rig.drag ammeter", "the series slot glows: the ammeter may be selected now");
+            Cue("snap");
+            Cue("callout show ammeter", "", WattsonController.SnapLead);
+            Cue("rig.drag ammeter", "the series slot glows: the ammeter is the one to tap");
             Shot("Tray Close");
             Cue("push 3.2 Cam Tray Close", "a slow dolly onto the tray and the ammeter waiting in it");
             Shot("Bench Study", offset: 3.8);
             Line("S09_L05", 0.2);
-            Gate("S09_PlaceAmmeter", "Panel: 'Select the ammeter.' then 'Click the highlighted position to place it.' (tap the meter, tap the glowing slot; or drag it there). Snaps with a placement sound; the series path lights, the X → Y pulse runs, the board's A lights. AutoPlace / autoAnswer fly it in.");
+            Gate("S09_PlaceAmmeter", "Panel: 'Tap the ammeter.' One tap and it flies into its slot in series (a tap on the glowing slot, Enter, AutoPlace or autoAnswer fly it in too). Snaps with a placement sound; the series path lights, the X → Y pulse runs, the board's A lights; the turn says it measures the current I.");
             Sfx("SFX_Condition_Reached", 0.3); // audio: the placement confirmed, 0.5 s after the gate's own Place sound, as the series path lights
-            Visual("The ammeter snaps in: the series path lights, the X → Y pulse starts", 0.8);
+            Visual("The ammeter flies in and snaps into the loop: the series path lights, the X → Y pulse starts", 0.8);
             Gesture(WattsonController.Gesture.Point, point: "AMMETER");
             Line("S09_L06");
 
             // The voltmeter, across XY: the dolly onto the voltmeter side while he says why; back on the whole bench before
-            // the gate (X and Y both pulse there).
+            // the gate (X and Y both pulse there). When it lands the circuit completes itself: no separate switch step.
             Gesture(WattsonController.Gesture.Point, point: "VOLTMETER", moveTo: "Voltmeter Point");
-            Cue("callout show voltmeter");
-            Cue("rig.drag voltmeter", "the parallel slot glows: the voltmeter may be selected now");
+            Cue("snap");
+            Cue("callout show voltmeter", "", WattsonController.SnapLead);
+            Cue("rig.drag voltmeter", "the parallel slot glows: the voltmeter is the one to tap");
             Shot("Voltmeter Close");
             Cue("push 3.2 Cam Voltmeter Close", "a slow dolly onto Y, the parallel slot and the voltmeter in the tray");
             Shot("Bench Study", offset: 3.8);
             Line("S09_L07", 0.2);
             Show("[VFX] X and Y pulse");
-            Gate("S09_PlaceVoltmeter", "Panel: 'Select the voltmeter.' then 'Click the highlighted position to place it.' Its leads reach X and Y; the board's V and its parallel leads light.");
-            Sfx("SFX_Condition_Reached", 0.3); // audio: the placement confirmed as the leads reach X and Y
+            Gate("S09_PlaceVoltmeter", "Panel: 'Tap the voltmeter.' It flies in, its leads reach X and Y (in parallel across XY), the board's V and its leads light; then the circuit completes itself: the key closes with its clack, the needles move at the small default voltage, the loop on the board warms to amber (conventional current, + → −).");
+            Sfx("SFX_Condition_Reached", 0.3); // audio: the placement confirmed as the leads reach X and Y (the key's clack follows from the gate)
             Hide("[VFX] X and Y pulse");
-            Cue("callout hideall");
             Cue("retract 0.5 Parts Tray", "the empty tray folds away, so the last frame matches Scene 10's bench");
             Gesture(WattsonController.Gesture.Point, point: "NICHROME WIRE — XY");
             Line("S09_L08");
-
-            // The key.
-            Gesture(WattsonController.Gesture.Point, point: "switch / key", moveTo: "Key Point");
-            Show("[VFX] Key pulse");
-            Line("S09_L09", 0.2);
-            Gate("S09_CloseKey", "Panel: 'Close the switch to complete the circuit.' Tap the key (tap-hand hint): the lever closes with a clack, the needles move at the small default voltage, the loop on the board warms to amber (conventional current, + → −).");
-            Hide("[VFX] Key pulse");
+            Cue("callout hideall");
             // Audio: the key's clack is the gate's own Switch sound, and the current's hum is the runtime ElectricalAudio component
             // (it follows the rig's current, fading out at 0 V), so no "ambience CircuitHum" bed here: the room tone carries on.
-            Gesture(WattsonController.Gesture.Talking);
+            Gesture(WattsonController.Gesture.Talking, moveTo: "Key Point"); // to the key, where Scene 10 opens on him
             Line("S09_L10");
             // The twist gets its picture once current flows: the board's loop is amber with its "+ → −" note, and the
             // pulse runs X (+ side) to Y on the bench while Wattson points at the board (restarted: the key's own run is
@@ -237,8 +221,6 @@ namespace OhmsLaw.Editor
             Gesture(WattsonController.Gesture.Point, point: "Schematic Board");
             Line("S09_Conventional");
             Gesture(WattsonController.Gesture.Talking);
-            Cue("reminder", "the panel recalls the question and the learner's own prediction");
-            Line("S09_L11", 0.2);
             Line("S09_L12", 0.2);
             Cue("rig.path 0", "the lit path goes: Scene 10 shows plain cables");
             Cue("callout hideall");

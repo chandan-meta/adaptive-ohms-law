@@ -15,13 +15,21 @@ namespace OhmsLaw
     //   gestures   each gesture is a hand goal per arm, solved with two-bone IK (shoulder, elbow, wrist) plus palm twist,
     //              wrist and finger curl; goals blend over ~0.2 s;
     //   talking    the mouth blendshape and glow follow his voice; nods and beat gestures ride on any gesture;
-    //   reactions  React() layers a short correct / partial / incorrect reaction over the current gesture.
+    //   reactions  React() layers a short correct / partial / incorrect reaction over the current gesture;
+    //   snap       Snap() layers a finger snap on the free hand, the beat a reveal lands on;
+    //   steady     while he explains (a line plays, he points, WattsonGuide holds him) the idle life quietens to breathing
+    //              and blinks, so nothing competes with what he is explaining;
+    //   guide      WattsonGuide's overrides (guidePoint, guideHome) win over the Timeline's point target and marker.
     // Joint ranges stay inside what his skin survives (measured in Blender, scratch/rig/evidence.json): head yaw <= 20,
     // pitch <= 12, chest <= 10, knees <= 55, elbows <= ~95 degrees. Eyes: no eyelid joints exist, so a blink squashes the
     // pupils (weighted to eye_left / eye_right) for 0.16 s; the eyeballs follow the head.
     public class WattsonController : MonoBehaviour
     {
-        public enum Gesture { Idle, Greet, Point, Flick, Reach, RaiseGadget, Aim, Listening, Thinking, Talking, Transform } // append only: clips store the int
+        public enum Gesture { Idle, Greet, Point, Flick, Reach, RaiseGadget, Aim, Listening, Thinking, Talking, Transform, Snap } // append only: clips store the int
+        // Snap (the gesture or Snap()): the free hand comes up, thumb and middle finger pressed, and clicks SnapLead seconds
+        // after the call (a reveal cued with the snap lands on the click); the hand is back down by SnapSeconds. Snaps closer
+        // than SnapCooldown are refused, so a run of reveals never machine-guns.
+        public const float SnapLead = 0.18f, SnapSeconds = 0.55f, SnapCooldown = 0.8f;
         // Transform: anticipation (he gathers, the gadget drawn back), the action (gadget thrust at the target)
         // TransformActionDelay seconds in, then a settle by TransformSettleSeconds into an aim he holds. Builders time the
         // transformation VFX cues to the action moment.
@@ -36,6 +44,13 @@ namespace OhmsLaw
         public Transform lookTarget, pointTarget;
         public Gesture gesture;
         public bool gadgetOut;
+
+        [Header("Guide (WattsonGuide)")]
+        [Tooltip("Runtime only: a proxy WattsonGuide keeps under a UI element. Wins over the Timeline's point target and makes him point (unless the Ask pose holds).")]
+        public Transform guidePoint;
+        // Runtime only: where WattsonGuide wants him (beside a screen surface). Wins over the marker and the spline, not over
+        // the Ask spot.
+        public Vector3? guideHome;
 
         [Header("Flight")]
         public SplineContainer path;
@@ -108,6 +123,12 @@ namespace OhmsLaw
         bool actionFired;
         Vector2 saccade, headAngles, eyeAngles;
         float headRoll, chestPitch, legDrag;
+        // Snap: when it started (clock), whether it has clicked, and this frame's raise weight on the hand that snaps.
+        float snapStart = -100f, snapWeight;
+        bool snapClicked;
+        Arm snapArm;
+        // 0 lively .. 1 steady (eased); Quiet() is the share of the idle life left at the current steadiness.
+        float steady;
 
         // rig (found by name under the visual; any part may be missing, e.g. the placeholder sphere)
         Transform frameT, chest, head;
@@ -128,7 +149,7 @@ namespace OhmsLaw
             public Transform[][] fingers;
             public Quaternion[][] fingerRest;
             public Vector3[] curlAxis;         // hand-local, per finger
-            public int thumb = -1, index = -1;
+            public int thumb = -1, index = -1, middle = -1;
             public Goal now;                   // the blended goal on screen (frame space)
             public bool primed;
         }
@@ -148,8 +169,27 @@ namespace OhmsLaw
             public float droop;     // relaxed wrist flex, degrees
         }
 
-        public Gesture Effective => agentGesture ?? gesture;
+        // The Ask pose first, then WattsonGuide (pointing at a UI element), then the Timeline.
+        public Gesture Effective => agentGesture ?? (Guided ? Gesture.Point : gesture);
+        // What he aims at, looks at while pointing and turns toward: the guide's proxy wins over the Timeline's target.
+        Transform PointAt => Guided ? guidePoint : pointTarget;
+        bool Guided => guidePoint && agentGesture == null;
+        // Guided, he points bare-handed at a card: the gadget stays put away whatever the Timeline's clip says.
+        bool Gadget => gadgetOut && !Guided;
         public float Loudness => loudness;
+        // 0 lively .. 1 steady: how far the idle life has quietened for an explanation (editor tests and debugging).
+        public float Steadiness => steady;
+        // The fingertip of the pointing hand (the index tip; the hand when the rig has no fingers): WattsonGuide's beam starts here.
+        public Vector3 PointerTip
+        {
+            get
+            {
+                var a = pointLeft ? left : right;
+                if (a == null) a = left ?? right;
+                if (a == null) return transform.position;
+                return a.index >= 0 ? Tip(a.fingers[a.index]) : a.hand.position;
+            }
+        }
         // Seconds since the current gesture began (editor tests and debugging).
         public float GestureTime => clock - gestureStart;
         public bool PointingWithLeft => pointLeft;
@@ -277,6 +317,14 @@ namespace OhmsLaw
                     if (d > far) { far = d; little = f; }
                     sum += a.fingers[f][0].position - hand.position;
                 }
+                // The middle finger (the snap's): the one next to the index that is neither the thumb nor the index.
+                float nearest = float.MaxValue;
+                for (int f = 0; f < a.fingers.Length; f++)
+                {
+                    if (f == a.thumb || f == a.index) continue;
+                    float d = Vector3.Distance(a.fingers[f][0].position, a.fingers[a.index][0].position);
+                    if (d < nearest) { nearest = d; a.middle = f; }
+                }
                 along = sum.normalized;
                 Vector3 palm = Vector3.Cross(a.fingers[a.index][0].position - hand.position, a.fingers[little][0].position - hand.position).normalized;
                 if (Vector3.Dot(palm, Tip(a.fingers[a.thumb]) - hand.position) < 0) palm = -palm;
@@ -384,6 +432,24 @@ namespace OhmsLaw
 
         public void React(bool correct) => React(correct ? Reaction.Correct : Reaction.Incorrect);
 
+        // A finger snap on the free hand, layered over the gesture: it clicks SnapLead seconds from now with a spark burst at
+        // the fingertips, a glow flash and SFX_Wattson_Snap. False (and nothing happens) when he is inactive, off screen or
+        // snapped less than SnapCooldown ago: a caller timing a reveal to the click shows it at once then.
+        public bool Snap()
+        {
+            Init();
+            if (!isActiveAndEnabled || clock - snapStart < SnapCooldown) return false;
+            var cam = Camera.main;
+            if (cam)
+            {
+                Vector3 vp = cam.WorldToViewportPoint(transform.position);
+                if (vp.z <= 0 || vp.x < -0.02f || vp.x > 1.02f || vp.y < -0.02f || vp.y > 1.02f) return false;
+            }
+            snapStart = clock;
+            snapClicked = false;
+            return true;
+        }
+
         // Editor tests: one frame of flight and pose with an explicit time step (Update/LateUpdate do not run in edit mode).
         public void Simulate(float dt)
         {
@@ -423,6 +489,7 @@ namespace OhmsLaw
             gestureStart = clock;
             actionFired = false;
             if (Random.value < 0.6f) blinkStart = clock; // people blink as they change what they do
+            if (g == Gesture.Snap) Snap();
             if (!gestureSounds) return;
             if (g == Gesture.Greet) Cue("SFX_Wattson_Wave", 0.7f, GestureCooldown);
             else if (g == Gesture.Thinking) Cue("SFX_Wattson_Pop", 0.6f, GestureCooldown);
@@ -433,12 +500,17 @@ namespace OhmsLaw
             clock += dt;
             TrackGesture();
             var g = Effective;
+            // Steady while he explains: a line on screen or in his voice, a point, the guide's hold. ~0.4 s each way.
+            bool explaining = loudness > 0.05f || SubtitleTrack.CurrentLine || SceneDirector.Speaking || Guided || guideHome.HasValue
+                || (g == Gesture.Point && PointAt);
+            steady = Mathf.MoveTowards(steady, explaining ? 1f : 0f, dt / 0.4f);
             Fly(dt * motionScale);
             Talk(dt);
+            SnapClick();
             if (gadget)
             {
                 bool thinking = g == Gesture.Thinking;
-                gadget.gameObject.SetActive(gadgetOut || thinking || g == Gesture.Transform);
+                gadget.gameObject.SetActive(Gadget || thinking || g == Gesture.Transform);
                 if (thinking) gadget.Rotate(0, 0, 540 * dt, Space.Self);
             }
             // The action moment: the Transform's thrust (flash and sparks) and the gadget raise both cast with the magic cue.
@@ -455,25 +527,53 @@ namespace OhmsLaw
             flash = Mathf.MoveTowards(flash, 0, dt * 1.6f);
         }
 
+        // The share of the idle life left at the current steadiness: 1 lively, `quiet` when fully steady (eased).
+        float Quiet(float quiet) => Mathf.Lerp(1f, quiet, Mathf.SmoothStep(0f, 1f, steady));
+
+        // The snap's click, SnapLead after Snap(): sparks off the fingertips (in the system's own simulation space), a glow
+        // flash and the snap sound. The hand that snaps was posed last frame, so the burst starts where the fingers are.
+        void SnapClick()
+        {
+            if (snapClicked || clock - snapStart < SnapLead || clock - snapStart > SnapSeconds) return;
+            snapClicked = true;
+            flash = Mathf.Max(flash, 0.5f);
+            if (gestureSounds) Cue("SFX_Wattson_Snap", 0.8f, 0.3f);
+            if (!sparks) return;
+            var arm = snapArm ?? right ?? left;
+            Vector3 tip = arm == null ? transform.position
+                : arm.middle >= 0 && arm.thumb >= 0 ? (Tip(arm.fingers[arm.middle]) + Tip(arm.fingers[arm.thumb])) * 0.5f : arm.hand.position;
+            var main = sparks.main;
+            Vector3 at = main.simulationSpace == ParticleSystemSimulationSpace.World ? tip
+                : main.simulationSpace == ParticleSystemSimulationSpace.Custom && main.customSimulationSpace ? main.customSimulationSpace.InverseTransformPoint(tip)
+                : sparks.transform.InverseTransformPoint(tip);
+            sparks.Emit(new ParticleSystem.EmitParams { position = at, applyShapeToPosition = false }, ReducedMotion.On ? 3 : 10);
+        }
+
         // Which arm leads: the gadget hand (right) for every gesture, except a bare-handed Point, which uses the arm on the
         // target's side. The side is taken from where he looks, not his turned body, and flips only past a dead zone.
         bool LeadIsRight()
         {
-            if (gadgetOut || Effective != Gesture.Point || !pointTarget) { pointLeft = false; return true; }
+            var at = PointAt;
+            if (Gadget || Effective != Gesture.Point || !at) { pointLeft = false; return true; }
             Transform look = agentLook ? agentLook : lookTarget;
             Vector3 ahead = Vector3.ProjectOnPlane(look ? look.position - transform.position : transform.forward, Vector3.up).normalized;
-            float side = Vector3.Cross(ahead, Vector3.ProjectOnPlane(pointTarget.position - transform.position, Vector3.up).normalized).y;
+            float side = Vector3.Cross(ahead, Vector3.ProjectOnPlane(at.position - transform.position, Vector3.up).normalized).y;
             if (Mathf.Abs(side) > 0.1f) pointLeft = side < 0;
             return !pointLeft;
         }
 
-        bool Aiming(Gesture g) => pointTarget && !agentLook && (g == Gesture.Point || g == Gesture.Aim || g == Gesture.Transform || g == Gesture.RaiseGadget);
+        bool Aiming(Gesture g) => PointAt && !agentLook && (g == Gesture.Point || g == Gesture.Aim || g == Gesture.Transform || g == Gesture.RaiseGadget);
 
         void Fly(float dt)
         {
-            Vector3 target = askHome ?? (path ? (Vector3)path.EvaluatePosition(pathT) : home);
+            // The guide's spot beside a screen surface wins over the marker and the spline; it has no furniture lift once he
+            // is nearly there (it is a spot in front of the bench, chosen on screen: a lift would move him off it).
+            bool guided = guideHome.HasValue && !askHome.HasValue;
+            bool free = !path || askHome.HasValue || guided;
+            Vector3 target = askHome ?? guideHome ?? (path ? (Vector3)path.EvaluatePosition(pathT) : home);
             Vector3 aimed = target; // before the furniture lift, which can change mid-flight
-            if (!path || askHome.HasValue) target = ClearFurniture(transform.position, target);
+            bool lift = free && !(guided && (target - transform.position).sqrMagnitude < 0.6f * 0.6f);
+            if (lift) target = ClearFurniture(transform.position, target);
             TrackMove(aimed, target);
             // Something else moved him (a director cue under a fade): he settles where he was put, no spring back.
             if (placed && (transform.position - lastPosition).sqrMagnitude > 1e-8f)
@@ -483,7 +583,7 @@ namespace OhmsLaw
             }
             placed = true;
             if (askHome.HasValue && ReducedMotion.On) { transform.position = chase = target; velocity = chaseVelocity = Vector3.zero; } // no glide to the Ask spot (read every frame: the toggle flips mid-shot)
-            else if (path && !askHome.HasValue) { chase = target; chaseVelocity = Vector3.zero; } // the Timeline's flight is already eased
+            else if (!free) { chase = target; chaseVelocity = Vector3.zero; } // the Timeline's flight is already eased
             else if (dt > 0) chase = Vector3.SmoothDamp(chase, target, ref chaseVelocity, Mathf.Max(0.05f, moveTime), Mathf.Infinity, dt);
             // Substeps prevent a scene-load hitch launching the spring through furniture.
             for (float left = furniture.Length > 0 ? Mathf.Min(dt, 0.2f) : dt; left > 0;)
@@ -492,7 +592,7 @@ namespace OhmsLaw
                 velocity += (chase - transform.position) * (spring * step);
                 velocity *= Mathf.Exp(-damping * step);
                 Vector3 next = transform.position + velocity * step;
-                if (!path || askHome.HasValue)
+                if (lift)
                 {
                     Vector3 safe = ClearFurniture(transform.position, next);
                     if (safe.y > next.y) velocity.y = Mathf.Max(0, velocity.y);
@@ -511,7 +611,7 @@ namespace OhmsLaw
             {
                 // Turn toward the target: a three-quarter share for readability, and at least enough that the target sits
                 // no more than AcrossLimit degrees across the pointing arm's side, so the arm never folds over his chest.
-                Vector3 flat = Vector3.ProjectOnPlane(forward, Vector3.up), aim = Vector3.ProjectOnPlane(pointTarget.position - transform.position, Vector3.up);
+                Vector3 flat = Vector3.ProjectOnPlane(forward, Vector3.up), aim = Vector3.ProjectOnPlane(PointAt.position - transform.position, Vector3.up);
                 if (flat.sqrMagnitude > 1e-6f && aim.sqrMagnitude > 1e-6f)
                 {
                     float a = Vector3.SignedAngle(flat, aim, Vector3.up); // + = to his right
@@ -536,16 +636,17 @@ namespace OhmsLaw
                 barrel = Mathf.SmoothStep(0, 360, rollTime);
                 if (rollTime >= 1) rollTime = -1;
             }
-            pose = Mathf.MoveTowards(pose, g == Gesture.Idle ? 0 : 1, dt * 3f);
+            pose = Mathf.MoveTowards(pose, g == Gesture.Idle || g == Gesture.Snap ? 0 : 1, dt * 3f);
             // Weight shifts: every few seconds he settles his weight onto a new side.
             if (clock >= shiftAt) { shiftTarget = Random.Range(-1f, 1f); shiftAt = clock + Random.Range(2.5f, 6f); }
             shift = Mathf.Lerp(shift, shiftTarget, 1 - Mathf.Exp(-1.5f * dt));
             float bow = g == Gesture.Greet ? 16f : g == Gesture.Thinking ? -10f : 0;
             float tilt = g == Gesture.Listening ? 12f : 0;
-            float sway = (g == Gesture.Thinking ? Mathf.Sin(clock * 1.3f) * 14f : 0) + Mathf.Sin(clock * 0.55f) * 3f * calm;
-            float idleRoll = (Mathf.Sin(clock * 0.9f) * 2f + shift * 3f) * calm;
+            // Steady: sway and roll keep a quarter, the bob 15 % (1.8 cm of 12) while he explains; Thinking's own sway stays.
+            float sway = (g == Gesture.Thinking ? Mathf.Sin(clock * 1.3f) * 14f : 0) + Mathf.Sin(clock * 0.55f) * 3f * calm * Quiet(0.25f);
+            float idleRoll = (Mathf.Sin(clock * 0.9f) * 2f + shift * 3f) * calm * Quiet(0.25f);
 
-            Vector3 offset = Vector3.up * (Mathf.Sin(clock * bobSpeed) * bobHeight);
+            Vector3 offset = Vector3.up * (Mathf.Sin(clock * bobSpeed) * bobHeight * Quiet(0.15f));
             // Reactions: a hop for a correct answer, a small dip for a wrong one.
             float rt = clock - reactionStart;
             if (rt < ReactionSeconds)
@@ -554,11 +655,11 @@ namespace OhmsLaw
                 else if (reaction == Reaction.Incorrect) offset += Vector3.down * (Mathf.Sin(Mathf.PI * Mathf.Clamp01(rt / 0.8f)) * 0.06f);
             }
             // Transform: he coils back and shivers with charge, lunges at the action moment, then settles.
-            if (g == Gesture.Transform && pointTarget)
+            if (g == Gesture.Transform && PointAt)
             {
                 float t = GestureTime;
                 float gather = Mathf.SmoothStep(0, 1, t / (TransformActionDelay - 0.1f)), thrust = Thrust(t), settle = Settle(t);
-                Vector3 toward = transform.InverseTransformDirection(Vector3.ProjectOnPlane(pointTarget.position - transform.position, Vector3.up).normalized);
+                Vector3 toward = transform.InverseTransformDirection(Vector3.ProjectOnPlane(PointAt.position - transform.position, Vector3.up).normalized);
                 offset += toward * ((thrust * (1 - settle) * 0.28f - gather * (1 - thrust) * 0.06f) * calm);
                 offset += new Vector3(Mathf.PerlinNoise(clock * 30f, 1) - 0.5f, Mathf.PerlinNoise(1, clock * 30f) - 0.5f, 0) * (0.03f * gather * (1 - thrust) * calm);
                 bow += (thrust * (1 - settle) * 12f - gather * (1 - thrust) * 9f) * calm;
@@ -632,6 +733,7 @@ namespace OhmsLaw
             TrackGesture();
             dt *= motionScale;
             var g = Effective;
+            if (g == Gesture.Snap) g = Gesture.Idle; // the snap itself is layered (SnapArm); the gesture then hangs relaxed
             bool talking = loudness > 0.05f;
             if (g == Gesture.Idle && talking) g = Gesture.Talking;
             float calm = ReducedMotion.On ? 0.35f : 1f;
@@ -651,6 +753,7 @@ namespace OhmsLaw
             Look(g, dt, talking, react);
             Legs(g, dt, calm);
             Arms(g, dt, breath, calm, react);
+            SnapFingers();
         }
 
         static void ResetArm(Arm a)
@@ -668,7 +771,7 @@ namespace OhmsLaw
         {
             if (!chest) return;
             float t = GestureTime;
-            float want = breath * 1.5f + (talking ? loudness * 4f + Mathf.Sin(clock * 6.5f) * loudness * 3f : 0);
+            float want = breath * 1.5f + (talking ? (loudness * 4f + Mathf.Sin(clock * 6.5f) * loudness * 3f) * Quiet(0.4f) : 0);
             if (g == Gesture.Thinking) want -= 4f;
             if (g == Gesture.Transform) want += Thrust(t) * (1 - Settle(t)) * 8f - Mathf.SmoothStep(0, 1, t / 0.45f) * (1 - Thrust(t)) * 7f;
             if (reaction == Reaction.Incorrect) want -= 4f * react;
@@ -684,17 +787,18 @@ namespace OhmsLaw
             if (!cam && Camera.main) cam = Camera.main.transform;
             Vector3 origin = head ? head.position : frameT.position + frameT.up;
             Vector3 gaze = cam ? cam.position : origin + frameT.forward;
-            if (pointTarget && !agentLook && (g == Gesture.Point || g == Gesture.Aim || g == Gesture.Transform || g == Gesture.RaiseGadget || g == Gesture.Reach))
+            var pointAt = PointAt;
+            if (pointAt && !agentLook && (g == Gesture.Point || g == Gesture.Aim || g == Gesture.Transform || g == Gesture.RaiseGadget || g == Gesture.Reach))
             {
                 float share = g == Gesture.Reach ? 0 : talking ? (GestureTime < 1.2f ? 0.8f : 0.25f) : 0.85f;
-                gaze = Vector3.Lerp(gaze, pointTarget.position, share);
+                gaze = Vector3.Lerp(gaze, pointAt.position, share);
             }
             Vector3 d = frameT.InverseTransformDirection(gaze - origin);
             if (d.sqrMagnitude < 1e-8f) d = Vector3.forward;
             d.Normalize();
             float yaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg, pitch = -Mathf.Asin(Mathf.Clamp(d.y, -1, 1)) * Mathf.Rad2Deg - chestPitch;
             if (Mathf.Abs(yaw) > 120f) yaw = 0; // behind him: do not wring his neck
-            float nod = talking ? Mathf.Sin(clock * 5.3f) * loudness * 10f : 0;
+            float nod = talking ? Mathf.Sin(clock * 5.3f) * loudness * 10f * Quiet(0.35f) : 0;
             float roll = g == Gesture.Listening ? 8f : g == Gesture.Thinking ? -6f : 0;
             float shake = 0;
             if (react > 0)
@@ -737,12 +841,13 @@ namespace OhmsLaw
             float t = GestureTime, gather = 0, kick = 0;
             if (g == Gesture.Transform) { gather = Mathf.SmoothStep(0, 1, t / 0.45f) * (1 - Thrust(t)); kick = Thrust(t) * (1 - Settle(t)); }
             float rt = clock - reactionStart, hop = reaction == Reaction.Correct && rt < 0.6f ? Mathf.Sin(Mathf.PI * Mathf.Clamp01(rt / 0.6f)) : 0;
+            float still = calm * Quiet(0.3f); // the pendulum and the weight shift quieten while he explains; a move still trails them
             foreach (var l in legs)
             {
                 if (l == null) continue;
-                float swing = Mathf.Sin(clock * 1.25f + l.phase) * 5f * calm;
-                float thigh = 22f + swing + shift * l.side * 6f * calm - legDrag + gather * 14f - kick * 12f + hop * 12f;
-                float knee = 40f + Mathf.Sin(clock * 1.25f + l.phase + 0.8f) * 7f * calm + shift * l.side * 10f * calm + Mathf.Abs(legDrag) * 0.6f + gather * 18f + kick * 4f + hop * 18f;
+                float swing = Mathf.Sin(clock * 1.25f + l.phase) * 5f * still;
+                float thigh = 22f + swing + shift * l.side * 6f * still - legDrag + gather * 14f - kick * 12f + hop * 12f;
+                float knee = 40f + Mathf.Sin(clock * 1.25f + l.phase + 0.8f) * 7f * still + shift * l.side * 10f * still + Mathf.Abs(legDrag) * 0.6f + gather * 18f + kick * 4f + hop * 18f;
                 thigh = Mathf.Clamp(thigh, -25f, 40f);
                 knee = Mathf.Clamp(knee, 8f, 55f);
                 Vector3 thighDir = l.knee.position - l.thigh.position;
@@ -772,14 +877,16 @@ namespace OhmsLaw
             Arm lead = leadRight ? right : left, other = leadRight ? left : right;
             if (lead == null) { lead = other; other = null; }
             float t = GestureTime;
-            float beat = loudness > 0.05f ? Mathf.Clamp01(loudness * 3f) * 0.18f * calm : 0;
+            float beat = loudness > 0.05f ? Mathf.Clamp01(loudness * 3f) * 0.18f * calm * Quiet(0.35f) : 0;
             Goal a = Hang, b = Hang;
             a.dir.y += breath * 0.015f;
             b.dir.y += breath * 0.015f;
-            a.dir.z -= shift * 0.06f * calm;
-            b.dir.z += shift * 0.06f * calm;
-            bool aimed = pointTarget && (g == Gesture.Point || g == Gesture.Aim || g == Gesture.Transform);
-            Vector3 target = pointTarget ? pointTarget.position : Vector3.zero;
+            a.dir.z -= shift * 0.06f * calm * Quiet(0.25f);
+            b.dir.z += shift * 0.06f * calm * Quiet(0.25f);
+            var pointAt = PointAt;
+            bool gadgetHand = Gadget;
+            bool aimed = pointAt && (g == Gesture.Point || g == Gesture.Aim || g == Gesture.Transform);
+            Vector3 target = pointAt ? pointAt.position : Vector3.zero;
             switch (g)
             {
                 case Gesture.Talking:
@@ -790,7 +897,7 @@ namespace OhmsLaw
                     a = new Goal { dir = new Vector3(0.5f + Mathf.Sin(clock * 8f) * 0.1f * calm, 0.8f, 0.3f), reach = 0.86f, hint = new Vector3(1f, -0.45f, -0.2f), palm = new Vector3(0, 0.1f, 1f), curl = 0.05f, wave = 16f * calm };
                     break;
                 case Gesture.Point:
-                    if (aimed) a = Aimed(lead, target, 0.97f, gadgetOut ? 0.75f : 0.85f, gadgetOut ? 0 : 1);
+                    if (aimed) a = Aimed(lead, target, 0.97f, gadgetHand ? 0.75f : 0.85f, gadgetHand ? 0 : 1);
                     else a = new Goal { dir = new Vector3(0.3f, 0.15f, 1f), reach = 0.96f, hint = new Vector3(0.5f, -1f, -0.2f), palm = new Vector3(0, -1, 0), curl = 0.85f, pointing = 1 };
                     b.dir = new Vector3(0.3f, -0.9f, -0.1f);
                     b.dir.y += Mathf.Sin(clock * 6.5f) * beat * 0.5f;
@@ -803,7 +910,7 @@ namespace OhmsLaw
                     break;
                 case Gesture.RaiseGadget:
                     a = new Goal { dir = new Vector3(0.25f, 1f, 0.3f), reach = 0.95f, hint = new Vector3(1f, -0.3f, -0.3f), palm = new Vector3(-1f, 0, 0), curl = 0.75f };
-                    if (pointTarget && lead != null)
+                    if (pointAt && lead != null)
                     {
                         // Raised AT the target (Scene 8: the freeze is aimed at Ohm), not straight up; the hand stays on
                         // its own side so it never covers his face.
@@ -829,7 +936,7 @@ namespace OhmsLaw
                 {
                     float gather = Mathf.SmoothStep(0, 1, t / (TransformActionDelay - 0.1f)), thrust = Thrust(t), settle = Settle(t);
                     var windUp = new Goal { dir = new Vector3(0.55f, 0.35f, -0.55f), reach = 0.72f, hint = new Vector3(1f, -0.6f, -0.3f), palm = new Vector3(-1f, 0, 0), curl = 0.85f };
-                    Goal strike = pointTarget ? Aimed(lead, target, 0.98f, 0.85f, 0) : new Goal { dir = new Vector3(0.2f, 0.1f, 1f), reach = 0.98f, hint = new Vector3(0.5f, -1f, -0.2f), palm = new Vector3(-1f, 0, 0), curl = 0.85f };
+                    Goal strike = pointAt ? Aimed(lead, target, 0.98f, 0.85f, 0) : new Goal { dir = new Vector3(0.2f, 0.1f, 1f), reach = 0.98f, hint = new Vector3(0.5f, -1f, -0.2f), palm = new Vector3(-1f, 0, 0), curl = 0.85f };
                     Goal hold = strike;
                     hold.reach = 0.93f;
                     a = Mix(Mix(Mix(Hang, windUp, gather), strike, thrust), hold, settle);
@@ -854,11 +961,22 @@ namespace OhmsLaw
                     b = Mix(b, shrug, react);
                 }
             }
+            // The snap rides over the gesture on the free hand: the other one when he points, aims or holds the gadget.
+            float st = clock - snapStart;
+            snapWeight = st < SnapSeconds ? Mathf.SmoothStep(0, 1, st / 0.15f) * (1 - Mathf.SmoothStep(0, 1, (st - 0.32f) / (SnapSeconds - 0.32f))) : 0;
+            bool busy = gadgetHand || g == Gesture.Point || g == Gesture.Aim || g == Gesture.Transform || g == Gesture.RaiseGadget;
+            snapArm = busy && other != null ? other : lead;
+            if (snapWeight > 0)
+            {
+                // In front of the shoulder, a little out and up, palm turned toward the lens so the click reads.
+                var up = new Goal { dir = new Vector3(0.5f, 0.2f, 0.8f), reach = 0.74f, hint = new Vector3(1f, -0.7f, -0.2f), palm = new Vector3(-0.35f, 0.1f, 0.95f), curl = 0.5f };
+                if (snapArm == lead) a = Mix(a, up, snapWeight); else b = Mix(b, up, snapWeight);
+            }
             float rate = g == Gesture.Transform ? 30f : 10f;
             float shrugDeg = reaction == Reaction.Incorrect ? 10f * react : 0;
             if (lead != null) Solve(lead, a, Ease(rate, dt), breath, shrugDeg);
             if (other == null) return;
-            if (g == Gesture.Aim && lead != null && lead.hand)
+            if (g == Gesture.Aim && lead != null && lead.hand && !(snapWeight > 0 && snapArm == other)) // a snap frees the supporting hand
             {
                 // The free hand cups the gadget arm's forearm, if it can reach without folding.
                 Vector3 grip = Vector3.Lerp(lead.lower.position, lead.hand.position, 0.6f);
@@ -870,6 +988,36 @@ namespace OhmsLaw
                 if (reachable) { SolveFrame(other, b, Ease(rate, dt), breath, shrugDeg); return; }
             }
             Solve(other, b, Ease(rate, dt), breath, shrugDeg);
+        }
+
+        // The snapping hand's fingers, on top of the solved pose: before the click thumb and middle finger press together
+        // (index half curled, ring and little tucked); at the click the thumb slides out, the middle finger flicks into the
+        // palm and the wrist flicks. Weighted by the raise, so it blends in and out with the hand.
+        void SnapFingers()
+        {
+            var arm = snapArm;
+            if (snapWeight <= 0 || arm == null || arm.curlAxis == null || arm.thumb < 0 || arm.middle < 0) return;
+            float st = clock - snapStart, clicked = Mathf.SmoothStep(0, 1, (st - SnapLead) / 0.05f);
+            var n = arm.now;
+            for (int f = 0; f < arm.fingers.Length; f++)
+            {
+                float had = n.curl * (f == arm.thumb ? 0.45f : f == arm.index ? 1 - n.pointing : 1f);
+                float want = f == arm.thumb ? Mathf.Lerp(0.65f, 0.25f, clicked)
+                    : f == arm.middle ? Mathf.Lerp(0.55f, 1f, clicked)
+                    : f == arm.index ? 0.4f : 0.85f;
+                float extra = (want - had) * snapWeight;
+                if (Mathf.Abs(extra) < 0.01f) continue;
+                Vector3 axis = arm.hand.TransformDirection(arm.curlAxis[f]);
+                var chain = arm.fingers[f];
+                for (int j = 0; j < chain.Length; j++)
+                    chain[j].rotation = Quaternion.AngleAxis(extra * (j == 0 ? 55f : 70f), axis) * chain[j].rotation;
+            }
+            float flick = Mathf.Sin(Mathf.PI * Mathf.Clamp01((st - SnapLead) / 0.14f)) * 14f * snapWeight * (ReducedMotion.On ? 0.5f : 1f);
+            if (flick > 0.01f)
+            {
+                Vector3 along = arm.hand.TransformDirection(arm.handAxis), palm = arm.hand.TransformDirection(arm.palmAxis);
+                arm.hand.rotation = Quaternion.AngleAxis(flick, Vector3.Cross(along, palm)) * arm.hand.rotation;
+            }
         }
 
         // A talking beat: hands forward and open, palms up, rising with the voice.

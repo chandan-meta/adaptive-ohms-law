@@ -23,7 +23,8 @@ namespace OhmsLaw
         // Per-column widths summing to 3 x ColumnWidth: V holds "Potential Difference" at 44 px, V/I holds "1.0 ÷ 0.20 = 5".
         static readonly float[] Columns = { 450f, 250f, 380f };
 
-        public string[] headers = { "Potential Difference\nV (V)", "Current\nI (A)", "V / I" };
+        // The ratio's head carries its unit like the others: volts per ampere (the ohm is named only at Scene 12's end).
+        public string[] headers = { "Potential Difference\nV (V)", "Current\nI (A)", "V / I\n(V/A)" };
         [Tooltip("Cells read \"1.0 V | 0.20 A\" (Scene 12) instead of \"1 | 0.2\" (Scenes 10-11).")] public bool units;
 
         public event Action<int> RowTapped;
@@ -32,6 +33,8 @@ namespace OhmsLaw
         Image[,] cellBack;
         TextMeshProUGUI[] tags;
         GameObject[] rowObjects;
+        Image[] marks;
+        readonly RectTransform[] headCells = new RectTransform[3];
         GameObject ratioHeader, ratioRule;
         RectTransform frame;
         int rows;
@@ -43,11 +46,13 @@ namespace OhmsLaw
         // Cells are bare chalk on the board until a highlight, glow or sweep tints them.
         static Color Rest => Color.clear;
         // Column colours follow the concept palette: V blue, I amber, V/I coral.
-        static Color Column(int c) => UI.Theme ? (c == 0 ? UI.Theme.voltage : c == 1 ? UI.Theme.current : UI.Theme.resistance) : Color.white;
+        static Color Column(int c) => c == 0 ? LessonPanel.VoltColor : c == 1 ? LessonPanel.AmpColor : LessonPanel.OhmColor;
         static Color CellText(int c) => LessonPanel.Paper;   // values in paper; the column heads carry the V / I / R colours
         // Highlights are the HUD's guidance spark, faint on the glass (amber means current only, a red block reads as an
         // error, and a white wash blends in linear light into an opaque-looking grey pill); the values stay paper.
-        static Color RowHighlight => UI.Alpha(LessonPanel.Spark, 0.16f);
+        // A row and its graph point light in one family (GraphUI.Highlight): the spark tint here plus a spark bar on the row's
+        // left edge, a spark ring round the point there. Amber stays the current's own colour.
+        static Color RowHighlight => UI.Alpha(LessonPanel.Spark, 0.22f);
         static Color ColumnGlow => RowHighlight;
         static float X(int column) { float x = 0; for (int c = 0; c < column; c++) x += Columns[c]; return x; }
 
@@ -72,6 +77,7 @@ namespace OhmsLaw
             cellBack = new Image[n, 3];
             tags = new TextMeshProUGUI[n];
             rowObjects = new GameObject[n];
+            marks = new Image[n];
             var root = (RectTransform)transform;
 
             // Frame first, so the cells draw over it: board tint, chalk outline, a firm header rule, faint row rules and
@@ -87,6 +93,7 @@ namespace OhmsLaw
             for (int c = 0; c < 3; c++)
             {
                 var head = Cell(root, c, 0, HeaderRow, headers[c], HeaderFont, Column(c));
+                headCells[c] = (RectTransform)head.transform.parent;
                 // Two lines at full size (the V column fits "Potential Difference" at 44 px), a little tighter than body text.
                 head.lineSpacing = -10f;
                 if (c == 2) ratioHeader = head.transform.parent.gameObject;
@@ -104,6 +111,11 @@ namespace OhmsLaw
                     cells[r, c] = Cell(line, c, 0, RowHeight, "", CellFont, CellText(c));
                     cellBack[r, c] = cells[r, c].transform.parent.GetComponent<Image>();
                 }
+                // The highlight's bar, just left of the first cell.
+                var mark = UI.Rect("Mark", line, new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(-4f, 0), new Vector2(7f, RowHeight - 16f));
+                marks[r] = UI.Panel(mark, LessonPanel.Spark, true, 3.5f);
+                marks[r].raycastTarget = false;
+                mark.gameObject.SetActive(false);
                 // Refresh() moves this "Tag" rect (not the stretched label inside it) beside the frame.
                 tags[r] = UI.Label(UI.Rect("Tag", line, new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(TagWidth, RowHeight)),
                     "", TagFont, UI.Theme ? UI.Theme.current : Color.yellow, TextAlignmentOptions.MidlineLeft);
@@ -163,6 +175,7 @@ namespace OhmsLaw
         {
             if (row < 0 || row >= Data.Count || cellBack == null) return; // no cells before Awake
             for (int c = 0; c < 3; c++) cellBack[row, c].color = on ? RowHighlight : Rest;
+            marks[row].gameObject.SetActive(on);
             tags[row].text = on ? tag : "";
             Centre();
         }
@@ -176,6 +189,12 @@ namespace OhmsLaw
             bool noted = System.Array.Exists(tags, t => t && t.text.Length > 0);
             rect.pivot = new Vector2(noted ? 0.5f : X(ratio ? 3 : 2) / 2f / rect.rect.width, 1f);
         }
+
+        // Where a row, a cell or a column head is on screen (WattsonGuide points at them; the link spark leaves from a row).
+        // Null before Awake.
+        public RectTransform Row(int row) => rowObjects != null && row >= 0 && row < rowObjects.Length ? (RectTransform)rowObjects[row].transform : null;
+        public RectTransform Cell(int row, int column) => cellBack != null && row >= 0 && row < Data.Count && column >= 0 && column < 3 ? cellBack[row, column].rectTransform : null;
+        public RectTransform Header(int column) => column >= 0 && column < 3 ? headCells[column] : null;
 
         // "1 V → 0.2 A", in the same short form as the table.
         public string Pair(int row) => $"{Data.voltages[row]:0} V → {Data.currents[row]:0.0} A";
@@ -210,6 +229,7 @@ namespace OhmsLaw
             for (int r = 0; r < Data.Count; r++)
             {
                 rowObjects[r].SetActive(r < rows);
+                ((RectTransform)rowObjects[r].transform).sizeDelta = new Vector2(width, RowHeight); // the visible columns only: a mark on its edge lands on the table
                 cells[r, 0].text = units ? Volts(r).ToString("0.0") + " V" : Volts(r).ToString("0.#");
                 cells[r, 1].text = units ? Amps(r).ToString("0.00") + " A" : Amps(r).ToString("0.0#");
                 cellBack[r, 2].transform.gameObject.SetActive(ratio);

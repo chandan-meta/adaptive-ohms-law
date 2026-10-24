@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e321f8acb9d249740835376e3c95cd0f, type: 3}
+  m_Name: S13_N04
+  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.DialogueLine
+  id: S13_N04
+  speaker: WATTSON
+  text: 'Keep R the same and raise the push: the current rises in step.'
+  ttsText: 'Keep R the same and raise the push: the current rises in step.'
+  vo: {fileID: 8300000, guid: ee110f6ca5d967546ae207ecc8c3e852, type: 3}
+  fallbackDuration: 4.2

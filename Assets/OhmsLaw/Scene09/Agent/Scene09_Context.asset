@@ -24,7 +24,8 @@ MonoBehaviour:
     the test wire.
   - The voltmeter is connected in parallel across the two ends of the wire, X and
     Y, to measure the potential difference between them.
-  - Closing the key completes the circuit so current can flow.
+  - Once both meters are in, the key closes and completes the circuit so current
+    can flow.
   - "The schematic on the board over the bench shows the same circuit: conventional
     current is drawn from + to \u2212 around the loop; the free electrons themselves
     drift the other way, from \u2212 to +."

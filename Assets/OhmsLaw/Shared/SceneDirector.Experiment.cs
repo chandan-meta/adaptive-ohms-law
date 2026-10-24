@@ -11,7 +11,7 @@ namespace OhmsLaw
     public partial class SceneDirector
     {
         // A reading counts once the source has held it this long with no finger down (a drag passes through values).
-        const float SettleSeconds = 0.9f;
+        const float SettleSeconds = 0.6f;
         static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
         LiveReadingsPanel readings;
@@ -35,10 +35,49 @@ namespace OhmsLaw
         //   hero <big>|<small>  a centre-screen reveal plate      hero.clear       takes it away
         //   readings.top 1|0    the live readings on the top strip instead of the dock card (readings.r still adds R)
         //   stage 1|0           the table, graph and formula cards in front of the 3D view, and back to the dock
+        // Revision 2026-10-22 (Docs/Polish/REVISION_2026-10-22.md):
+        //   link <row> [row…]   a row and its point light together; a spark travels from the row to the point
+        //   graph.axis V|I      that axis's title and line glow while it is talked about
+        //   point.row <i> · point.point <i> · point.axis V|I · point.column <c> · point.formula · point.hero · point.law
+        //                       Wattson stands beside the surface and points at it (WattsonGuide); point.clear lets him go
+        //   snap                Wattson's finger snap (hero, law.piece and law.name snap by themselves)
+        //   law.pieces · law.piece V|I|R · law.name · law.conditions · law.forms · law.demo [seconds] · law.clear
+        //                       the finale's centred surface (LawReveal); S13_BuildLaw taps its tiles into V = I × R
         bool ExperimentCue(string verb, string[] words, string rest, float value, bool on)
         {
             switch (verb)
             {
+                case "link": if (Panel) for (int i = 1; i < words.Length; i++) if (int.TryParse(words[i], out int row)) Link(row); return true;
+                case "graph.axis": if (Panel && rest.Length > 0) Graph.AxisGlow(rest[0]); return true;
+                case "point.row": if (Panel) GuideCalls.Point(Table.Row((int)value), WattsonGuide.Mark.Bracket); return true;
+                case "point.point": if (Panel) GuideCalls.Point(Graph.Point((int)value), WattsonGuide.Mark.Ring); return true;
+                case "point.axis":
+                {
+                    if (!Panel) return true;
+                    bool v = rest.StartsWith("V");
+                    GuideCalls.Point(Graph.AxisTitle(v ? 'V' : 'I'), v ? WattsonGuide.Mark.None : WattsonGuide.Mark.Underline); // the V title stands on its side: graph.axis lights it
+                    return true;
+                }
+                case "point.column": if (Panel) GuideCalls.Point(Table.Header((int)value), WattsonGuide.Mark.Bracket); return true;
+                case "point.formula": if (Panel) GuideCalls.Point(Panel.Block("Formula"), WattsonGuide.Mark.Bracket); return true;
+                case "point.hero": if (Panel) GuideCalls.Point(Panel.HeroRect, WattsonGuide.Mark.Auto); return true;
+                case "point.law": if (LawReveal.Instance) GuideCalls.Point(LawReveal.Instance.EquationRect, WattsonGuide.Mark.None); return true; // the law needs no mark of its own
+                case "point.clear": GuideCalls.Release(); return true;
+                case "snap": SnapReveal(); return true;
+                case "law.pieces": LawReveal.Ensure(); return true;
+                case "law.piece": { string symbol = rest.Trim(); if (LawReveal.Ensure()) StartCoroutine(SnapThen(() => { if (LawReveal.Instance) LawReveal.Instance.Piece(symbol); })); return true; }
+                case "law.name":
+                    if (LawReveal.Ensure()) StartCoroutine(SnapThen(() =>
+                    {
+                        if (!LawReveal.Instance) return;
+                        LawReveal.Instance.Name();
+                        Play("SFX_Magic_Success", 1f, 0.55f);   // the one accent of the finale, kept low
+                    }));
+                    return true;
+                case "law.conditions": if (LawReveal.Ensure()) LawReveal.Instance.Conditions(); return true;
+                case "law.forms": if (LawReveal.Ensure()) LawReveal.Instance.Forms(); Play("Reveal"); return true;
+                case "law.demo": if (LawReveal.Ensure()) LawReveal.Instance.Demo(value > 0f ? value : 4f, v => Play("VoltStep", 1f + 0.07f * (v - 1f))); return true;
+                case "law.clear": if (LawReveal.Instance) LawReveal.Instance.Close(); return true;
                 case "panel": if (Panel && words.Length > 1) Panel.Show(words[1], words.Length < 3 || words[2] != "0"); return true;
                 case "readings": Readings(on); return true;
                 case "readings.r": readingsResistance = on; if (on) LearnerSession.resistanceTaught = true; if (readings) readings.showResistance = on; return true;
@@ -68,11 +107,13 @@ namespace OhmsLaw
                 {
                     if (!Panel) return true;
                     int bar = rest.IndexOf('|');
-                    Panel.Hero(bar < 0 ? rest : rest.Substring(0, bar).Trim(), bar < 0 ? "" : rest.Substring(bar + 1).Trim());
-                    Play("Reveal");
+                    string big = bar < 0 ? rest : rest.Substring(0, bar).Trim(), small = bar < 0 ? "" : rest.Substring(bar + 1).Trim();
+                    if (pendingHero != null) StopCoroutine(pendingHero);
+                    // The plate lands on Wattson's snap (at once when he does not snap: off screen, a restoring cue).
+                    pendingHero = StartCoroutine(SnapThen(() => { pendingHero = null; if (Panel) { Panel.Hero(big, small); Play("Reveal"); } }));
                     return true;
                 }
-                case "hero.clear": if (Panel) Panel.HeroClear(); return true;
+                case "hero.clear": if (pendingHero != null) { StopCoroutine(pendingHero); pendingHero = null; } if (Panel) Panel.HeroClear(); return true;
                 case "readings.top":
                 {
                     if (!Panel) return true;
@@ -82,9 +123,19 @@ namespace OhmsLaw
                     Readings(on || had);
                     return true;
                 }
-                case "stage": if (Panel) Panel.Stage(on); return true;
+                case "stage": if (Panel) Panel.Stage(on); if (!on) GuideCalls.Release(); return true;
                 default: return false;
             }
+        }
+
+        Coroutine pendingHero; // a hero plate waiting for the snap's click
+
+        // "link": the row lights at once, a spark carries it to its point, and the point lights (with a pop) as it lands.
+        void Link(int row)
+        {
+            Table.Highlight(row, true);
+            var graph = Graph;
+            LinkSpark.Fly(Table.Row(row), graph.Point(row), () => { if (graph) { graph.Highlight(row, true); graph.Bump(row); } });
         }
 
         void Readings(bool on)
@@ -155,21 +206,27 @@ namespace OhmsLaw
             }
             rig.controlsOpen = false;
             while (go && Speaking == go) yield return null; // he finishes his sentence before the reading
-            // Observe, then record: the meters' own values go into the row and the point lands on the graph.
+            // Observe, then record: the meters' own values go into the row, a spark carries the reading from the row to the
+            // graph, and the point pops in as it lands (row and point lit together, one pair).
             Turn("Watch the ammeter.", $"{volts:0} of 5", "The current settles, then your row records itself.");
-            yield return Wait(1.6f);
+            yield return Wait(1.0f);
             Table.Record(row, rig.Volts, rig.Amps);
             LearnerSession.tableRows = Mathf.Max(LearnerSession.tableRows, row + 1);
             Play("Record");
             Table.Highlight(row, true);
-            yield return Wait(0.5f);
+            yield return Wait(0.25f);
             Graph.Axes(true);
+            bool landed = false;
+            LinkSpark.Fly(Table.Row(row), Graph.Point(row), () => landed = true);
+            for (float t = 0; !landed && t < LinkSpark.Seconds + 0.5f; t += Dt) yield return null;
             Graph.Plot(row + 1);
+            Graph.Highlight(row, true);
             Play("Plot", 1f + 0.08f * row);
             React(LearnerSession.Grade.Correct);
             if (Panel) Panel.Done($"Row {row + 1} recorded: {rig.Volts.ToString("0.0", Inv)} V, {rig.Amps.ToString("0.00", Inv)} A.");
-            yield return Wait(0.9f);
+            yield return Wait(0.6f);
             Table.Highlight(row, false);
+            Graph.Highlight(row, false);
         }
     }
 }

@@ -9,6 +9,8 @@ namespace OhmsLaw
         // Gates answer themselves: correct option, parts placed, slider set, key closed. The module plays hands-free.
         public static bool autoAnswer;
         public static float autoDelay = 3f;
+        // With autoAnswer: each detective challenge's first pick is a wrong one, so the hint and the retry run too.
+        public static bool missFirst;
 
         static float scale = 1f;
         public static float timeScale

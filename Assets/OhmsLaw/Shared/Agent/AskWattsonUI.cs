@@ -354,7 +354,8 @@ namespace OhmsLaw
             bool listening = agent.Current == WattsonAgent.State.Listening;
             micLabel.text = listening ? "Let go to send" : "Hold to talk";
             micHud.active = listening;
-            micLabel.color = listening ? LessonPanel.Ink : agent.VoiceInputDown ? LessonPanel.Muted : LessonPanel.Spark;
+            if (!FigmaSkin.Available)
+                micLabel.color = listening ? LessonPanel.Ink : agent.VoiceInputDown ? LessonPanel.Muted : LessonPanel.Spark;
             bool stop = Busy && string.IsNullOrWhiteSpace(input.text);
             sendLabel.text = stop ? "Stop" : "Ask";
             sendIcon.SetActive(!stop);   // the arrow means send; Stop reads alone

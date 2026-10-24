@@ -9,16 +9,18 @@ namespace OhmsLaw
     // current intensity k in [0, 1] drives three library loops through their AudioBus gain, so the learner's sliders and the
     // AudioDucker apply as everywhere:
     //   wire scenes:  k = fieldOn && !frozen ? (rig ? I / 1 A : driftSpeed / 0.6 m/s) x (1 - 0.55 impede) : 0   (WireInterior.Drift)
-    //   lab scenes:   k = keyClosed ? I / 1 A : 0,  I = ExperimentData.CurrentAt(V) = V / 5 ohm   (the current, not the voltage)
+    //   lab scenes:   k = I / 1 A,  I = the rig's own current (CircuitRig.Amps: V / R with the key closed and the ammeter in,
+    //                 so the Explore lab's resistance control is heard; the current, not the voltage)
     //   LOOP_Electric_Charge_Hum   volume = gain x smoothstep(k), pitch 0.94 -> 1.08           (Electrical group, Sfx bus)
     //   LOOP_Electricity_Sparks    volume = gain x max(0, k - 0.35) / 0.65 x 0.7                (texture above k = 0.35)
-    //   BGM_Conductor_Pulse        volume = gain x 0.5 x smoothstep(k), wire-only scenes (no bench): a layer under Airy, Music bus
+    //   BGM_Conductor_Pulse        volume = gain x 0.15 x smoothstep(k), wire-only scenes (no bench): a layer under Airy, Music bus
+    //                              (at 0.5 it rode about 8 dB over the Airy bed it is meant to sit under; 0.15 is ~2 dB below it)
     // k follows the live value with an exponential lerp (tau 1.0 s up, 0.4 s down: silent about 1.2 s after the current
     // stops, then the sources stop). Nothing is driven per particle; every source is 2D.
     public class ElectricalAudio : MonoBehaviour
     {
         const string HumClip = "LOOP_Electric_Charge_Hum", SparksClip = "LOOP_Electricity_Sparks", PulseClip = "BGM_Conductor_Pulse";
-        const float FullAmps = 1f, FullDrift = 0.6f, RiseTau = 1.0f, FallTau = 0.4f, PulseCeiling = 0.5f;
+        const float FullAmps = 1f, FullDrift = 0.6f, RiseTau = 1.0f, FallTau = 0.4f, PulseCeiling = 0.15f;
 
         WireInterior wire;
         CircuitRig rig;
@@ -57,8 +59,8 @@ namespace OhmsLaw
             AudioDucker.RescanSoon();
         }
 
-        // A silent, stopped 2D loop on its own bus. The bus keeps its nominal gain of 1 and is driven below it, so AudioBus
-        // never carries the loop into the next scene as a bed (only a bed at its full nominal gain is carried).
+        // A silent, stopped 2D loop on its own bus, driven below the bus's nominal gain of 1 and never carried into the next
+        // scene as a bed (carry off: the current's sound belongs to its scene).
         AudioSource Loop(string clipName, AudioBus.Kind kind, AudioMixerGroup group, out AudioBus bus, out float gain)
         {
             bus = null;
@@ -81,6 +83,7 @@ namespace OhmsLaw
             bus = go.AddComponent<AudioBus>();
             bus.kind = kind;
             bus.gain = 0;
+            bus.carry = false;
             gain = AudioLibrary.GainOf(clipName);
             return source;
         }
@@ -108,13 +111,8 @@ namespace OhmsLaw
             return rig ? Mathf.Clamp01(Amps(rig) / FullAmps) : 0;
         }
 
-        // Ohm's law on the bench: the current the source voltage drives through the 5 ohm wire XY while the key is closed.
-        static float Amps(CircuitRig rig)
-        {
-            if (!rig.state.keyClosed) return 0;
-            var data = ExperimentData.Main;
-            return data ? data.CurrentAt(rig.state.voltage) : rig.state.voltage / 5f;
-        }
+        // Ohm's law on the bench: whatever current the rig drives now (its own resistance, the key, the ammeter in the loop).
+        static float Amps(CircuitRig rig) => rig ? rig.Amps : 0f;
 
         static void Drive(AudioSource source, AudioBus bus, float gain, float pitch)
         {

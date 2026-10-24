@@ -138,10 +138,11 @@ namespace OhmsLaw
             chip = UI.Rect("UI_ChapterChip", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(LessonPanel.Margin, -LessonPanel.TopInset), new Vector2(0, LessonPanel.ControlHeight));
             chipGroup = chip.gameObject.AddComponent<CanvasGroup>();
             var fill = UI.Panel(chip, UI.Alpha(LessonPanel.Glass, LessonPanel.BarAlpha), true, LessonPanel.ControlHeight / 2f);
+            FigmaSkin.Apply(fill, "Panel");
             fill.raycastTarget = true;
             var edge = UI.Stretch("Edge", chip);
             edge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-            UI.Outline(edge, LessonPanel.CardLine, LessonPanel.ControlHeight / 2f, 1.5f);
+            if (!FigmaSkin.Available) UI.Outline(edge, LessonPanel.CardLine, LessonPanel.ControlHeight / 2f, 1.5f);
             var row = chip.gameObject.AddComponent<HorizontalLayoutGroup>();
             row.padding = new RectOffset(20, 18, 0, 0);
             row.spacing = 14f;
@@ -159,6 +160,7 @@ namespace OhmsLaw
             button.onClick.AddListener(() => { UiSounds.Play("click"); PauseMenu.Open(); });
             var hud = chip.gameObject.AddComponent<HudButton>();
             hud.fill = fill;
+            if (FigmaSkin.Available) hud.figmaStyle = "Panel";
             hud.fillColor = UI.Alpha(LessonPanel.Glass, LessonPanel.BarAlpha);
             hud.activeFill = hud.fillColor;
             hud.corner = LessonPanel.ControlHeight / 2f;
@@ -457,6 +459,9 @@ namespace OhmsLaw
         Quaternion introRotation;
         Image curtain;
         int openedFrame, metaState = -1;
+        RectTransform exportedBlock, exportedStart, exportedContinue;
+        Image exportedBanner, exportedStartImage;
+        Vector2 exportedCanvas;
 
         // A scene was entered: the title shows before the module's first chapter, once per session.
         public static void MaybeOpen(string sceneName)
@@ -574,6 +579,7 @@ namespace OhmsLaw
 
         static TitleScreen Build(RectTransform root)
         {
+            if (FigmaSkin.Available && FigmaSkin.Get("TitleBanner")) return BuildExported(root);
             var screen = UI.Stretch("UI_TitleScreen", root);
             var view = screen.gameObject.AddComponent<TitleScreen>();
             view.fade = screen.gameObject.AddComponent<CanvasGroup>();
@@ -614,6 +620,65 @@ namespace OhmsLaw
             return view;
         }
 
+        static TitleScreen BuildExported(RectTransform root)
+        {
+            var screen = UI.Stretch("UI_TitleScreen", root);
+            var view = screen.gameObject.AddComponent<TitleScreen>();
+            view.fade = screen.gameObject.AddComponent<CanvasGroup>();
+            var shade = screen.gameObject.AddComponent<Image>();
+            FigmaSkin.Apply(shade, "TitleShade", false);
+            shade.raycastTarget = true;
+            view.exportedBlock = UI.Rect("Block", screen, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(800, 504));
+            view.exportedBanner = view.exportedBlock.gameObject.AddComponent<Image>();
+            FigmaSkin.Apply(view.exportedBanner, "TitleBanner", false);
+            view.exportedBanner.raycastTarget = false;
+            view.exportedStart = UI.Rect("Start", view.exportedBlock, Vector2.up, Vector2.up, new Vector2(0, -326), new Vector2(336, 80));
+            view.exportedStartImage = view.exportedStart.gameObject.AddComponent<Image>();
+            FigmaSkin.Apply(view.exportedStartImage, "TitleStart", false);
+            var start = view.exportedStart.gameObject.AddComponent<Button>();
+            start.transition = Selectable.Transition.None;
+            start.onClick.AddListener(StartCase);
+            var feedback = view.exportedStart.gameObject.AddComponent<HudButton>();
+            feedback.fill = view.exportedStartImage;
+            feedback.figmaStyle = "Title";
+            feedback.figmaState = "Start";
+            var resume = LessonPanel.Pill("Continue", view.exportedBlock, "Continue", ContinueCase, LessonPanel.Kind.Secondary, null, 80, 20);
+            view.continueButton = resume.gameObject;
+            view.exportedContinue = (RectTransform)resume.transform;
+            view.meta = UI.Label(UI.Rect("Metadata", view.exportedBlock, Vector2.up, Vector2.up, new Vector2(0, -480), new Vector2(800, 24)), "", 16, LessonPanel.Muted, TextAlignmentOptions.TopLeft);
+            view.curtain = UI.Stretch("Start transition", screen).gameObject.AddComponent<Image>();
+            view.curtain.color = Color.clear;
+            view.curtain.raycastTarget = false;
+            screen.gameObject.SetActive(false);
+            return view;
+        }
+
+        void LayoutExported()
+        {
+            if (!exportedBlock) return;
+            var canvas = ((RectTransform)transform).rect.size;
+            if (canvas.x <= 0 || canvas.y <= 0 || canvas == exportedCanvas) return;
+            exportedCanvas = canvas;
+            bool tablet = canvas.x / canvas.y < 1.5f;
+            var reference = tablet ? new Vector2(1024, 768) : new Vector2(1920, 1080);
+            float scale = Mathf.Min(canvas.x / reference.x, canvas.y / reference.y);
+            exportedBlock.sizeDelta = tablet ? new Vector2(560, 366) : new Vector2(800, 504);
+            exportedBlock.localScale = Vector3.one * scale;
+            exportedBlock.anchoredPosition = (tablet ? new Vector2(56, 106) : new Vector2(112, 126)) * scale;
+            FigmaSkin.Apply(exportedBanner, tablet ? "TitleBannerTablet" : "TitleBanner", false);
+            exportedStart.anchoredPosition = new Vector2(0, tablet ? -230 : -326);
+            exportedStart.sizeDelta = tablet ? new Vector2(240, 60) : new Vector2(336, 80);
+            FigmaSkin.Apply(exportedStartImage, tablet ? "TitleStartTablet" : "TitleStart", false);
+            exportedStart.GetComponent<HudButton>().figmaState = tablet ? "StartTablet" : "Start";
+            exportedContinue.anchorMin = exportedContinue.anchorMax = exportedContinue.pivot = Vector2.up;
+            exportedContinue.anchoredPosition = new Vector2(tablet ? 256 : 352, tablet ? -230 : -326);
+            exportedContinue.sizeDelta = tablet ? new Vector2(280, 60) : new Vector2(336, 80);
+            exportedContinue.GetComponentInChildren<TextMeshProUGUI>().fontSize = tablet ? 16 : 20;
+            meta.fontSize = tablet ? 13 : 16;
+            meta.rectTransform.parent.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, tablet ? -346 : -480);
+            meta.rectTransform.parent.GetComponent<RectTransform>().sizeDelta = tablet ? new Vector2(560, 20) : new Vector2(800, 24);
+        }
+
         // A 2 px rule of a fixed width in a row (the title's bolt motif).
         static void Rule(Transform row, float width, Color color)
         {
@@ -628,6 +693,7 @@ namespace OhmsLaw
 
         void Update()
         {
+            LayoutExported();
             var flow = ModuleFlow.Instance;
             if (flow) flow.SetPaused(ModuleFlow.PauseReason.User, true);   // the Timeline may only have started this frame
             if (!closing) fade.alpha = Mathf.MoveTowards(fade.alpha, 1, Time.unscaledDeltaTime / 0.45f);

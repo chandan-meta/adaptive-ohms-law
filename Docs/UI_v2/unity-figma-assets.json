@@ -1,0 +1,309 @@
+{
+  "fileKey": "63sTcmNn0TYOn4lrxAgJgq",
+  "date": "2026-10-24",
+  "theme": "Amber & Ink",
+  "method": "Figma exportAsync PNG, SRGB; panel content omitted to retain live runtime bindings; title scene excluded",
+  "assets": [
+    {
+      "name": "Panel",
+      "nodeId": "3:311",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Panel.png",
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "Icon-pause",
+      "nodeId": "3:146",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-pause.png",
+      "width": 24,
+      "height": 24
+    },
+    {
+      "name": "PrimaryNormal",
+      "nodeId": "3:196",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/PrimaryNormal.png",
+      "width": 200,
+      "height": 56
+    },
+    {
+      "name": "PrimaryHover",
+      "nodeId": "3:198",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/PrimaryHover.png",
+      "width": 200,
+      "height": 56
+    },
+    {
+      "name": "PrimaryPressed",
+      "nodeId": "3:200",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/PrimaryPressed.png",
+      "width": 200,
+      "height": 56
+    },
+    {
+      "name": "PrimaryDisabled",
+      "nodeId": "3:206",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/PrimaryDisabled.png",
+      "width": 200,
+      "height": 56
+    },
+    {
+      "name": "SecondaryNormal",
+      "nodeId": "3:211",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/SecondaryNormal.png",
+      "width": 200,
+      "height": 56
+    },
+    {
+      "name": "SecondaryHover",
+      "nodeId": "3:213",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/SecondaryHover.png",
+      "width": 200,
+      "height": 56
+    },
+    {
+      "name": "SecondaryPressed",
+      "nodeId": "3:215",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/SecondaryPressed.png",
+      "width": 200,
+      "height": 56
+    },
+    {
+      "name": "SecondaryDisabled",
+      "nodeId": "3:221",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/SecondaryDisabled.png",
+      "width": 200,
+      "height": 56
+    },
+    {
+      "name": "RaisedNormal",
+      "nodeId": "3:440",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/RaisedNormal.png",
+      "width": 256,
+      "height": 76
+    },
+    {
+      "name": "RaisedSelected",
+      "nodeId": "3:456",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/RaisedSelected.png",
+      "width": 256,
+      "height": 76
+    },
+    {
+      "name": "RaisedCorrect",
+      "nodeId": "3:464",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/RaisedCorrect.png",
+      "width": 256,
+      "height": 76
+    },
+    {
+      "name": "RaisedIncorrect",
+      "nodeId": "3:468",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/RaisedIncorrect.png",
+      "width": 256,
+      "height": 76
+    },
+    {
+      "name": "MeasurementVoltage",
+      "nodeId": "3:345",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/MeasurementVoltage.png",
+      "width": 128,
+      "height": 116
+    },
+    {
+      "name": "MeasurementCurrent",
+      "nodeId": "3:348",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/MeasurementCurrent.png",
+      "width": 128,
+      "height": 116
+    },
+    {
+      "name": "MeasurementResistance",
+      "nodeId": "3:351",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/MeasurementResistance.png",
+      "width": 128,
+      "height": 116
+    },
+    {
+      "name": "Focus",
+      "nodeId": "34:422",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Focus.png",
+      "width": 208,
+      "height": 64
+    },
+    {
+      "name": "Icon-play",
+      "nodeId": "3:149",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-play.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-replay",
+      "nodeId": "3:152",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-replay.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-captions",
+      "nodeId": "3:155",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-captions.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-volume",
+      "nodeId": "3:159",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-volume.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-settings",
+      "nodeId": "3:162",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-settings.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-check",
+      "nodeId": "3:166",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-check.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-help",
+      "nodeId": "3:169",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-help.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-skip",
+      "nodeId": "3:173",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-skip.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-x",
+      "nodeId": "3:176",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-x.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-bolt",
+      "nodeId": "3:179",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-bolt.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-mic",
+      "nodeId": "3:182",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-mic.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-target",
+      "nodeId": "3:186",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-target.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-chart",
+      "nodeId": "3:190",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-chart.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-home",
+      "nodeId": "3:193",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-home.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "TitleBanner",
+      "nodeId": "68:77",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/TitleBanner.png",
+      "width": 800,
+      "height": 504
+    },
+    {
+      "name": "TitleStart",
+      "nodeId": "68:81",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/TitleStart.png",
+      "width": 336,
+      "height": 80
+    },
+    {
+      "name": "TitleShade",
+      "nodeId": "68:3",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/TitleShade.png",
+      "width": 1920,
+      "height": 4
+    },
+    {
+      "name": "TitleBannerTablet",
+      "nodeId": "7:1964",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/TitleBannerTablet.png",
+      "width": 560,
+      "height": 366
+    },
+    {
+      "name": "TitleStartTablet",
+      "nodeId": "9:1953",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/TitleStartTablet.png",
+      "width": 240,
+      "height": 60
+    },
+    {
+      "name": "Icon-choice",
+      "nodeId": "3:441",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-choice.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-choice-correct",
+      "nodeId": "3:465",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-choice-correct.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "Icon-choice-incorrect",
+      "nodeId": "3:469",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-choice-incorrect.png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "SliderTrack",
+      "nodeId": "79:1892",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/SliderTrack.png",
+      "width": 652,
+      "height": 8
+    },
+    {
+      "name": "SliderFill",
+      "nodeId": "79:1893",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/SliderFill.png",
+      "width": 260.79998779296875,
+      "height": 8
+    },
+    {
+      "name": "Icon-slider-thumb",
+      "nodeId": "79:1894",
+      "path": "Assets/OhmsLaw/Shared/Resources/FigmaUI/Icon-slider-thumb.png",
+      "width": 32,
+      "height": 32
+    }
+  ]
+}

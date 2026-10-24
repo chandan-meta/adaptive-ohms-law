@@ -30,6 +30,7 @@ namespace OhmsLaw.Editor
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
             PlayerSettings.WebGL.decompressionFallback = true;
             PlayerSettings.WebGL.dataCaching = true;
+            PlayerSettings.WebGL.nameFilesAsHashes = true;
             var scenes = new[] { ModulePlayerBuilder.ScenePath }
                 .Concat(BlockoutAssets.SceneOrder.Select(s => SceneBuilderBase.Root + "/Scenes/" + s + ".unity")).ToArray();
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = scenes, locationPathName = Output, target = BuildTarget.WebGL });

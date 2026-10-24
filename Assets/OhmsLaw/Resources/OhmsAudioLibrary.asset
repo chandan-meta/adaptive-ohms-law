@@ -261,6 +261,14 @@ MonoBehaviour:
     source: Magic wand sparkle (2352)
     author: Mixkit (Envato)
     license: Mixkit Sound Effects Free License
+  - name: SFX_Wattson_Snap
+    clip: {fileID: 8300000, guid: 6062d0c4df42c654884792d791679277, type: 3}
+    group: Character
+    gain: 0.8
+    loop: 0
+    source: Finger snap with an electric sparkle (Tools/synth_snap.py)
+    author: Ohm's Law module (synthesized)
+    license: CC0
   - name: SFX_Magic_Gather
     clip: {fileID: 8300000, guid: 5e86ff3878179ec45b9466a612d2ad7b, type: 3}
     group: Character

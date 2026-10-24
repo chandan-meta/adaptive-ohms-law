@@ -22,6 +22,9 @@ MonoBehaviour:
     wire's R = 5 \u03A9."
   - 'Ohm''s law: V = IR. The potential difference across a conductor equals the current
     through it times its resistance, at constant temperature.'
+  - 'Ohm''s law holds for an ohmic conductor (like this nichrome wire) while its
+    temperature and other physical conditions stay the same. Rearranged: I = V /
+    R and R = V / I. With R fixed, doubling V doubles I.'
   - 'If asked about the Christmas lights, give only a hint: think about which battery
     could keep a bigger potential difference across the lights.'
   doNotSpoil:

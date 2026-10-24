@@ -27,12 +27,11 @@ namespace OhmsLaw
         readonly TextMeshProUGUI[] values = new TextMeshProUGUI[CellCount], notes = new TextMeshProUGUI[CellCount];
         float volts = float.NaN, amps, wasVolts, wasAmps, changedAt = -10f;
         int dirVolts, dirAmps;
-        bool hasWas, seen;
-        string shown = "";
+        bool hasWas, seen, textDirty = true, shownResistance;
 
-        static Color VoltageColor => UI.Theme ? UI.Theme.voltage : new Color(0.25f, 0.66f, 1f);
-        static Color CurrentColor => UI.Theme ? UI.Theme.current : new Color(1f, 0.72f, 0.19f);
-        static Color ResistanceColor => UI.Theme ? UI.Theme.resistance : new Color(1f, 0.35f, 0.37f);
+        static Color VoltageColor => LessonPanel.VoltColor;
+        static Color CurrentColor => LessonPanel.AmpColor;
+        static Color ResistanceColor => LessonPanel.OhmColor;
         static Color BaseColor(int c) => c == (int)Cell.V ? VoltageColor : c == (int)Cell.R ? ResistanceColor : CurrentColor;
 
         public static LiveReadingsPanel Create()
@@ -49,11 +48,18 @@ namespace OhmsLaw
             row.childControlWidth = row.childControlHeight = true;
             row.childForceExpandWidth = true;
             row.childForceExpandHeight = true;
+            if (FigmaSkin.Available) row.spacing = 12f;
             var panel = root.gameObject.AddComponent<LiveReadingsPanel>();
             panel.root = root;
             for (int c = 0; c < CellCount; c++)
             {
                 var cell = panel.cells[c] = UI.Rect(((Cell)c).ToString(), root, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
+                if (FigmaSkin.Available)
+                {
+                    var surface = cell.gameObject.AddComponent<Image>();
+                    FigmaSkin.Apply(surface, c == 0 ? "MeasurementVoltage" : c == 1 ? "MeasurementCurrent" : "MeasurementResistance");
+                    surface.raycastTarget = false;
+                }
                 if (top) { var size = cell.gameObject.AddComponent<LayoutElement>(); size.preferredWidth = size.minWidth = TopCell; }
                 panel.values[c] = Text(cell, valueFont, BaseColor(c), 0f, valueRow);
                 panel.notes[c] = Text(cell, NoteFont, LessonPanel.Muted, -valueRow, NoteRow);
@@ -95,19 +101,20 @@ namespace OhmsLaw
             group.alpha = visible ? 1f : 0f;
             if (!visible) return;
             float v = rig.Volts, i = rig.Amps;
-            if (float.IsNaN(volts)) { volts = v; amps = i; }
+            if (float.IsNaN(volts)) { volts = v; amps = i; textDirty = true; }
             else if (!Mathf.Approximately(v, volts) || !Mathf.Approximately(i, amps))
             {
                 wasVolts = volts; wasAmps = amps; hasWas = true;
                 dirVolts = Sign(v - volts); dirAmps = Sign(i - amps);
                 volts = v; amps = i;
                 changedAt = Time.time;
+                textDirty = true;
             }
 
-            string state = $"{volts}|{amps}|{changedAt}|{showResistance}";
-            if (state != shown)
+            if (textDirty || shownResistance != showResistance)
             {
-                shown = state;
+                textDirty = false;
+                shownResistance = showResistance;
                 var inv = CultureInfo.InvariantCulture;
                 values[0].text = volts.ToString("0.0", inv) + " V" + Arrow(dirVolts);
                 values[1].text = amps.ToString("0.00", inv) + " A" + Arrow(dirAmps);

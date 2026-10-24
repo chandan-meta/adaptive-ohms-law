@@ -71,6 +71,9 @@ namespace OhmsLaw.Editor
                 Reactions(r, preview);
                 EveryGesture(r, preview);
                 Flight(r);
+                SnapGesture(r, preview);
+                Guided(r);
+                Steady(r); // last: ScriptedSpeech keeps him "talking" for the rest of an edit-mode run (the frame count stands still)
             }
             catch (System.Exception e) { Check("no exception", false, e.ToString()); }
             finally { preview.Cleanup(); }
@@ -339,6 +342,85 @@ namespace OhmsLaw.Editor
             Check("Flight: arrives within 1.6 s", arrived >= 0 && arrived <= 1.6f, $"{arrived:0.00} s for {total:0.0} m");
             Check("Flight: settles with a small overshoot (< 8 % of the move)", overshoot < 0.08f * total, $"{overshoot:0.000} m");
             r.w.Warp(r.home);
+        }
+
+        // The snap: refused within SnapCooldown of the last one, the free hand up in front of him for the click, back down
+        // after SnapSeconds. Camera.main (the editor's open scene, if any) decides whether he is on screen; off screen every
+        // snap is refused.
+        static void SnapGesture(Rig r, PreviewRenderUtility preview)
+        {
+            Play(r, WattsonController.Gesture.Idle, false, null, 1f);
+            var cam = Camera.main;
+            Vector3 vp = cam ? cam.WorldToViewportPoint(r.root.position) : new Vector3(0.5f, 0.5f, 1f);
+            bool visible = vp.z > 0 && vp.x > -0.02f && vp.x < 1.02f && vp.y > -0.02f && vp.y < 1.02f;
+            bool first = r.w.Snap(), again = r.w.Snap();
+            if (!visible) { Check("Snap: refused while he is off screen (Camera.main)", !first && !again); return; }
+            Check("Snap: the first snap runs", first);
+            Check("Snap: a second snap at once is refused", !again);
+            for (float t = 0; t < WattsonController.SnapLead; t += Dt) r.w.Simulate(Dt);
+            Check("Snap: the hand is up for the click (wrist near or above the shoulder)", r.rWr.position.y > r.rSh.position.y - 0.25f * r.armLength,
+                $"wrist {(r.rWr.position.y - r.rSh.position.y) / r.armLength:0.00} arm lengths from the shoulder");
+            Limits(r, "Snap click");
+            Shot(r, preview, "10_snap_click");
+            for (float t = 0; t < 0.4f; t += Dt) r.w.Simulate(Dt);
+            Check("Snap: still refused before SnapCooldown (0.58 s after)", !r.w.Snap());
+            for (float t = 0; t < WattsonController.SnapCooldown; t += Dt) r.w.Simulate(Dt);
+            Check("Snap: the hand is back down after SnapSeconds", r.rWr.position.y < r.rSh.position.y);
+            Check("Snap: allowed again after SnapCooldown", r.w.Snap());
+            for (float t = 0; t < 1f; t += Dt) r.w.Simulate(Dt);
+        }
+
+        // WattsonGuide's overrides: guidePoint wins over the Timeline's point target (and makes him point, gadget away),
+        // guideHome over his marker; cleared, he flies back to the marker.
+        static void Guided(Rig r)
+        {
+            Play(r, WattsonController.Gesture.Idle, true, r.far, 0.5f);
+            r.w.guidePoint = r.target;
+            for (float t = 0; t < 1.5f; t += Dt) r.w.Simulate(Dt);
+            Check("Guide: guidePoint makes the effective gesture Point", r.w.Effective == WattsonController.Gesture.Point, r.w.Effective.ToString());
+            var arm = r.w.PointingWithLeft ? r.lSh : r.rSh;
+            var wrist = r.w.PointingWithLeft ? r.lWr : r.rWr;
+            float aim = Vector3.Dot((wrist.position - arm.position).normalized, (r.target.position - arm.position).normalized);
+            Check("Guide: he aims at guidePoint, not the Timeline's target", aim > 0.85f, $"dot {aim:0.00}");
+            Check("Guide: the gadget stays away while guided", !r.w.gadget || !r.w.gadget.gameObject.activeSelf);
+            r.w.guideHome = r.far.position;
+            for (float t = 0; t < 2f; t += Dt) r.w.Simulate(Dt);
+            float there = Vector3.Distance(r.root.position, r.far.position);
+            Check("Guide: guideHome wins over his marker", there < 0.05f, $"{there:0.000} m off");
+            r.w.guidePoint = null;
+            r.w.guideHome = null;
+            r.w.pointTarget = null;
+            r.w.gadgetOut = false;
+            for (float t = 0; t < 2.5f; t += Dt) r.w.Simulate(Dt);
+            float back = Vector3.Distance(r.root.position, r.home.position);
+            Check("Guide cleared: he returns to his marker", back < 0.05f, $"{back:0.000} m off");
+            Check("Guide cleared: the Timeline's gesture is back", r.w.Effective == WattsonController.Gesture.Idle);
+        }
+
+        // Steady: while a line plays the bob (and the rest of the idle life) quietens; breathing stays.
+        static void Steady(Rig r)
+        {
+            static float Bob(Rig r, bool speaking)
+            {
+                float lo = float.MaxValue, hi = float.MinValue;
+                for (float t = 0; t < 4.5f; t += Dt)
+                {
+                    if (speaking) r.w.ScriptedSpeech(null, t);
+                    r.w.Simulate(Dt);
+                    float y = r.w.visual ? r.w.visual.localPosition.y : r.root.position.y;
+                    lo = Mathf.Min(lo, y);
+                    hi = Mathf.Max(hi, y);
+                }
+                return hi - lo;
+            }
+            Play(r, WattsonController.Gesture.Idle, false, null, 1.5f);
+            float lively = Bob(r, false);
+            Check("Steady: lively when nothing is said", r.w.Steadiness < 0.05f, $"steadiness {r.w.Steadiness:0.00}");
+            for (float t = 0; t < 0.6f; t += Dt) { r.w.ScriptedSpeech(null, t); r.w.Simulate(Dt); }
+            float quiet = Bob(r, true);
+            Check("Steady: fully steady while a line plays", r.w.Steadiness > 0.95f, $"steadiness {r.w.Steadiness:0.00}");
+            Check("Steady: the bob quietens while he speaks (under 40 %)", quiet < 0.4f * lively, $"{quiet:0.0000} vs {lively:0.0000}");
+            Limits(r, "Steady (talking)");
         }
 
         // ------------------------------------------------------------------ previews

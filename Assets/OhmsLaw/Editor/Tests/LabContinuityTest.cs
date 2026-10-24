@@ -182,7 +182,6 @@ namespace OhmsLaw.Editor
             }
             var director9 = s9.GetRootGameObjects().Select(r => r.GetComponentInChildren<SceneDirector>(true)).FirstOrDefault(d => d);
             Check("Scene 9 opens with the meters' digital plates hidden (needle move only on key-close)", director9 && director9.rig && !director9.rig.readoutsShown);
-            Check("Scene 9 shows the learner's Scene 6 prediction under the reminder", director9 && director9.showLearnerPrediction);
         }
 
         static readonly HashSet<string> Named = new HashSet<string> { "show", "hide", "vanish", "retract", "appear", "rise", "spread", "glide", "settle", "fx" };

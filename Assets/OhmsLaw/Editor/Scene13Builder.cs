@@ -2,10 +2,12 @@ using UnityEngine;
 
 namespace OhmsLaw.Editor
 {
-    // Scene 13: the finale. The three pieces come back together in the panel, V, I and R resolve into V = IR centre
-    // screen and the name OHM'S LAW, with a warm musical resolution; Georg Ohm reappears beside the bench to take a bow,
-    // Wattson celebrates, the lab lights warm, and the composition holds. The panel then offers replay and exit; the
-    // teaching ends here (the optional Scene 14 video plays over the hold if one is configured).
+    // Scene 13: the finale, on one centred surface (LawReveal). The three pieces arrive one by one on Wattson's snap (V the
+    // push, I the flow, R the opposition, each with its unit); the learner taps them into V = I × R; OHM'S LAW lands
+    // above it with one restrained accent while the lab warms; the conditions (an ohmic conductor at constant
+    // temperature) and the rearrangements I = V ÷ R and R = V ÷ I join it; then the bench sweeps 1 → 5 V while the
+    // equation's numbers follow, R holding at 5 Ω: the current rises in step. Georg Ohm reappears behind the bench, and
+    // the case-closed card offers Explore Now, replay and exit (the optional Scene 14 video plays over the hold).
     public class Scene13Builder : SceneBuilderBase
     {
         public override string SceneId => "Scene13";
@@ -23,7 +25,9 @@ namespace OhmsLaw.Editor
             L("S13_L04", "And the opposition.", 1.6f);
             L("S13_L05", "And the relationship connecting them...", 2.6f);
             L("S13_L06", "And today... we call it OHM'S LAW.", 3.0f);
-            L("S13_N01", "You've followed the charges, measured the current, and discovered the pattern. Voltage, current, and resistance are connected by one relationship: V equals I times R. That's Ohm's law!", 11.0f, proposed: true);
+            L("S13_N02", "For an ohmic conductor at a constant temperature, V equals I times R.", 4.8f, proposed: true);
+            L("S13_N03", "Turn it around: I equals V over R, and R equals V over I.", 4.2f, proposed: true);
+            L("S13_N04", "Keep R the same and raise the push: the current rises in step.", 4.2f, proposed: true);
         }
 
         protected override SceneAgentContext Agent() => Context(
@@ -31,6 +35,7 @@ namespace OhmsLaw.Editor
             {
                 "Everything from Scenes 5 to 12: voltage V (the push, volt), current I (the flow, ampere), resistance R (the opposition, ohm), V ∝ I for the nichrome wire at constant temperature, V/I constant, slope = R, 1 Ω = 1 V / 1 A, this wire's R = 5 Ω.",
                 "Ohm's law: V = IR. The potential difference across a conductor equals the current through it times its resistance, at constant temperature.",
+                "Ohm's law holds for an ohmic conductor (like this nichrome wire) while its temperature and other physical conditions stay the same. Rearranged: I = V / R and R = V / I. With R fixed, doubling V doubles I.",
                 "If asked about the Christmas lights, give only a hint: think about which battery could keep a bigger potential difference across the lights.",
             },
             new[] { "The full explanation of the Christmas-lights mystery (the Scene 14 video does that)" },
@@ -49,8 +54,8 @@ namespace OhmsLaw.Editor
             Wattson(Scene12Builder.RevealSide, Scene10Builder.StudyCamC); // where Scene 12 leaves him, above its ohm plate
             Vcam("Bench Study", Scene10Builder.StudyCamC, Scene10Builder.StudyLookC, Scene10Builder.StudyFov, refs["Bench Point"].transform, lensMedium);
             Vcam("Finale", FinaleCamC, FinaleLookC, 42f, refs["Bench Point"].transform, lensMedium);
-            // The finale dolly (audit finding 10): 0.4 m along the Finale axis toward Ohm and the bench through S13_N01
-            // ("push 11"; a cut there under reduced motion). The composer keeps the bench centred; Wattson at Front Point ends
+            // The finale dolly (audit finding 10): 0.4 m along the Finale axis toward Ohm and the bench as he returns
+            // ("push"; a cut there under reduced motion). The composer keeps the bench centred; Wattson at Front Point ends
             // with his left edge about 88 % out to the free frame's edge; the end card holds this pushed-in pose.
             Marker("Cam Finale Goal", FinaleCamC + (FinaleLookC - FinaleCamC).normalized * 0.4f);
             Marker("Front Point", FrontPoint);
@@ -98,55 +103,62 @@ namespace OhmsLaw.Editor
             // Match-cut from Scene 12: R in the readings strip and this wire's 5 Ω in the dock (the ohm plate goes with the cut).
             Shot("Bench Study");
             Ambience("RoomTone");
-            Music("BGM_Professor_Ohm_Laboratory"); // audio: the warm theme returns on S13_L01 (2.5 s crossfade out of the discovery theme) and holds to the end card
+            Music("BGM_Professor_Ohm_Laboratory"); // audio: the warm theme returns on S13_L01 (a crossfade out of the discovery theme) and holds to the end card
             Cue("readings.r 1"); Cue("readings.top 1"); // the finale keeps only the three readings and the law: no table, no graph
             Formula("this wire:  5.0 V ÷ 1.00 A = 5.0 Ω"); // the ohm, as Scene 12 left it, in the dock (the bench stays clear)
             Gesture(WattsonController.Gesture.Talking, moveTo: "Tray Point");
             Line("S13_L01");
 
-            // The three pieces, one line each, then the relationship.
+            // The three pieces, centre screen, each arriving on his snap as he names it.
             Cue("formula.clear");
             Cue("hero.clear");
-            Gesture(WattsonController.Gesture.Point, point: "Panel Point");
-            Formula("V   —   the push: potential difference");
+            Cue("law.pieces", "three empty places for the pieces, centre screen");
+            Cue("point.law", "Wattson beside the law surface, pointing at it");
+            Cue("law.piece V", "V · potential difference · volt (V), on his snap");
             Line("S13_L02");
-            Formula("I   —   the flow: current");
+            Cue("law.piece I", "I · current · ampere (A)");
             Line("S13_L03");
-            Formula("R   —   the opposition: resistance");
+            Cue("law.piece R", "R · resistance · ohm (Ω)");
             Line("S13_L04");
+            Cue("point.clear");
             Gesture(WattsonController.Gesture.Talking);
             Line("S13_L05", 0.2);
-            Gate("S13_BuildLaw", "the learner taps V, then I, then R: V = I × R builds in the panel");
-            Cue("formula.clear");
-            Cue("hero V = I × R|", "the law the learner just built, centre screen");
-            Visual("The three pieces resolve into V = IR", 1.2);
+            Gate("S13_BuildLaw", "the learner taps V, then I, then R on the centre tiles: each flies into its place in V = I × R, and = and × pop in");
+            Visual("The three pieces resolve into V = I × R", 1.0);
 
-            // The finale composition: the lab warms, Georg Ohm returns to take a bow, Wattson celebrates; the whole
-            // investigation is in one frame: the bench and its meters, the readings strip and the law. Timed inside S13_L06
-            // ("And today... we call it OHM'S LAW."): the camera pulls back on "we call it" (1.0 s) while Wattson comes
-            // forward, and the name, the stings and the sparks land on "OHM'S LAW" (1.8 s): the hero rule's SFX_Scientific_Discovery
-            // as the attack, SFX_Magic_Success 0.2 s behind it as the swell (the theme has been under it since L01; the end
-            // card's SFX_Final_Success is the "end" rule's, so no Finale sting here). The name owns the screen for L06; then it
-            // gives way to the man it is named after: Ohm appears behind the bench (where the plate stood) as the summary starts.
+            // The name: the camera pulls back on "we call it" (1.0 s) while Wattson comes forward, and OHM'S LAW lands above
+            // the equation on "OHM'S LAW" (1.8 s) with his snap, one restrained accent (law.name's own), the sparks, and the
+            // lab warming. Then the law in full: its conditions, its rearrangements, and the bench showing it: the push rises
+            // in whole volts while the equation's numbers follow, R staying 5 Ω.
             Shot("Finale", offset: 1.0);
             Gesture(WattsonController.Gesture.Talking, moveTo: "Front Point", offset: 1.0);
-            Cue("hero OHM'S LAW|", "the name, centre screen", 1.8);
-            Sfx("SFX_Magic_Success", 2.0);
+            Cue("law.name", "OHM'S LAW above the equation: his snap, one restrained accent, a soft glow", 1.8);
             Cue("fx Finale Glow", "", 1.8);
+            Cue("look 2.0 finale", "the lab warms with the name (WP-L's look)", 1.8);
             Gesture(WattsonController.Gesture.Greet, offset: 1.8);
             Line("S13_L06", 0.1);
-            Visual("The name holds centre screen; the lab warms", 0.8);
-            Cue("hero.clear", "the plate gives way to Ohm: the case-closed card carries the law at the end");
-            Cue("look 2.0 finale", "the lab warms for Ohm (WP-L's look; a look name the director lacks only logs a warning)");
+            Cue("law.conditions", "for an ohmic conductor at constant temperature");
+            Cue("point.law", "Wattson beside the law, pointing at it");
+            Line("S13_N02", 0.2);
+            Cue("law.forms", "I = V ÷ R and R = V ÷ I slide in under the law");
+            Line("S13_N03", 0.2);
+            Cue("law.demo 4", "the bench sweeps 1 → 5 V; the live line under the law reads V = I × R in numbers, R held at 5 Ω");
+            Line("S13_N04", 0.3);
+            Cue("point.clear");
+            Visual("The current rises in step with the push", 0.6);
+
+            // The man it is named after: the law steps up out of the way, Ohm reappears behind the bench where it stood,
+            // and the camera eases toward him and the bench. The case-closed card carries the law from here.
+            Cue("law.clear", "the law surface steps aside: the case-closed card carries it");
             Cue("rise 1.4 Board Law", "the lab's board writes up the law the learner just built (its chalk, wiped until now)");
             Cue("appear 0.9 Georg Ohm", "Georg Ohm reappears behind the bench, presenting");
-            Cue("push 11 Cam Finale", "a slow dolly toward Ohm and the bench through the summary");
+            Cue("push 4 Cam Finale", "a slow dolly toward Ohm and the bench");
             Cue("ohm.pose Present", "", 0.2);
             Cue("ohm.look Main Camera", "", 0.2);
-            Line("S13_N01", 0.3);
+            Gesture(WattsonController.Gesture.Greet, offset: 0.4);
+            Visual("The completed composition holds: bench, meters, Ohm and Wattson", 2.6);
             Gesture(WattsonController.Gesture.Idle);
-            Visual("The completed composition holds: bench, meters, Ohm and Wattson", 2.5);
-            Cue("end", "the panel offers replay and exit; the module holds here");
+            Cue("end", "the case-closed card: Explore Now, replay, chapters, exit; the module holds here");
         }
     }
 }

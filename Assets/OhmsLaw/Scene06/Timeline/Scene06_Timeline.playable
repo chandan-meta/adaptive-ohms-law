@@ -5909,21 +5909,6 @@ MonoBehaviour:
   m_Time: 0
   command: counter 1
   note: 
---- !u!114 &724957363748278348
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 83923b2b1b663ac4597feb048a66dd00, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.Cue
-  m_Time: 19.296000146865843
-  command: ambience off
-  note: 
 --- !u!114 &736683560893210884
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -9183,8 +9168,6 @@ MonoBehaviour:
     - {fileID: -2302765564389783616}
     - {fileID: -4233516961653944112}
     - {fileID: 1866729648499280229}
-    - {fileID: 724957363748278348}
-    - {fileID: 8683181216069885486}
     - {fileID: -1965992950217835707}
     - {fileID: 1915123492161967051}
     - {fileID: -3249103076734351672}
@@ -10439,21 +10422,6 @@ MonoBehaviour:
   command: boost Card Terminal +
   note: 'Wattson raises the battery voltage: the + terminal brightens as its V gauge
     rises'
---- !u!114 &8683181216069885486
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 83923b2b1b663ac4597feb048a66dd00, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::OhmsLaw.Cue
-  m_Time: 19.296000146865843
-  command: music off
-  note: 
 --- !u!114 &8692817399805199193
 MonoBehaviour:
   m_ObjectHideFlags: 1

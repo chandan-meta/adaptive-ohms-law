@@ -45,10 +45,17 @@ namespace OhmsLaw.Editor
             ("Scene08", "", "look 2.8 classroom", 2.0f),
             ("Scene12", "", "rig.voltage 2", 2.5f),                  // inside the wire at 2 V: the counter at 4
             ("Scene12", "lab", "shot Bench Wide", 1.2f),             // back out of the wire, on the bench (2.0 V / 0.40 A)
-            ("Scene13", "", "fx Title Ignite", 0.9f),                // OHM'S LAW lit mid-sweep
-            ("Scene13", "", "shot Question", 1.1f),                  // the Question frame just before the AQ2 panel
-            ("Scene13", "", "shot Apply", 1.5f),                     // the Apply frame before the gate: line, live point, strip, meters, V = IR
-            ("Scene13", "", "shot Wattson", 1.4f),                   // the closing frame with Title Back / Law Back
+            // 2026-10-22 revision: the centre stage with Wattson beside it, the axes, the finale's law surface.
+            ("Scene10", "", "link 0 1", 1.2f),                       // rows 1-2 linked to their points, centre screen
+            ("Scene11", "", "graph.axis V", 1.0f),                   // the V axis lit, Wattson pointing at it
+            ("Scene11", "", "graph.axis I", 1.0f),
+            ("Scene11", "", "link 0 1", 2.8f),                       // pointing at point 2
+            ("Scene12", "", "table.ratio 1", 3.0f),                  // the V / I (V/A) column filling
+            ("Scene12", "", "graph.triangle 0 2", 2.0f),             // rise over run
+            ("Scene13", "", "law.piece R", 1.0f),                    // the three pieces
+            ("Scene13", "", "law.name", 1.5f),                       // OHM'S LAW over V = I × R
+            ("Scene13", "", "law.forms", 1.6f),                      // the conditions and the rearrangements
+            ("Scene13", "", "law.demo 4", 2.5f),                     // the bench sweep mid-way, the live equation
         };
         static readonly List<(double due, string what)> captures = new List<(double, string)>();
         static PlayableDirector capturesFor;
@@ -70,6 +77,13 @@ namespace OhmsLaw.Editor
         // the run takes longer in real time than it plays back.
         static bool Recording => SessionState.GetString(SceneKey + ".req", "").Contains("record");
         static bool hooked;
+        // Music under every interaction: from the start of the run to the end card some music bus must be audible. A silence
+        // longer than MusicGapSeconds (gates, taps, scene loads included) fails the run, once per scene.
+        const float MusicGapSeconds = 1.5f;
+        static float silentFor;
+        static string silentIn;
+        // After the end card: Explore Now and a run through the lab (ExploreLab.SelfTest); "noexplore" skips it.
+        static int explore; // 0 not yet, 1 running, 2 done
 
         [MenuItem("Ohm's Law/Play Test/Whole module (autoAnswer)")] static void Module() => Run("all");
         [MenuItem("Ohm's Law/Play Test/Current scene (autoAnswer)")] static void Current() => Run(SceneManager.GetActiveScene().name);
@@ -120,14 +134,20 @@ namespace OhmsLaw.Editor
             if (!SessionState.GetBool(Key, false) || hooked) return;
             hooked = true;
             errors = 0; probe = 0; endedAt = 0; probeAt = 0; resNoted = false; firstFrame = null; hud = 0; pointerTest = false;
+            silentFor = 0; silentIn = null; explore = 0;
             spoken.Clear();
             currentScene = "";
             lastTime = -1;
             Application.logMessageReceived += OnLog;
             SubtitleTrack.LineStarted += OnLine;
             ModuleFlow.Leaving += OnLeaving;
+            SceneDirector.ChallengeMissed -= OnMissed;
+            SceneDirector.ChallengeMissed += OnMissed;
             EditorApplication.update += Tick;
         }
+
+        // A detective challenge's miss: the hint and the marked option, once they have faded in.
+        static void OnMissed(string gate) => Later("hint_" + gate, 0.5f);
 
         // The scene's last frame, before the white fade or the match-cut, so hand-offs can be compared.
         static void OnLeaving(string next) => Shot("exit");
@@ -165,7 +185,7 @@ namespace OhmsLaw.Editor
 
         static void Shot(string what)
         {
-            if (!EditorApplication.isPlaying) return;
+            if (!EditorApplication.isPlaying || Application.isBatchMode) return; // no Game view in batch mode: nothing to capture
             string scene = SceneManager.GetActiveScene().name;
             Directory.CreateDirectory($"Logs/Blockout/shots/{scene}");
             string path = $"Logs/Blockout/shots/{scene}/{++shotIndex:00}_{what}.png";
@@ -231,6 +251,7 @@ namespace OhmsLaw.Editor
                 HudScale.Larger = words.Contains("larger"); }
             foreach (var due in pending.Where(p => Time.realtimeSinceStartup >= p.due).ToList()) { Shot(due.what); pending.Remove(due); }
             ReviewMode.autoAnswer = true;
+            ReviewMode.missFirst = SessionState.GetString(SceneKey + ".req", "").Contains("miss"); // the challenges' hint and retry, hands-free
             if (ModuleFlow.Instance && SessionState.GetString(SceneKey + ".req", "").Contains("clean")) ModuleFlow.Instance.GetComponent<Canvas>().enabled = false; // frames without the HUD (design backdrops)
             if (TitleScreen.IsOpen && !titleShot) { titleShot = true; Later("title_screen", 0.2f); } // the title holds ~0.8 s before autoAnswer starts the case
             if (!Mathf.Approximately(ReviewMode.timeScale, SessionState.GetFloat(SpeedKey, 1f))) ReviewMode.timeScale = SessionState.GetFloat(SpeedKey, 1f);
@@ -258,7 +279,7 @@ namespace OhmsLaw.Editor
             }
             if (SceneDirector.Gate != lastGate)
             {
-                if (SceneDirector.Gate != null) { Note($"{(flow && flow.Director ? flow.Director.time : 0),6:0.0}s  GATE {SceneDirector.Gate} (autoAnswer)"); Later("gate_" + SceneDirector.Gate, GateShotDelay); }
+                if (SceneDirector.Gate != null) { Note($"{(flow && flow.Director ? flow.Director.time : 0),6:0.0}s  GATE {SceneDirector.Gate} (autoAnswer)  {MusicState()}"); Later("gate_" + SceneDirector.Gate, GateShotDelay); }
                 lastGate = SceneDirector.Gate;
                 lastProgress = Time.realtimeSinceStartup;
             }
@@ -308,6 +329,15 @@ namespace OhmsLaw.Editor
                 lastProgress = Time.realtimeSinceStartup;
             }
 
+            // The music probe, every frame until the end card.
+            bool audible = MusicState() != "MUSIC silent";
+            silentFor = audible ? 0f : silentFor + Mathf.Min(Time.unscaledDeltaTime, 0.1f); // a load hitch's one long frame is not seconds of silence
+            if (silentFor > MusicGapSeconds && silentIn != scene && !(ModuleFlow.Instance && ModuleFlow.Instance.Ended))
+            {
+                silentIn = scene;
+                Check($"music plays on under {scene} (silent {silentFor:0.0} s at {(flow && flow.Director ? flow.Director.time : 0):0.0} s, gate: {lastGate ?? "none"})", false);
+            }
+
             bool stalled = Time.realtimeSinceStartup - lastProgress > StallSeconds;
             var note = GameObject.Find("WhiteFade") ? GameObject.Find("WhiteFade").GetComponentInChildren<TMPro.TMP_Text>() : null;
             bool ended = note && (note.text.Contains("Scene 14") || note.text.Contains("not built yet") || note.text.Contains("End of module"))
@@ -315,6 +345,16 @@ namespace OhmsLaw.Editor
             bool timedOut = Time.realtimeSinceStartup - started > (Recording ? 3f : 1f) * MaxMinutes * 60;
             if (ended && endedAt == 0) { endedAt = Time.realtimeSinceStartup; Later("end_card", 0.5f); }
             if (ended && !stalled && Time.realtimeSinceStartup - endedAt < 1.5f) return; // the end card's frame (replay / exit) lands before play mode ends
+            // Explore Now: the lab opens from the end card and the test works it like a learner (frames explore_*).
+            if (ended && explore == 0 && scene.StartsWith("Scene13") && ModuleFlow.Instance && !SessionState.GetString(SceneKey + ".req", "").Contains("noexplore"))
+            {
+                explore = 1;
+                Note("\n--- Explore Now ---");
+                ModuleFlow.Instance.StartCoroutine(ExploreRun());
+                Later("explore_open", 1.0f);
+                Later("explore_unlocked", 2.6f);
+            }
+            if (explore == 1 && !stalled) { lastProgress = Time.realtimeSinceStartup; return; }
             if (!stalled && !ended && !timedOut) return;
 
             if (ended) Verify(currentScene);
@@ -324,6 +364,21 @@ namespace OhmsLaw.Editor
             NoteResolution();
             Note(errors == 0 ? "RESULT PASS" : "RESULT FAIL (" + errors + ")");
             Finish();
+        }
+
+        static System.Collections.IEnumerator ExploreRun()
+        {
+            yield return ExploreLab.SelfTest((what, ok) => Check("LAB " + what, ok));
+            explore = 2;
+        }
+
+        // What the music is doing now, for the GATE lines and the probe: the loudest playing music bus.
+        static string MusicState()
+        {
+            AudioSource best = null;
+            foreach (var bus in UnityEngine.Object.FindObjectsByType<AudioBus>(FindObjectsSortMode.None))
+                if (bus.kind == AudioBus.Kind.Music && bus.TryGetComponent(out AudioSource source) && source.isPlaying && source.clip && (!best || source.volume > best.volume)) best = source;
+            return best && best.volume > 0.005f ? $"MUSIC {best.clip.name} at {best.volume:0.000}" : "MUSIC silent";
         }
 
         // Every subtitle clip in the scene's Timeline must have been spoken, in order. A scene with no SceneBuilderBase
@@ -354,6 +409,7 @@ namespace OhmsLaw.Editor
             Application.logMessageReceived -= OnLog;
             SubtitleTrack.LineStarted -= OnLine;
             ModuleFlow.Leaving -= OnLeaving;
+            SceneDirector.ChallengeMissed -= OnMissed;
             pending.Clear();
             captures.Clear();
             capturesFor = null;

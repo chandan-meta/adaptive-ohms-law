@@ -15,6 +15,8 @@ namespace OhmsLaw
 
         public static Sprite Get(string name)
         {
+            var exported = FigmaSkin.Get("Icon-" + name);
+            if (exported) return exported;
             if (cache.TryGetValue(name, out var sprite) && sprite) return sprite;
             System.Func<Vector2, float> field = name switch
             {
@@ -125,6 +127,8 @@ namespace OhmsLaw
         public bool active;
         public Color fillColor = Color.clear, activeFill = new Color(1f, 1f, 1f, 0.14f), outlineColor = Color.clear, activeOutline = Color.clear, hoverFill = Color.clear;
         public float hoverScale = 1.03f, pressScale = 0.97f, corner = 18f;
+        public string figmaStyle, figmaState;
+        public Graphic[] figmaForeground;
         public System.Action disabledTap;
 
         Button button;
@@ -132,6 +136,10 @@ namespace OhmsLaw
         Image ring;
         bool hover, pressed;
         float scale = 1f, dim = 1f;
+        string appliedStyle, appliedState;
+        bool appliedSelected;
+        Image appliedFill;
+        Sprite appliedSprite;
 
         void Awake()
         {
@@ -167,14 +175,37 @@ namespace OhmsLaw
                 dim = Mathf.Abs(dim - to) < 0.01f ? to : Mathf.Lerp(dim, to, ease);
                 group.alpha = dim;
             }
-            if (fill)
+            bool exported = FigmaSkin.Available && !string.IsNullOrEmpty(figmaStyle);
+            if (exported && fill)
+            {
+                string state = figmaState ?? (!on ? "Disabled" : pressed && live ? "Pressed" : hover && live ? "Hover" : "Normal");
+                if (active && figmaState == null && figmaStyle == "Raised") state = "Selected";
+                bool selected = active && on && figmaState == null && (figmaStyle == "Raised" || figmaStyle == "Secondary");
+                if (appliedFill != fill || appliedStyle != figmaStyle || appliedState != state || appliedSelected != selected || fill.sprite != appliedSprite)
+                {
+                    string artwork = figmaStyle == "Panel" ? "Panel" : selected ? "PrimaryNormal" : figmaStyle + state;
+                    if (FigmaSkin.Apply(fill, artwork, figmaStyle != "Title") || FigmaSkin.Apply(fill, figmaStyle + "Normal", figmaStyle != "Title"))
+                    {
+                        appliedFill = fill;
+                        appliedStyle = figmaStyle;
+                        appliedState = state;
+                        appliedSelected = selected;
+                        appliedSprite = fill.sprite;
+                    }
+                }
+                fill.color = Color.white;
+                if (figmaStyle == "Secondary" && figmaForeground != null)
+                    foreach (var graphic in figmaForeground)
+                        if (graphic) graphic.color = selected ? LessonPanel.Ink : LessonPanel.Paper;
+            }
+            else if (fill)
             {
                 var c = active ? activeFill : fillColor;
                 if (hover && live) c = hoverFill.a > 0f ? hoverFill : Wash(c, 0.08f);
                 if (pressed && live) c = Wash(c, 0.12f);
                 fill.color = Color.Lerp(fill.color, c, ease);
             }
-            if (outline)
+            if (outline && !exported)
             {
                 var o = active ? activeOutline : outlineColor;
                 if (hover && live) o = UI.Alpha(LessonPanel.Glow, Mathf.Max(o.a, 0.9f));   // the edge lights up cyan
@@ -188,7 +219,13 @@ namespace OhmsLaw
                 rect.offsetMin = new Vector2(-4f, -4f);
                 rect.offsetMax = new Vector2(4f, 4f);
                 rect.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-                ring = UI.Outline(rect, LessonPanel.Glow, corner + 4f, 3f);
+                if (exported)
+                {
+                    ring = rect.gameObject.AddComponent<Image>();
+                    FigmaSkin.Apply(ring, "Focus");
+                    ring.raycastTarget = false;
+                }
+                else ring = UI.Outline(rect, LessonPanel.Glow, corner + 4f, 3f);
             }
             if (ring && ring.enabled != focused) ring.enabled = focused;
         }

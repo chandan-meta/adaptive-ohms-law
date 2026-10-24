@@ -17,15 +17,22 @@ namespace OhmsLaw
         public const float Width = 740f, Height = 500f, MaxI = 1.2f, MaxV = 6f;   // plot area inside the canvas
         public const float MarginLeft = 150f, MarginBottom = 125f;
         public const float TickFont = 45f, PointFont = 45f, AxisTitleFont = 48f, TagFont = 48f;
-        const float PointSize = 34f, PointHighlight = 50f;
+        const float PointSize = 34f, PointHighlight = 46f, RingSize = 64f;   // the ring clears the up-left labels where they sit
+        static readonly Color AxisColor = new Color(1, 1, 1, 0.55f);
         static readonly Vector2 TextRect = new Vector2(320, 60);
 
         RectTransform plot, line, triangle;
         float lineLength;
         Coroutine drawing;
         GameObject axes;
-        RectTransform[] points;
+        RectTransform[] points, rings;
         TextMeshProUGUI[] tags, labels;
+        // The axes' titles and lines, for "graph.axis V|I" (a glow while it is talked about) and WattsonGuide's pointing.
+        TextMeshProUGUI iTitle, vTitle;
+        RectTransform iAxis, vAxis;
+        char glowAxis;
+        float glowT = -1f;
+        const float AxisGlowSeconds = 1.5f;
         RectTransform pulseTarget;
         float pulse = -1;
         // The live point: an amber ring labelled "now" at (rig.Amps, rig.Volts), easing like the meter needles; the faint
@@ -35,8 +42,8 @@ namespace OhmsLaw
         float liveVolts = float.NaN;
 
         static ExperimentData Data => ExperimentData.Main;
-        static Color Voltage => UI.Theme ? UI.Theme.voltage : Color.cyan;
-        static Color Current => UI.Theme ? UI.Theme.current : Color.yellow;
+        static Color Voltage => LessonPanel.VoltColor;
+        static Color Current => LessonPanel.AmpColor;
 
         void Awake()
         {
@@ -49,8 +56,8 @@ namespace OhmsLaw
                 Segment(plot, At(i * 0.2f, 0), At(i * 0.2f, MaxV), grid, 2);
                 Segment(plot, At(0, i), At(MaxI, i), grid, 2);
             }
-            Segment(plot, Vector2.zero, new Vector2(Width + 20, 0), new Color(1, 1, 1, 0.55f), 4);
-            Segment(plot, Vector2.zero, new Vector2(0, Height + 20), new Color(1, 1, 1, 0.55f), 4);
+            iAxis = Segment(plot, Vector2.zero, new Vector2(Width + 20, 0), AxisColor, 4);
+            vAxis = Segment(plot, Vector2.zero, new Vector2(0, Height + 20), AxisColor, 4);
             for (int i = 1; i <= 6; i++)
             {
                 Text(plot, (i * 0.2f).ToString("0.0"), At(i * 0.2f, 0) + new Vector2(0, -50), TickFont, LessonPanel.Muted);
@@ -60,6 +67,8 @@ namespace OhmsLaw
             var vLabel = Text(plot, "Potential Difference, V (V)", new Vector2(-135, Height / 2), AxisTitleFont, Voltage, new Vector2(640, 60));
             vLabel.rectTransform.localRotation = Quaternion.Euler(0, 0, 90);
             iLabel.textWrappingMode = vLabel.textWrappingMode = TextWrappingModes.NoWrap; // one line each, whatever the font's advance
+            iTitle = iLabel;
+            vTitle = vLabel;
 
             // The line through the origin, drawn a little past the last reading (not to the frame edge).
             line = Segment(plot, Vector2.zero, At(1.1f, 1.1f * Data.resistance), Voltage, 8);
@@ -67,6 +76,7 @@ namespace OhmsLaw
             line.gameObject.SetActive(false);
 
             points = new RectTransform[Data.Count];
+            rings = new RectTransform[Data.Count];
             tags = new TextMeshProUGUI[Data.Count];
             labels = new TextMeshProUGUI[Data.Count];
             for (int i = 0; i < Data.Count; i++)
@@ -84,6 +94,14 @@ namespace OhmsLaw
                 var offset = p.x - 77f - half >= 8f ? new Vector2(-77f, 53f) : new Vector2(PointSize / 2f + 8f + half, -5f);
                 ((RectTransform)labels[i].transform.parent).anchoredPosition = offset + Vector2.one * PointSize / 2f;
                 tags[i] = Text(dot, "", new Vector2(170, -70), TagFont, Current, new Vector2(320, 140));
+                // The highlight ring, in the table row's spark family (ObservationTableUI.RowHighlight).
+                var ring = UI.Rect("Ring", dot, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * RingSize);
+                var ringImage = ring.gameObject.AddComponent<Image>();
+                ringImage.sprite = UI.Circle(0.78f);
+                ringImage.color = LessonPanel.Spark;
+                ringImage.raycastTarget = false;
+                ring.gameObject.SetActive(false);
+                rings[i] = ring;
                 points[i] = dot;
                 dot.gameObject.SetActive(false);
             }
@@ -124,6 +142,9 @@ namespace OhmsLaw
             }
         }
 
+        // A plotted point bounces once (the link spark has just landed on it).
+        public void Bump(int row) { if (points != null && row >= 0 && row < points.Length && points[row].gameObject.activeInHierarchy) StartCoroutine(PopIn(points[row])); }
+
         IEnumerator PopIn(RectTransform point)
         {
             if (ReducedMotion.On) yield break;
@@ -156,12 +177,66 @@ namespace OhmsLaw
             drawing = null;
         }
 
+        // A highlighted point: a little larger, spark-filled, with a spark ring: the same family as its highlighted row in the
+        // table, so a row and its point read as one pair (amber stays the current's own colour: axis title, ΔI).
+        Vector2[] labelHome;
+
         public void Highlight(int row, bool on, string tag = "")
         {
-            if (row < 0 || row >= points.Length) return;
+            if (points == null || row < 0 || row >= points.Length) return;
             points[row].sizeDelta = Vector2.one * (on ? PointHighlight : PointSize);
-            points[row].GetComponent<Image>().color = on ? Current : Color.white;
+            points[row].GetComponent<Image>().color = on ? LessonPanel.Spark : Color.white;
+            rings[row].gameObject.SetActive(on);
+            // A label beside its point (right of it, near the V axis) steps out past the ring and back; one above-left of its
+            // point already clears the ring, and moving it would crowd its neighbours.
+            var label = (RectTransform)labels[row].transform.parent;
+            if (labelHome == null) { labelHome = new Vector2[points.Length]; for (int i = 0; i < points.Length; i++) labelHome[i] = ((RectTransform)labels[i].transform.parent).anchoredPosition; }
+            Vector2 away = labelHome[row] - Vector2.one * PointSize / 2f;   // from the dot's centre
+            float clear = (RingSize - PointSize) / 2f + 4f;
+            label.anchoredPosition = labelHome[row] + (on && away.x > 0f ? new Vector2(clear, 0f) : Vector2.zero)
+                                     + Vector2.one * ((on ? PointHighlight : PointSize) - PointSize) / 2f;   // the dot grew about its centre: its corner moved out
             tags[row].text = on ? tag : "";
+        }
+
+        // Where a point, an axis title or the plot is on screen (WattsonGuide points at them; the link spark lands on a
+        // point). Null before Awake.
+        public RectTransform Point(int row) => points != null && row >= 0 && row < points.Length ? points[row] : null;
+        public RectTransform AxisTitle(char axis) => axis == 'V' || axis == 'v' ? (vTitle ? vTitle.rectTransform : null) : (iTitle ? iTitle.rectTransform : null); // the labels themselves: the V title is the rotated one
+        public RectTransform PlotRect => plot;
+
+        // "graph.axis V|I": that axis's title and line glow for AxisGlowSeconds while it is talked about.
+        public void AxisGlow(char axis)
+        {
+            if (!iAxis) return;
+            ResetAxes();
+            glowAxis = char.ToUpperInvariant(axis);
+            glowT = 0f;
+        }
+
+        void ResetAxes()
+        {
+            iAxis.sizeDelta = new Vector2(iAxis.sizeDelta.x, 4f);
+            vAxis.sizeDelta = new Vector2(vAxis.sizeDelta.x, 4f);
+            iAxis.GetComponent<Image>().color = vAxis.GetComponent<Image>().color = AxisColor;
+            iTitle.transform.parent.localScale = vTitle.transform.parent.localScale = Vector3.one;
+            iTitle.color = Current;
+            vTitle.color = Voltage;
+        }
+
+        void GlowAxis()
+        {
+            glowT += Time.deltaTime;
+            if (glowT >= AxisGlowSeconds) { glowT = -1f; ResetAxes(); return; }
+            float k = Mathf.Sin(Mathf.PI * Mathf.Clamp01(glowT / AxisGlowSeconds));   // up and back down once
+            float beat = ReducedMotion.On ? 1f : 0.85f + 0.15f * Mathf.Sin(glowT * 9f);
+            bool v = glowAxis == 'V';
+            var axisLine = v ? vAxis : iAxis;
+            var title = v ? vTitle : iTitle;
+            var tint = v ? Voltage : Current;
+            axisLine.sizeDelta = new Vector2(axisLine.sizeDelta.x, Mathf.Lerp(4f, 10f, k));
+            axisLine.GetComponent<Image>().color = Color.Lerp(AxisColor, tint, k * beat);
+            title.transform.parent.localScale = Vector3.one * (1f + (ReducedMotion.On ? 0f : 0.1f * k));
+            title.color = Color.Lerp(tint, Color.white, 0.45f * k * beat);
         }
 
         // Rise-and-run marker between two points: the run (ΔI, amber) along the bottom, then the rise (ΔV, blue) up the
@@ -236,6 +311,7 @@ namespace OhmsLaw
         void Update()
         {
             if (live) FollowRig();
+            if (glowT >= 0f) GlowAxis();
             if (pulse < 0) return;
             pulse += Time.deltaTime;
             pulseTarget.localScale = Vector3.one * (1 + 0.05f * Mathf.Sin(pulse * Mathf.PI * 3) * (1 - pulse / 1.2f));

@@ -156,7 +156,7 @@ namespace OhmsLaw.Editor
             public PlayableDirector director;
             public SignalReceiver receiver;
             public Camera camera;
-            public AudioSource sfx, music, ambience;
+            public AudioSource sfx, music, musicTwin, ambience;
             public SplineContainer path;
             public ReflectionProbe probe;
             public Dictionary<string, CinemachineCamera> cams = new Dictionary<string, CinemachineCamera>();
@@ -487,8 +487,14 @@ namespace OhmsLaw.Editor
             BuildWattson(s, context, sfx);
 
             s.sfx = Audio("SFX", null, AudioBus.Kind.Sfx);
+            // The beds are runtime sources (Scene04Director plays them on signals), not Timeline tracks: a Timeline track
+            // freezes with the wire-tap hold, PAUSE and the Ask panel, and is never carried into Scene 5. The two music
+            // sources share the name "Music" (a crossfade pair, as SceneDirector's beds): whichever plays at the dive is the
+            // one AudioBus carries, and Scene 5's own "Music" bus takes it over at the same sample.
             s.music = Audio("Music", null, AudioBus.Kind.Music, 0.35f);
+            s.musicTwin = Audio("Music", null, AudioBus.Kind.Music, 0.35f);
             s.ambience = Audio("Ambience", null, AudioBus.Kind.Sfx, 0.5f);
+            foreach (var bed in new[] { s.music, s.musicTwin, s.ambience }) bed.loop = true;
             return s;
         }
 

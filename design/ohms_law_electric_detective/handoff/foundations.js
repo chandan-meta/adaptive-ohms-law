@@ -1,0 +1,14 @@
+const names=['00 — Overview','01 — Foundations','02 — Components','03 — Menus & Overlays','04 — Gameplay Mockups','05 — Developer Handoff'];
+figma.root.children[0].name=names[0];
+for(const name of names.slice(1)){if(!figma.root.children.some(p=>p.name===name)){const p=figma.createPage();p.name=name;}}
+await Promise.all([{family:'Baloo 2',style:'Bold'},{family:'Inter',style:'Regular'},{family:'Inter',style:'Semi Bold'}].map(f=>figma.loadFontAsync(f)));
+const colors={navy:'#0D1B2A',surface:'#142B3E',raised:'#203D52',line:'#47657A',paper:'#F4E4BF',paperLight:'#FFF3D7',brass:'#B68A45',ink:'#253044',white:'#F7FAFF',muted:'#BECED9',gold:'#FFCF40',goldHover:'#FFE477',goldPressed:'#E9A915',cyan:'#26D9F2',blue:'#1263A1',amber:'#FFBD59',coral:'#FF8880',green:'#78E5A6',success:'#153F32',error:'#512B32',disabled:'#4B5966'};
+const rgb=h=>({r:parseInt(h.slice(1,3),16)/255,g:parseInt(h.slice(3,5),16)/255,b:parseInt(h.slice(5,7),16)/255});
+// Adapted from the supplied createSemanticTokens helper: primitives feed scoped semantic aliases.
+const pc=figma.variables.createVariableCollection('ED / Primitives'),sc=figma.variables.createVariableCollection('ED / Semantic'),lc=figma.variables.createVariableCollection('ED / Layout');
+const vars={};
+for(const [name,hex]of Object.entries(colors)){const p=figma.variables.createVariable('raw/'+name,pc,'COLOR');p.scopes=[];p.setValueForMode(pc.defaultModeId,rgb(hex));p.setVariableCodeSyntax('WEB','var(--ed-raw-'+name+')');const v=figma.variables.createVariable(name,sc,'COLOR');v.scopes=['FRAME_FILL','SHAPE_FILL','TEXT_FILL','STROKE_COLOR'];v.setValueForMode(sc.defaultModeId,{type:'VARIABLE_ALIAS',id:p.id});v.setVariableCodeSyntax('WEB','var(--ed-'+name+')');vars[name]=v.id;}
+for(const [kind,values,scope] of [['space',[8,12,16,24,32,48,64],'GAP'],['radius',[8,12,16,24],'CORNER_RADIUS']])for(const value of values){const v=figma.variables.createVariable(kind+'/'+value,lc,'FLOAT');v.scopes=[scope];v.setValueForMode(lc.defaultModeId,value);v.setVariableCodeSyntax('WEB','var(--ed-'+kind+'-'+value+')');vars[kind+'/'+value]=v.id;}
+const styles={};for(const [name,size,line,family,style]of [['Display',76,84,'Baloo 2','Bold'],['Title',44,52,'Baloo 2','Bold'],['Heading',32,40,'Baloo 2','Bold'],['Panel',26,34,'Baloo 2','Bold'],['Body',22,32,'Inter','Regular'],['Label',20,28,'Inter','Semi Bold'],['Caption',18,26,'Inter','Regular'],['Small',16,24,'Inter','Semi Bold'],['Measure',40,48,'Baloo 2','Bold']]){const s=figma.createTextStyle();s.name='ED/'+name;s.fontName={family,style};s.fontSize=size;s.lineHeight={unit:'PIXELS',value:line};styles[name]=s.id;}
+const sh=figma.createEffectStyle();sh.name='ED / Elevation';sh.effects=[{type:'DROP_SHADOW',color:{r:0,g:0,b:0,a:.3},offset:{x:0,y:6},radius:14,spread:0,visible:true,blendMode:'NORMAL'}];
+return {createdNodeIds:figma.root.children.map(p=>p.id),pages:Object.fromEntries(figma.root.children.map(p=>[p.name,p.id])),variables:vars,styles,shadow:sh.id,colors};

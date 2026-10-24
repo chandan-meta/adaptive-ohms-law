@@ -210,59 +210,39 @@ namespace OhmsLaw.Editor
                 busyUntil[lane] = placed.end + 0.05;
             }
 
-            var musicTrack = timeline.CreateTrack<AudioTrack>(null, "Music");
-            director.SetGenericBinding(musicTrack, s.music);
-            TimelineClip Bed(AudioClip clip, string label, double from, double to, double clipIn, float volume)
-            {
-                var bed = musicTrack.CreateClip(clip);
-                bed.displayName = label;
-                bed.start = from;
-                bed.duration = to - from;
-                bed.clipIn = clipIn;
-                ((AudioPlayableAsset)bed.asset).loop = true;
-                ClipVolume(bed, volume);
-                return bed;
-            }
-            // Professor Ohm's laboratory theme under the arrival (START fades the title bed, the same track, out over 0.6 s while
-            // this one comes up over 1.5 s), in from bar 4: the track runs at 70 bpm with its downbeats at 0.85 + n x 3.43 s, and
-            // 11.13 s opens its calm steady passage (-18 dB, well before the louder section at 35 s), so it never sounds like the
-            // title starting over. At SH02 a 2 s crossfade hands over to Wattson's theme, whose second downbeat (110 bpm,
-            // downbeats at 0.52 + n x 2.18 s) lands on his entrance.
-            var laboratory = Library("BGM_Professor_Ohm_Laboratory", out float laboratoryGain);
+            // The beds (Scene04Director, runtime sources, so they play on through the wire-tap hold, PAUSE and the Ask panel):
+            // Professor Ohm's laboratory theme under the arrival (START fades the title bed out over 0.6 s while this one comes
+            // up over 1.5 s), in from bar 4: the track runs at 70 bpm with its downbeats at 0.85 + n x 3.43 s, and 11.13 s opens
+            // its calm steady passage (-18 dB, well before the louder section at 35 s), so it never sounds like the title
+            // starting over. At SH02 a 2 s crossfade hands over to Wattson's theme, whose second downbeat (110 bpm, downbeats at
+            // 0.52 + n x 2.18 s) lands on his entrance. Over SH08 (the Ohm-niscope hero) it eases down to 40 %; over SH10 it
+            // crossfades into Scene 5's wire bed (Airy, the library's "PadWire"), which plays on through the tap and the dive
+            // and is carried into Scene 5, whose "music PadWire" cue then finds it playing. The room tone starts with the
+            // Timeline (after the title) and is carried the same way into Scene 5's WireHum crossfade.
+            var laboratory = Library("BGM_Professor_Ohm_Laboratory", out _);
             if (!laboratory) laboratory = sfx["PadLab"];
-            var discovery = Library("BGM_Wattson_Magical_Discovery", out float discoveryGain);
+            var discovery = Library("BGM_Wattson_Magical_Discovery", out _);
+            var wireBed = Library("BGM_Conductor_Airy", out _);
             const double crossfade = 2.0, laboratoryIn = 11.13, discoveryDownbeat = 2.70;
             double swap = T("SH02");
-            if (!discovery) Bed(laboratory, "Laboratory", 0, total, laboratoryIn, laboratoryGain).easeInDuration = 1.5;
-            else
-            {
-                var lab = Bed(laboratory, "Laboratory", 0, swap + crossfade / 2, laboratoryIn, laboratoryGain);
-                lab.easeInDuration = 1.5;
-                lab.blendOutDuration = crossfade;
-                // Full through SH07; over SH08 (the Ohm-niscope hero) it eases down to 40 %: two clips of the same passage,
-                // sample-aligned, crossfade from full to 0.4, so the dip is one continuous bed. The quieter bed holds through
-                // SH09's lock-on and goes out over SH10, silent before SH11's dive so Scene 5's Airy enters clean.
-                double dipFrom = start["SH08"], dipTo = end["SH08"], outFrom = start["SH10"], outTo = start["SH11"];
-                double discoveryIn = discoveryDownbeat - crossfade / 2;
-                var theme = Bed(discovery, "Wattson theme", swap - crossfade / 2, dipTo, discoveryIn, discoveryGain);
-                theme.blendInDuration = crossfade;
-                theme.blendOutDuration = dipTo - dipFrom;
-                var quiet = Bed(discovery, "Wattson theme 40%", dipFrom, outTo, discoveryIn + (dipFrom - theme.start), discoveryGain * 0.4f);
-                quiet.blendInDuration = dipTo - dipFrom;
-                quiet.easeOutDuration = outTo - outFrom;
-            }
+            scene04.music = s.music;
+            scene04.musicTwin = s.musicTwin;
+            scene04.ambience = s.ambience;
+            scene04.laboratory = laboratory;
+            scene04.theme = discovery;
+            scene04.wireBed = wireBed;
+            scene04.roomTone = sfx["StudyTone"];
+            scene04.laboratoryIn = (float)laboratoryIn;
+            scene04.themeIn = (float)(discoveryDownbeat - crossfade / 2);
+            scene04.themeFade = (float)crossfade;
+            scene04.dipSeconds = (float)(end["SH08"] - start["SH08"]);
+            scene04.wireFade = (float)(start["SH11"] - start["SH10"]);
             // The title bed rides on the music bus without playing from it: ModuleFlow plays the carried clip (the laboratory
             // theme, from its start) on a bus of its own while the title screen holds this Timeline at 0 (a music bus's bgm with
             // Play On Start off only carries the clip).
             var musicBus = s.music.GetComponent<AudioBus>();
             musicBus.bgm = laboratory;
             musicBus.playOnStart = false;
-            var ambienceTrack = timeline.CreateTrack<AudioTrack>(null, "Ambience");
-            director.SetGenericBinding(ambienceTrack, s.ambience);
-            var ambience = ambienceTrack.CreateClip(sfx["StudyTone"]);
-            ambience.start = 0;
-            ambience.duration = total;
-            ((AudioPlayableAsset)ambience.asset).loop = true;
 
             // --- VFX activation and signals
             var vfxGroup = timeline.CreateTrack<GroupTrack>(null, "VFX");
@@ -323,6 +303,12 @@ namespace OhmsLaw.Editor
             Active("?", T("SH06", 1.9), end["SH07"]);
             Sfx("SFX_Fact_Chime", T("SH06", 1.9), 0.9f);
             Signal("Scene04_DriftWords", T("SH07", 0.2), scene04.DriftWords);
+            // The beds, at 0.05 s (not 0: the title screen holds the Timeline at 0, so nothing starts under the title), the
+            // theme crossfade before SH02, the dip over SH08 and the wire bed over SH10 (see the beds above).
+            Signal("Scene04_Beds", 0.05, scene04.StartBeds);
+            if (discovery) Signal("Scene04_BedTheme", swap - crossfade / 2, scene04.ThemeBed);
+            if (discovery) Signal("Scene04_BedDip", start["SH08"], scene04.DipBed);
+            Signal("Scene04_BedWire", start["SH10"], scene04.WireBed);
             // SH08 Ohm-niscope: the gadget comes out with the RaiseGadget pose at the shot's start (the click), its rings charge
             // through the slow motion and flash at about 2.2 (inside the charge's tail). SH09 lock-on: the reticle at 1.3.
             Signal("Scene04_SlowMotion", T("SH08", 0.15), scene04.SlowMotion);

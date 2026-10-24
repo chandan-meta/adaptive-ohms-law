@@ -66,37 +66,37 @@ namespace OhmsLaw
         public string Title { get; private set; } = "";
 
         // Colour roles (kids UI, Docs/Polish/KIDS_UI/DESIGN_SPEC.md §1): ink on every bright fill, text on navy.
-        public static readonly Color Ink = new Color32(0x0A, 0x11, 0x20, 0xFF);
-        public static readonly Color Paper = new Color32(0xF4, 0xFA, 0xFF, 0xFF);
-        public static readonly Color Body = new Color32(0xD3, 0xDA, 0xE6, 0xFF);
-        public static readonly Color Muted = new Color32(0xB9, 0xCB, 0xE3, 0xFF);
-        public static readonly Color Raised = new Color32(0x2E, 0x3B, 0x55, 0xFF);
-        public static readonly Color HoverFill = new Color32(0x3A, 0x4A, 0x68, 0xFF);
+        public static readonly Color Ink = new Color32(0x15, 0x19, 0x1D, 0xFF);
+        public static readonly Color Paper = new Color32(0xF5, 0xF0, 0xE6, 0xFF);
+        public static readonly Color Body = new Color32(0xF5, 0xF0, 0xE6, 0xFF);
+        public static readonly Color Muted = new Color32(0xC1, 0xBA, 0xB0, 0xFF);
+        public static readonly Color Raised = new Color32(0x30, 0x37, 0x3B, 0xFF);
+        public static readonly Color HoverFill = new Color32(0x34, 0x39, 0x3D, 0xFF);
         // Electric blue for edges, chips, selected rows and progress; cyan glow for focus and hover; amber / gold for the one
         // primary action; green / red only ever mean right / wrong (each with a word and an icon, never colour alone).
-        public static readonly Color Accent = new Color32(0x00, 0xD1, 0xFF, 0xFF);
-        public static readonly Color Glow = new Color32(0x7E, 0xE9, 0xFF, 0xFF);
-        public static readonly Color Amber = new Color32(0xFF, 0xB3, 0x47, 0xFF);
-        public static readonly Color Gold = new Color32(0xFF, 0xD1, 0x66, 0xFF);
-        public static readonly Color Success = new Color32(0x2E, 0xCC, 0x71, 0xFF);
-        public static readonly Color Error = new Color32(0xFF, 0x6B, 0x6B, 0xFF);
+        public static readonly Color Accent = new Color32(0xFF, 0xC4, 0x5C, 0xFF);
+        public static readonly Color Glow = new Color32(0xFF, 0xF9, 0xEC, 0xFF);
+        public static readonly Color Amber = new Color32(0xFF, 0xC4, 0x5C, 0xFF);
+        public static readonly Color Gold = new Color32(0xFF, 0xD0, 0x70, 0xFF);
+        public static readonly Color Success = new Color32(0x57, 0xE7, 0xB5, 0xFF);
+        public static readonly Color Error = new Color32(0xFF, 0xB5, 0xB5, 0xFF);
         // Glass: cards are two-tone navy, a panel-navy rim (Glass at GlassAlpha) around a deep-navy plate, with a soft top
         // highlight, a 1.5 px electric-blue edge and a faint blue glow outside it. The project renders in linear colour
         // space, where UI alpha blends in linear light (0.8 of navy over a white bench reads as a mid grey, and a tenth of a
         // bright poster still ghosts through), so every card carries the inset plate (PlateAlpha) under its content: ~5 % of
         // the scene reaches the text, paper text keeps ~8:1 and muted text ~4.5:1 over the lab's white bench and the THINK
         // poster, while the 4 px rim still shows the scene. The bars (controls, chip, hint pill) have no plate: BarAlpha.
-        public static readonly Color Glass = new Color32(0x1A, 0x2B, 0x45, 0xFF);
-        public static readonly Color Deep = new Color32(0x0B, 0x16, 0x26, 0xFF);
+        public static readonly Color Glass = new Color32(0x29, 0x2C, 0x2F, 0xFF);
+        public static readonly Color Deep = new Color32(0x19, 0x1D, 0x21, 0xFF);
         public const float GlassAlpha = 0.80f, PlateAlpha = 0.75f, BarAlpha = 0.93f, EdgeWidth = 1.5f, GlowSpread = 8f;
         public static Color CardFill => UI.Alpha(Glass, GlassAlpha);
-        public static Color CardLine => UI.Alpha(Accent, 0.55f);
+        public static Color CardLine => new Color32(0x74, 0x63, 0x4C, 0xFF);
         public static Color ControlLine => UI.Alpha(Accent, 0.45f);   // interactive borders: 3:1 on the plate
-        public static Color Spark => UI.Theme ? UI.Theme.wattsonAccent : new Color32(0xBF, 0xF6, 0xFF, 0xFF);   // Wattson's own marks (badges, his ring, "done")
+        public static Color Spark => FigmaSkin.Available ? Accent : UI.Theme ? UI.Theme.wattsonAccent : Accent;
         public static Color AccentColor => Accent;   // guidance chrome (was voltage blue: blue now only ever means V)
-        public static Color VoltColor => UI.Theme ? UI.Theme.voltage : new Color(0.25f, 0.66f, 1f);
-        public static Color AmpColor => UI.Theme ? UI.Theme.current : new Color(1f, 0.72f, 0.19f);
-        public static Color OhmColor => UI.Theme ? UI.Theme.resistance : new Color(1f, 0.35f, 0.37f);
+        public static Color VoltColor => FigmaSkin.Available ? new Color32(0x78, 0xC4, 0xFF, 255) : UI.Theme ? UI.Theme.voltage : new Color(0.25f, 0.66f, 1f);
+        public static Color AmpColor => FigmaSkin.Available ? Amber : UI.Theme ? UI.Theme.current : new Color(1f, 0.72f, 0.19f);
+        public static Color OhmColor => FigmaSkin.Available ? new Color32(0xFF, 0x85, 0x85, 255) : UI.Theme ? UI.Theme.resistance : new Color(1f, 0.35f, 0.37f);
         static Color Dim => new Color(1, 1, 1, 0.62f);
 
         // Reference px the dock covers from the right edge (its width plus the margin) in a scene that reserves it.
@@ -125,6 +125,7 @@ namespace OhmsLaw
         readonly HashSet<string> aside = new HashSet<string>();
         RectTransform instruction, info, formula, popup, catcher, pulseRing, hintPill, badge;
         RectTransform hero, heroGlow, topStrip, stage, stageRow, popup3D, voltStrip;
+        CanvasGroup dockGroup;
         TextMeshProUGUI heroBig, heroSmall, popupTitle, popupCaption;
         RawImage popupView;
         CurrentEdge turnCurrent;
@@ -178,6 +179,19 @@ namespace OhmsLaw
         // the rim's opacity (1 = solid).
         public static void Card(RectTransform rect, float alpha = -1f, float corner = Corner)
         {
+            if (FigmaSkin.Available)
+            {
+                var image = rect.gameObject.AddComponent<Image>();
+                FigmaSkin.Apply(image, "Panel");
+                image.raycastTarget = true;
+                var exportedEdge = UI.Stretch("Edge", rect);
+                exportedEdge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+                var focus = exportedEdge.gameObject.AddComponent<Image>();
+                FigmaSkin.Apply(focus, "Focus");
+                focus.raycastTarget = false;
+                focus.enabled = false;
+                return;
+            }
             UI.Panel(rect, alpha < 0 ? CardFill : UI.Alpha(Glass, alpha), true, corner).raycastTarget = true;
             var plate = UI.Stretch("Plate", rect);
             plate.offsetMin = new Vector2(4f, 4f);
@@ -216,6 +230,7 @@ namespace OhmsLaw
         // the layer stays with the card (Clear() keeps it).
         public static void Brackets(RectTransform card, bool on, float inset = BracketInset)
         {
+            if (FigmaSkin.Available) return;
             var marks = card.Find("Brackets");
             if (!marks && !on) return;
             if (!marks)
@@ -244,6 +259,7 @@ namespace OhmsLaw
             Dock.anchorMin = new Vector2(1, 0);
             Dock.offsetMin = new Vector2(-Margin - NormalWidth, DockBottom);
             Dock.offsetMax = new Vector2(-Margin, -DockTop);
+            dockGroup = Dock.gameObject.AddComponent<CanvasGroup>();   // fades out while the data stage holds the centre
             Column = Stack("Column", Dock, Gap);
             Column.anchorMin = Vector2.zero;
             Column.anchorMax = Vector2.one;
@@ -326,11 +342,11 @@ namespace OhmsLaw
         }
 
         // A card fades in over PanelSeconds (0.22 s, ease-out) when it appears (instant under reduced motion); hiding is instant.
-        public static void FadeIn(RectTransform rect)
+        public static void FadeIn(RectTransform rect, float delay = 0f)
         {
             if (!rect) return;
             if (!rect.TryGetComponent(out CardFade fade)) fade = rect.gameObject.AddComponent<CardFade>();
-            fade.Restart();
+            fade.Restart(delay);
         }
 
         // A card's edge glows spark (pulsing) while the learner should act on it (Scene 11's graph); "" or null ends it.
@@ -343,7 +359,11 @@ namespace OhmsLaw
         void SetEdge(string name, Color color)
         {
             var edge = Block(name).Find("Edge");
-            if (edge && edge.TryGetComponent(out Image image)) image.color = color;
+            if (edge && edge.TryGetComponent(out Image image))
+            {
+                image.color = FigmaSkin.Available ? Color.white : color;
+                if (FigmaSkin.Available) image.enabled = color != CardLine;
+            }
         }
 
         // ------------------------------------------------------------------ play-test hooks
@@ -448,14 +468,15 @@ namespace OhmsLaw
             Color ink = kind == Kind.Primary ? Ink : kind == Kind.Ghost ? Muted : Paper;
             var fill = UI.Panel(rect, fillColor, true, corner);
             fill.raycastTarget = true;
+            bool exported = kind != Kind.Ghost && FigmaSkin.Apply(fill, kind + "Normal");
             Image outline = null;
-            if (kind == Kind.Secondary || kind == Kind.Raised)
+            if (!exported && (kind == Kind.Secondary || kind == Kind.Raised))
             {
                 var edge = UI.Stretch("Edge", rect);
                 edge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
                 outline = UI.Outline(edge, kind == Kind.Raised ? UI.Alpha(Accent, 0.35f) : ControlLine, corner, EdgeWidth);
             }
-            if (kind == Kind.Primary)
+            if (!exported && kind == Kind.Primary)
             {
                 // The gloss along the top and the glow outside: the reference's glossy amber action.
                 var shine = UI.Rect("Shine", rect, new Vector2(0, 1), new Vector2(0.5f, 1), new Vector2(0, -1f), new Vector2(-corner, height * 0.45f));
@@ -472,6 +493,7 @@ namespace OhmsLaw
             if (onClick != null) button.onClick.AddListener(onClick);
             button.onClick.AddListener(() => UiSounds.Play("click"));
             var hud = rect.gameObject.AddComponent<HudButton>();
+            if (exported) hud.figmaStyle = kind.ToString();
             hud.fill = fill;
             hud.fillColor = fillColor;
             hud.corner = corner;
@@ -487,9 +509,10 @@ namespace OhmsLaw
             row.childAlignment = kind == Kind.Raised ? TextAnchor.MiddleLeft : TextAnchor.MiddleCenter;
             row.childControlWidth = row.childControlHeight = true;
             row.childForceExpandWidth = row.childForceExpandHeight = false;
-            if (icon != null) Icon(rect, icon, 22f, ink);
+            var iconGraphic = icon != null ? Icon(rect, icon, 22f, ink) : null;
             var label = Text(rect, text, font, ink, TextAlignmentOptions.MidlineLeft);
             label.textWrappingMode = TextWrappingModes.NoWrap;
+            if (exported) hud.figmaForeground = new Graphic[] { label, iconGraphic };
             return button;
         }
 
@@ -507,10 +530,11 @@ namespace OhmsLaw
         {
             Controls = UI.Rect("UI_TopControls", Root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-Margin, -TopInset), new Vector2(0, ControlHeight));
             barFill = UI.Panel(Controls, UI.Alpha(Glass, BarAlpha), true, ControlHeight / 2f);
+            bool exportedBar = FigmaSkin.Apply(barFill, "Panel");
             barFill.raycastTarget = true;
             var edge = UI.Stretch("Edge", Controls);
             edge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-            UI.Outline(edge, CardLine, ControlHeight / 2f, 1.5f);
+            if (!exportedBar) UI.Outline(edge, CardLine, ControlHeight / 2f, 1.5f);
             var row = Controls.gameObject.AddComponent<HorizontalLayoutGroup>();
             row.padding = new RectOffset(6, 6, 6, 6);
             row.spacing = 4f;   // 4 + the 1 px rule + 4: 9 px between hit areas
@@ -555,12 +579,14 @@ namespace OhmsLaw
             var rect = UI.Rect("UI_ControlButton " + name, row, new Vector2(1, 1), new Vector2(1, 1), Vector2.zero, new Vector2(100, ControlItem));
             Fixed(rect, ControlItem);
             var fill = UI.Panel(rect, Color.clear, true, ControlItem / 2f);
+            bool exportedControl = FigmaSkin.Apply(fill, "SecondaryNormal");
             fill.raycastTarget = true;
             fill.raycastPadding = new Vector4(-4f, -6f, -4f, -6f);   // the hit area: the capsule's full 56 px and half of each gap
             var button = rect.gameObject.AddComponent<Button>();
             button.transition = Selectable.Transition.None;
             button.onClick.AddListener(() => { UiSounds.Play("click"); onClick(); });
             var hud = rect.gameObject.AddComponent<HudButton>();
+            if (exportedControl) hud.figmaStyle = "Secondary";
             hud.fill = fill;
             hud.fillColor = Color.clear;
             hud.corner = ControlItem / 2f;
@@ -573,6 +599,7 @@ namespace OhmsLaw
             line.childForceExpandWidth = line.childForceExpandHeight = false;
             iconImage = null;
             if (icon != null) iconImage = Icon(rect, icon, 20f, Paper);
+            else if (FigmaSkin.Available) iconImage = Icon(rect, "captions", 24f, Paper);
             else
             {
                 // The CC badge: a small outlined box with CC inside.
@@ -590,6 +617,7 @@ namespace OhmsLaw
             label.characterSpacing = 4f;
             label.textWrappingMode = TextWrappingModes.NoWrap;
             controlWords.Add(label.gameObject);
+            if (exportedControl) hud.figmaForeground = new Graphic[] { label, iconImage };
             return hud;
         }
 
@@ -647,10 +675,12 @@ namespace OhmsLaw
         void BuildHint()
         {
             hintPill = UI.Rect("UI_Hint", Root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-Margin, -(TopInset + ControlHeight + 10f)), new Vector2(0, 40));
-            UI.Panel(hintPill, UI.Alpha(Glass, BarAlpha), true, 20f).raycastTarget = false;
+            var hintSurface = UI.Panel(hintPill, UI.Alpha(Glass, BarAlpha), true, 20f);
+            FigmaSkin.Apply(hintSurface, "Panel");
+            hintSurface.raycastTarget = false;
             var edge = UI.Stretch("Edge", hintPill);
             edge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-            UI.Outline(edge, CardLine, 20f, EdgeWidth);
+            if (!FigmaSkin.Available) UI.Outline(edge, CardLine, 20f, EdgeWidth);
             var row = hintPill.gameObject.AddComponent<HorizontalLayoutGroup>();
             row.padding = new RectOffset(16, 18, 0, 0);
             row.spacing = 8f;
@@ -849,7 +879,7 @@ namespace OhmsLaw
             instruction = Block("Instruction");
             turnHeight = instruction.GetComponent<CardHeight>();
             turnEdge = instruction.Find("Edge").GetComponent<Image>();
-            turnCurrent = CurrentEdge.Add(instruction, Corner);   // v5: the current marching along the active turn card
+            if (!FigmaSkin.Available) turnCurrent = CurrentEdge.Add(instruction, Corner);
             var row = Row("Turn", instruction, 16f);
             badge = UI.Rect("Badge", row, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(60, 60));
             var element = badge.gameObject.AddComponent<LayoutElement>();
@@ -874,8 +904,8 @@ namespace OhmsLaw
             badgeFill.color = done ? Spark : listening ? new Color(1f, 1f, 1f, 0.08f) : UI.Alpha(Spark, 0.14f);
             badgeIcon.sprite = Icons.Get(done ? "check" : listening ? "volume" : "bolt");
             badgeIcon.color = done ? Ink : listening ? Muted : Spark;
-            turnEdge.color = done || listening ? CardLine : UI.Alpha(Accent, 0.9f);
-            turnCurrent.enabled = !done && !listening;
+            turnEdge.color = FigmaSkin.Available ? Color.white : done || listening ? CardLine : UI.Alpha(Accent, 0.9f);
+            if (turnCurrent) turnCurrent.enabled = !done && !listening;
             turnEyebrow.color = listening ? Muted : Spark;
         }
 
@@ -1144,22 +1174,31 @@ namespace OhmsLaw
                 : "R = V ÷ I";
             var calcLabel = Text(end, calc, 19f, Muted, TextAlignmentOptions.Center, false);
             Fixed(calcLabel.rectTransform, 26f);
+            // The one primary action after the case closes: the hands-on lab (shown only while one is offered); the replay
+            // steps down to secondary.
+            explore = Pill("Explore", end, "Explore Now", () => ExploreAction?.Invoke(), Kind.Primary, "bolt");
+            explore.gameObject.SetActive(false);
             Pill("Replay", end, "Replay the investigation", () =>
             {
                 var flow = ModuleFlow.Instance;
                 if (flow && flow.scenes != null && flow.scenes.Length > 0) flow.JumpToScene(flow.scenes[0]);
-            }, Kind.Primary, "replay");
+            }, Kind.Secondary, "replay");
             var more = Row("More", end, 10f);
             Fixed(more, ButtonHeight);
             Pill("Chapters", more, "Chapters", () => PauseMenu.Open(), Kind.Secondary, "list");
             Pill("Exit", more, "Exit", ModuleFlow.Exit, Kind.Ghost, "exit");
         }
 
+        // What the case-closed card's "Explore Now" opens (ExploreLab sets it where a bench can host the lab); null hides it.
+        public static System.Action ExploreAction;
+        Button explore;
+
         // The finale: the case-closed card takes the dock (the law it states replaces the formula and readings cards).
         public void End(bool on)
         {
             if (on)
             {
+                if (explore) explore.gameObject.SetActive(ExploreAction != null);
                 FormulaClear();
                 Show("Readings", false);
                 Show("Info", false);
@@ -1227,6 +1266,12 @@ namespace OhmsLaw
         public bool ReadingsOnTop { get; private set; }
         public bool Staged { get; private set; }
         public bool Popup3DOpen => popup3D && popup3D.gameObject.activeSelf;
+        // The centred surfaces on screen (WattsonGuide stands beside them); null until first shown.
+        public RectTransform StageRect => stage;
+        public RectTransform HeroRect => hero;
+        // While staged at least this much of the screen stays free on each side of the stage (Wattson stands there).
+        public const float StageSide = 300f;
+        TextMeshProUGUI stageCaption;
         // The 3D pop-up forwards pointer drags over its view here (area C turns the sample with them).
         public System.Action<Vector2> Popup3DDrag;
 
@@ -1265,14 +1310,17 @@ namespace OhmsLaw
             {
                 hero = Surface("UI_Hero", 0f, 0.5f, fitWidth: true, glass: 0.95f);
                 hero.GetComponent<VerticalLayoutGroup>().padding = new RectOffset(60, 60, 30, 34);
-                // The arrival: a spark ring leaves the plate's edge and fades (Follow), a pulse instead of a flat disc.
-                heroGlow = UI.Rect("Glow", hero, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-                heroGlow.SetAsFirstSibling();
-                heroGlow.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-                UI.Outline(heroGlow, Color.clear, Corner + 8f, 3f);
-                var frame = UI.Stretch("Frame", hero);
-                frame.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-                UI.Outline(frame, UI.Alpha(Accent, 0.8f), Corner, 2f);
+                if (!FigmaSkin.Available)
+                {
+                    // The legacy arrival ring; imported artwork already includes its border.
+                    heroGlow = UI.Rect("Glow", hero, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+                    heroGlow.SetAsFirstSibling();
+                    heroGlow.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+                    UI.Outline(heroGlow, Color.clear, Corner + 8f, 3f);
+                    var frame = UI.Stretch("Frame", hero);
+                    frame.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+                    UI.Outline(frame, UI.Alpha(Accent, 0.8f), Corner, 2f);
+                }
                 var boltBadge = UI.Rect("Bolt", hero, new Vector2(0, 1), new Vector2(0.5f, 0.5f), new Vector2(22, -22), new Vector2(40, 40));
                 boltBadge.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
                 var disc = boltBadge.gameObject.AddComponent<Image>();
@@ -1319,9 +1367,10 @@ namespace OhmsLaw
             }
         }
 
-        // "stage 1|0": the Table, Graph and Formula blocks move to one wide glass plate in the centre of the free frame
-        // (Table left, Graph right, Formula under, the plate at StageScale) and back to the dock. The turn card and the
-        // clue stay in the dock; the dock's reservation is untouched, so the camera never jumps.
+        // "stage 1|0": the Table, Graph and Formula blocks move to one wide glass plate in the centre of the screen (Table
+        // left, Graph right, Formula under, the plate at StageScale, never closer than StageSide to either edge so Wattson
+        // can stand beside it) and back to the dock. The table comes first, the graph a beat later. The dock (the turn card,
+        // the clue) fades out under the stage while it shows; its reservation is untouched, so the camera never jumps.
         public void Stage(bool on)
         {
             if (Staged == on) return;
@@ -1340,10 +1389,14 @@ namespace OhmsLaw
                 Block("Formula").SetParent(stage, false);
                 Width(Block("Table"), ObservationTableUI.Canvas.x * TableScale + 2f * Pad);
                 Width(Block("Graph"), GraphUI.Canvas.x * GraphScale + 2f * Pad);
+                StageCaption(true);
                 FadeIn(stage);   // no Pop: the plate keeps its StageScale
+                FadeIn(Block("Table"));
+                FadeIn(Block("Graph"), StageStagger);
             }
             else
             {
+                StageCaption(false);
                 if (stage) stage.gameObject.SetActive(false);
                 Width(Block("Table"), -1f);
                 Width(Block("Graph"), -1f);
@@ -1352,6 +1405,22 @@ namespace OhmsLaw
                 Place(Block("Formula"));
             }
             fittedLines = -1;   // the formula lines refit to their new width
+        }
+
+        // The graph follows the table onto the stage this much later, so the eye takes one in, then the other.
+        const float StageStagger = 0.35f;
+
+        // Under the staged graph: what its slope is with V up the side and I along the bottom, and what it would be the other
+        // way round, so the slope is never read as R off an I-against-V plot.
+        void StageCaption(bool on)
+        {
+            if (!graph) return;
+            if (on && !stageCaption)
+            {
+                stageCaption = Text(Block("Graph"), Symbols("slope = ΔV ÷ ΔI = R\n(an I-against-V plot would give 1/R)"), 18f, Muted, TextAlignmentOptions.Center, false);
+                Fixed(stageCaption.rectTransform, 50f);
+            }
+            if (stageCaption) stageCaption.gameObject.SetActive(on);
         }
 
         static void Width(RectTransform block, float width)
@@ -1443,15 +1512,21 @@ namespace OhmsLaw
                 hero.anchoredPosition = new Vector2(free / 2f, midY + 40f);
                 heroT += Time.unscaledDeltaTime;
                 float k = ReducedMotion.On ? 0f : 1f - Mathf.Clamp01(heroT / 0.9f);
-                heroGlow.GetComponent<Image>().color = UI.Alpha(Glow, 0.8f * k);
-                heroGlow.sizeDelta = hero.rect.size + Vector2.one * (16f + 110f * (1f - k * k));
+                if (heroGlow)
+                {
+                    heroGlow.GetComponent<Image>().color = UI.Alpha(Glow, 0.8f * k);
+                    heroGlow.sizeDelta = hero.rect.size + Vector2.one * (16f + 110f * (1f - k * k));
+                }
             }
             if (stage && stage.gameObject.activeSelf)
             {
+                // Centred on the whole screen (the dock fades out under it), leaving StageSide free on each side for Wattson.
+                float screen = Root.rect.width;
                 float fit = StageFit(top, DockBottom, stage.rect.height, out float y);
-                stage.localScale = Vector3.one * Mathf.Min(fit, (free - 2f * Margin) / Mathf.Max(1f, stage.rect.width)); // and never wider than the free frame (4:3 screens)
-                stage.anchoredPosition = new Vector2(free / 2f, y);
+                stage.localScale = Vector3.one * Mathf.Min(fit, (screen - 2f * StageSide) / Mathf.Max(1f, stage.rect.width));
+                stage.anchoredPosition = new Vector2(screen / 2f, y);
             }
+            if (LawReveal.Instance) LawReveal.Instance.Place(Root.rect.width / 2f, top, DockBottom, Root.rect.width - 2f * StageSide); // centred on the whole screen, room for Wattson either side
             if (popup3D && popup3D.gameObject.activeSelf) popup3D.anchoredPosition = new Vector2(free / 2f, midY);
             if (voltStrip && voltStrip.gameObject.activeSelf) voltStrip.anchoredPosition = new Vector2(free / 2f, VoltStripBottom);
         }
@@ -1471,6 +1546,7 @@ namespace OhmsLaw
         {
             SetTitle(sceneTitle);
             HeroClear();
+            LawReveal.Clear();
             Popup3DClose();
             Popup3DDrag = null;
             TopReadings(false);
@@ -1561,7 +1637,7 @@ namespace OhmsLaw
             {
                 folded = idle;
                 foreach (var word in controlWords) word.SetActive(!idle);
-                barFill.color = UI.Alpha(Glass, idle ? 0.78f : BarAlpha);
+                barFill.color = FigmaSkin.Available ? Color.white : UI.Alpha(Glass, idle ? 0.78f : BarAlpha);
             }
 
             // The turn card's confirmation leaves after its moment (see Settle: not while an activity's controls sit under
@@ -1586,6 +1662,12 @@ namespace OhmsLaw
             float frame = FrameTarget;
             framed = ReducedMotion.On ? frame : Mathf.Lerp(framed, frame, 1 - Mathf.Exp(-8f * Time.unscaledDeltaTime));
             if (Mathf.Abs(framed - frame) < 0.5f) framed = frame;
+            // The dock steps out of sight (and out of reach) under the data stage and the finale's law, and back after (the
+            // law surface carries its own hint while the learner builds it).
+            bool centre = Staged || LawReveal.Instance;
+            float dockAlpha = centre ? 0f : 1f;
+            dockGroup.alpha = ReducedMotion.On ? dockAlpha : Mathf.MoveTowards(dockGroup.alpha, dockAlpha, Time.unscaledDeltaTime / 0.25f);
+            dockGroup.blocksRaycasts = dockGroup.interactable = !centre;
             if (!Mathf.Approximately(Dock.offsetMin.x, -Margin - shownWidth))
             {
                 Dock.offsetMin = new Vector2(-Margin - shownWidth, DockBottom);
@@ -1710,22 +1792,24 @@ namespace OhmsLaw
     }
 
     // Entrance of a card that just appeared: alpha 0 -> 1 over LessonPanel.PanelSeconds of unscaled time, decelerating
-    // (none under reduced motion: it simply appears).
+    // (none under reduced motion: it simply appears), optionally after a wait (the stage's graph follows its table).
     public class CardFade : MonoBehaviour
     {
         CanvasGroup group;
-        float t = 1f;
+        float t = 1f, wait;
 
-        public void Restart()
+        public void Restart(float delay = 0f)
         {
             if (!group && !TryGetComponent(out group)) group = gameObject.AddComponent<CanvasGroup>();
             t = ReducedMotion.On ? 1f : 0f;
+            wait = ReducedMotion.On ? 0f : delay;
             group.alpha = t;
         }
 
         void Update()
         {
             if (t >= 1f) return;
+            if (wait > 0f) { wait -= Time.unscaledDeltaTime; group.alpha = 0f; return; }
             t = Mathf.Min(1f, t + Time.unscaledDeltaTime / LessonPanel.PanelSeconds);
             group.alpha = 1f - (1f - t) * (1f - t);
         }

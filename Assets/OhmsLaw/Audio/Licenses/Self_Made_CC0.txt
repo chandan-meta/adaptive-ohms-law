@@ -1,0 +1,2 @@
+Self-made sounds, released CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/):
+- SFX_Wattson_Snap.wav (Wattson's finger snap with an electric sparkle tail), synthesized by Tools/synth_snap.py on 2026-10-22; no recorded or third-party material.

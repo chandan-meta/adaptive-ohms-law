@@ -21,6 +21,7 @@
 *.userprefs
 *.pidb
 *.booproj
+*.blend[0-9]
 *.svd
 *.pdb
 *.mdb

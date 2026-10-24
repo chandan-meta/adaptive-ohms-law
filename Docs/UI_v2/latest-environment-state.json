@@ -1,0 +1,282 @@
+{
+  "date": "2026-10-23",
+  "source": "Fresh native captures from current saved Unity scenes. References: user-supplied October 22 gameplay shots.",
+  "figma": {
+    "gameplay": {
+      "mutatedNodeIds": [
+        "68:2",
+        "68:3",
+        "68:87",
+        "68:88",
+        "68:140",
+        "68:141",
+        "68:197",
+        "68:198",
+        "68:260",
+        "68:261",
+        "68:333",
+        "68:334",
+        "68:407",
+        "68:408",
+        "68:466",
+        "68:467",
+        "68:531",
+        "68:532",
+        "70:477",
+        "70:478",
+        "70:671",
+        "70:672",
+        "70:810",
+        "70:811",
+        "70:952",
+        "70:953",
+        "70:1091",
+        "70:1092",
+        "70:1230",
+        "70:1231",
+        "70:1323",
+        "70:1324",
+        "70:1482",
+        "70:1483",
+        "70:1571",
+        "70:1572",
+        "71:1425",
+        "71:1426",
+        "71:1511",
+        "71:1512",
+        "71:1591",
+        "71:1592",
+        "71:1668",
+        "71:1669",
+        "71:1748",
+        "71:1749",
+        "71:1831",
+        "71:1832",
+        "71:1899",
+        "71:1900",
+        "74:1842"
+      ],
+      "createdNodeIds": [],
+      "updatedScreens": 25,
+      "frames": [
+        {
+          "id": "65:3",
+          "background": "68:2",
+          "imageHash": "6ac7ef85b4cc15f461877d920dccda00cf5e2d3b"
+        },
+        {
+          "id": "65:4",
+          "background": "68:87",
+          "imageHash": "e294d92de606f29b98d43fdbaa21bc8c598d4045"
+        },
+        {
+          "id": "65:5",
+          "background": "68:140",
+          "imageHash": "1567e98c442d7956c410f22d6fc9375e05bd9307"
+        },
+        {
+          "id": "65:6",
+          "background": "68:197",
+          "imageHash": "1567e98c442d7956c410f22d6fc9375e05bd9307"
+        },
+        {
+          "id": "65:7",
+          "background": "68:260",
+          "imageHash": "1567e98c442d7956c410f22d6fc9375e05bd9307"
+        },
+        {
+          "id": "65:8",
+          "background": "68:333",
+          "imageHash": "1567e98c442d7956c410f22d6fc9375e05bd9307"
+        },
+        {
+          "id": "65:9",
+          "background": "68:407",
+          "imageHash": "1567e98c442d7956c410f22d6fc9375e05bd9307"
+        },
+        {
+          "id": "65:10",
+          "background": "68:466",
+          "imageHash": "e33cb054f5bf4c2999df724b35ad8fd94ddef72c"
+        },
+        {
+          "id": "65:11",
+          "background": "68:531",
+          "imageHash": "e33cb054f5bf4c2999df724b35ad8fd94ddef72c"
+        },
+        {
+          "id": "65:12",
+          "background": "70:477",
+          "imageHash": "83277a48e468995a0a0a0ce5fe637bf2c5aa4b98"
+        },
+        {
+          "id": "65:13",
+          "background": "70:671",
+          "imageHash": "83277a48e468995a0a0a0ce5fe637bf2c5aa4b98"
+        },
+        {
+          "id": "65:14",
+          "background": "70:810",
+          "imageHash": "83277a48e468995a0a0a0ce5fe637bf2c5aa4b98"
+        },
+        {
+          "id": "65:15",
+          "background": "70:952",
+          "imageHash": "6a29857a105dc41bfd1c312219a5af7c02f82154"
+        },
+        {
+          "id": "65:16",
+          "background": "70:1091",
+          "imageHash": "6a29857a105dc41bfd1c312219a5af7c02f82154"
+        },
+        {
+          "id": "65:17",
+          "background": "70:1230",
+          "imageHash": "8d0143882d0a2d97c6f92915802be011ef50feb9"
+        },
+        {
+          "id": "65:18",
+          "background": "70:1323",
+          "imageHash": "8d0143882d0a2d97c6f92915802be011ef50feb9"
+        },
+        {
+          "id": "65:19",
+          "background": "70:1482",
+          "imageHash": "8d0143882d0a2d97c6f92915802be011ef50feb9"
+        },
+        {
+          "id": "65:20",
+          "background": "70:1571",
+          "imageHash": "8d0143882d0a2d97c6f92915802be011ef50feb9"
+        },
+        {
+          "id": "65:21",
+          "background": "71:1425",
+          "imageHash": "0e9b98c0ee8ca8931d90d7d73c47b3d37b409b7b"
+        },
+        {
+          "id": "65:22",
+          "background": "71:1511",
+          "imageHash": "0e9b98c0ee8ca8931d90d7d73c47b3d37b409b7b"
+        },
+        {
+          "id": "65:23",
+          "background": "71:1591",
+          "imageHash": "0e9b98c0ee8ca8931d90d7d73c47b3d37b409b7b"
+        },
+        {
+          "id": "65:24",
+          "background": "71:1668",
+          "imageHash": "0e9b98c0ee8ca8931d90d7d73c47b3d37b409b7b"
+        },
+        {
+          "id": "65:25",
+          "background": "71:1748",
+          "imageHash": "0e9b98c0ee8ca8931d90d7d73c47b3d37b409b7b"
+        },
+        {
+          "id": "65:26",
+          "background": "71:1831",
+          "imageHash": "2337bb0aa41e736194b896e13ff2522217e2431a"
+        },
+        {
+          "id": "65:27",
+          "background": "71:1899",
+          "imageHash": "2337bb0aa41e736194b896e13ff2522217e2431a"
+        }
+      ],
+      "oldPreviewHashesRemaining": []
+    },
+    "desktop": {
+      "pageId": "2:4",
+      "mutatedNodeIds": [
+        "5:1955",
+        "5:2003",
+        "5:2047",
+        "5:2091",
+        "5:2135",
+        "5:2183",
+        "5:2243",
+        "5:2287",
+        "5:2331",
+        "5:2382",
+        "5:2437",
+        "5:2490",
+        "5:2562",
+        "5:2639",
+        "5:2924",
+        "5:3150",
+        "5:3198",
+        "5:3250",
+        "5:3322",
+        "5:3370",
+        "5:3435",
+        "5:3497",
+        "5:3547",
+        "5:3590",
+        "5:3637",
+        "5:3680",
+        "5:3737"
+      ],
+      "createdNodeIds": [],
+      "updatedBackgrounds": 27
+    },
+    "tablet": {
+      "pageId": "2:5",
+      "mutatedNodeIds": [
+        "7:1932",
+        "7:1979",
+        "7:2022",
+        "7:2065",
+        "7:2108",
+        "7:2155",
+        "7:2214",
+        "7:2320",
+        "7:2363",
+        "7:2413",
+        "7:2467",
+        "7:2519",
+        "7:2590",
+        "7:2666",
+        "7:3015",
+        "7:3240",
+        "7:3287",
+        "7:3401",
+        "7:3472",
+        "7:3519",
+        "7:3583",
+        "7:3644",
+        "7:3693",
+        "7:3735",
+        "7:3844",
+        "7:3886",
+        "7:3942",
+        "12:3237",
+        "12:3305"
+      ],
+      "createdNodeIds": [],
+      "updatedBackgrounds": 29
+    },
+    "comparison": {
+      "mutatedNodeIds": [
+        "37:11"
+      ],
+      "createdNodeIds": [],
+      "archivePreserved": true
+    }
+  },
+  "assets": [
+    "Scene04_SH01a_Arrival.png",
+    "Scene04_SH09b_Aim.png",
+    "Scene06_Cam_Wire_Inside.png",
+    "Scene09_Cam_Bench_Present.png",
+    "Scene10_Cam_Bench_Present.png",
+    "Scene11_Cam_Bench_Study.png",
+    "Scene12_Cam_Bench_Present.png",
+    "Scene13_Cam_Bench_Study.png",
+    "Scene13_Cam_Bench_Wide.png"
+  ],
+  "renderer": "Existing LabShots.Shot, synchronous shader compilation. WireInterior and character poses sampled through existing editor-safe methods. No scene saves or rebuilds.",
+  "limitations": "Native edit-mode capture uses scene cameras and sampled poses; not an exact replay of every screenshot's animation time or transient VFX.",
+  "temporaryHelperRemoved": true
+}

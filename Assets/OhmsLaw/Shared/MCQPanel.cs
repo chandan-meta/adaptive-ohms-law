@@ -9,11 +9,11 @@ namespace OhmsLaw
     // A multiple-choice question in the lesson panel's MCQ block: the question (quantity words in their colours) and 2-4
     // option rows, each a full-width Raised button 64 px tall with its letter in a badge. Select() marks the pick
     // (electric-blue row, ink text) and steps the others back. The caller decides what an answer means and writes it to
-    // LearnerSession; a graded quick check then tells the panel the verdict with Mark() (SceneDirector.Gates.QuickCheck,
-    // judge: true), or hands `correctIndex` to the constructor and Select() grades the pick itself. Either way the row
-    // turns success green or error red (ink text, a check or a cross), a chip says "Correct!" / "Not quite" and fades
-    // after ChipSeconds, and a wrong row shakes. correctIndex -1 (the default) leaves the pick unmarked: Scene 6's
-    // prediction, and the 3 V wager the bench settles later.
+    // LearnerSession; a detective challenge (SceneDirector.Gates.Challenge) tells the panel the verdict with Mark(), takes
+    // a missed row out with Disable(), offers the rest again with Reopen() and shows the answer with Reveal() after a
+    // second miss. A caller may instead hand `correctIndex` to the constructor and Select() grades the pick itself. Either
+    // way the row turns success green or error red (ink text, a check or a cross), a chip says "Correct!" / "Not quite"
+    // and fades after ChipSeconds, and a wrong row shakes. correctIndex -1 (the default) leaves the pick unmarked.
     public class MCQPanel
     {
         const float Badge = 40f, OptionFont = 22f, QuestionFont = 26f, HintFont = 17f, RowHeight = 64f, ChipHeight = 36f;
@@ -33,7 +33,9 @@ namespace OhmsLaw
         TextMeshProUGUI chipText;
         public int Picked { get; private set; } = -1;
 
-        public MCQPanel(string questionText, string[] optionTexts, int correctIndex = -1)
+        // `eyebrow` names the card ("Detective challenge"); null keeps the old pair, "Quick check" for a "[QC]" question,
+        // else "Your prediction".
+        public MCQPanel(string questionText, string[] optionTexts, int correctIndex = -1, string eyebrow = null)
         {
             this.correctIndex = correctIndex;
             var lesson = LessonPanel.Instance;
@@ -45,7 +47,7 @@ namespace OhmsLaw
             bool quick = questionText != null && questionText.StartsWith("[QC]");
             if (quick) questionText = questionText.Substring(4).TrimStart();
             LessonPanel.Brackets(block, quick);   // the quick check is a title-bearing card; the prediction and the law tiles are not
-            LessonPanel.Eyebrow(panel, quick ? "Quick check" : "Your prediction").gameObject.name = "Eyebrow";   // the agent reads "Label" as the question
+            LessonPanel.Eyebrow(panel, eyebrow ?? (quick ? "Quick check" : "Your prediction")).gameObject.name = "Eyebrow";   // the agent reads "Label" as the question
             question = LessonPanel.Text(panel, LessonPanel.Quantities(questionText), QuestionFont, LessonPanel.Paper);
             var gap = UI.Rect("Gap", panel, new Vector2(0, 1), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
             LessonPanel.Fixed(gap, 4f);
@@ -70,6 +72,7 @@ namespace OhmsLaw
                 var disc = badge.gameObject.AddComponent<Image>();
                 disc.sprite = UI.Circle();
                 disc.color = new Color(1f, 1f, 1f, 0.10f);
+                FigmaSkin.Apply(disc, "Icon-choice", false);
                 disc.raycastTarget = false;
                 var mark = UI.Label(badge, letter, 18f, LessonPanel.Paper);
                 mark.fontStyle = FontStyles.Bold;
@@ -134,9 +137,9 @@ namespace OhmsLaw
                 if (!options[i]) continue;
                 var row = options[i].transform;
                 bool chosen = i == index;
-                if (row.TryGetComponent(out HudButton hud)) hud.active = chosen;
+                if (row.TryGetComponent(out HudButton hud)) { hud.active = chosen; if (FigmaSkin.Available) hud.figmaState = chosen ? "Selected" : null; }
                 if (row.TryGetComponent(out Button button)) button.interactable = true;   // no 36 % dim on the chosen row
-                foreach (var label in row.GetComponentsInChildren<TextMeshProUGUI>()) label.color = chosen ? (label.transform.parent.name == "Letter" ? LessonPanel.Paper : LessonPanel.Ink) : LessonPanel.Paper;
+                foreach (var label in row.GetComponentsInChildren<TextMeshProUGUI>()) label.color = FigmaSkin.Available ? LessonPanel.Paper : chosen ? (label.transform.parent.name == "Letter" ? LessonPanel.Paper : LessonPanel.Ink) : LessonPanel.Paper;
                 var badge = row.Find("Letter");
                 if (badge && badge.TryGetComponent(out Image disc)) disc.color = chosen ? LessonPanel.Ink : new Color(1f, 1f, 1f, 0.10f);
                 if (!row.TryGetComponent(out CanvasGroup group)) group = row.gameObject.AddComponent<CanvasGroup>();
@@ -167,11 +170,18 @@ namespace OhmsLaw
                 hud.fillColor = hud.activeFill = color;
                 hud.outlineColor = hud.activeOutline = color;
                 hud.hoverFill = Color.clear;
+                if (FigmaSkin.Available) hud.figmaState = color == RightMark ? "Correct" : color == WrongMark ? "Incorrect" : "Selected";
             }
             options[index].color = color;
-            foreach (var label in row.GetComponentsInChildren<TextMeshProUGUI>()) label.color = label.transform.parent.name == "Letter" ? LessonPanel.Paper : LessonPanel.Ink;
+            if (FigmaSkin.Available) FigmaSkin.Apply(options[index], color == RightMark ? "RaisedCorrect" : color == WrongMark ? "RaisedIncorrect" : "RaisedSelected");
+            foreach (var label in row.GetComponentsInChildren<TextMeshProUGUI>()) label.color = FigmaSkin.Available ? LessonPanel.Paper : label.transform.parent.name == "Letter" ? LessonPanel.Paper : LessonPanel.Ink;
             var badge = row.Find("Letter");
             if (badge && badge.TryGetComponent(out Image disc)) disc.color = LessonPanel.Ink;
+            if (FigmaSkin.Available && badge)
+            {
+                FigmaSkin.Apply(badge.GetComponent<Image>(), color == RightMark ? "Icon-choice-correct" : "Icon-choice-incorrect", false);
+                foreach (var label in badge.GetComponentsInChildren<TextMeshProUGUI>()) label.gameObject.SetActive(false);
+            }
         }
 
         // The verdict chip under the options: a hugging pill in the mark's colour, an icon and a word in ink.
@@ -205,6 +215,36 @@ namespace OhmsLaw
             disabled[index] = true;
             Fill(index, mark);
             options[index].GetComponent<Button>().interactable = false;
+        }
+
+        // A retry: the rows not yet tried come back to full strength and take taps again (the tried ones keep their mark).
+        public void Reopen()
+        {
+            Picked = -1;
+            for (int i = 0; i < options.Length; i++)
+            {
+                if (!options[i] || disabled[i]) continue;
+                var row = options[i].transform;
+                if (row.TryGetComponent(out HudButton hud)) { hud.active = false; hud.figmaState = null; }
+                foreach (var label in row.GetComponentsInChildren<TextMeshProUGUI>()) label.color = LessonPanel.Paper;
+                var badge = row.Find("Letter");
+                if (badge && badge.TryGetComponent(out Image disc)) disc.color = new Color(1f, 1f, 1f, 0.10f);
+                if (FigmaSkin.Available && badge)
+                {
+                    FigmaSkin.Apply(badge.GetComponent<Image>(), "Icon-choice", false);
+                    foreach (var label in badge.GetComponentsInChildren<TextMeshProUGUI>(true)) label.gameObject.SetActive(true);
+                }
+                if (row.TryGetComponent(out CanvasGroup group)) { group.alpha = 1f; group.interactable = true; }
+                if (row.TryGetComponent(out Button button)) button.interactable = true;
+            }
+        }
+
+        // The answer after two misses: the right row turns green with the chip's own word, no verdict sound.
+        public void Reveal(int index)
+        {
+            if (index < 0 || index >= options.Length || !options[index]) return;
+            Fill(index, RightMark);
+            Chip("Here's the answer", RightMark, "check");
         }
 
         public void Hint(string text)

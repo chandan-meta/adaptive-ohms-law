@@ -23011,6 +23011,7 @@ MonoBehaviour:
   gain: 1
   trim: 1
   group: 
+  carry: 1
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1
@@ -28743,6 +28744,7 @@ MonoBehaviour:
   voltmeterPlaced: 0
   controlsOpen: 0
   targetAmps: -1
+  resistanceOverride: -1
   ammeter: {fileID: 1225850677}
   voltmeter: {fileID: 1565629001}
   key: {fileID: 519204631}
@@ -39477,6 +39479,7 @@ MonoBehaviour:
   gain: 0.35
   trim: 1
   group: 
+  carry: 1
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1
@@ -40206,6 +40209,7 @@ MonoBehaviour:
   gain: 0.32
   trim: 1
   group: 
+  carry: 1
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1
@@ -66333,6 +66337,7 @@ MonoBehaviour:
   gain: 0.4
   trim: 1
   group: 
+  carry: 1
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1
@@ -74335,7 +74340,6 @@ MonoBehaviour:
   matchCutFrom: Scene07_BackToOhm
   entryCamera: {fileID: 1153901108}
   buildMode: 0
-  showLearnerPrediction: 1
   dockWidth: 0
   wattson: {fileID: 1193557803}
   wire: {fileID: 0}
@@ -97382,6 +97386,7 @@ MonoBehaviour:
   gain: 0.5
   trim: 1
   group: 
+  carry: 1
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1
@@ -97961,6 +97966,7 @@ MonoBehaviour:
   gain: 1
   trim: 1
   group: 
+  carry: 1
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1
@@ -103573,6 +103579,7 @@ MonoBehaviour:
   gain: 0.32
   trim: 1
   group: 
+  carry: 1
   bgm: {fileID: 0}
   playOnStart: 1
   loopBGM: 1

@@ -15,7 +15,7 @@ namespace OhmsLaw
     }
 
     // The modern bench: variable DC source, ammeter (series), voltmeter (parallel across XY), nichrome wire XY, key.
-    // Readings: voltmeter = V, ammeter = V / R from ExperimentData. The nichrome wire never glows.
+    // Readings: voltmeter = V, ammeter = V / R (ExperimentData's R, or the Explore lab's override). The nichrome wire never glows.
     // The instruments are the imported models: needles swing from their modelled rest pose about their own axis,
     // the source knob turns with the set voltage and its pilot lamp lights while the key is closed. A magenta pulse
     // runs X → Y along the rod when the ammeter snaps in and when the key closes (or when a cue shows it).
@@ -36,6 +36,8 @@ namespace OhmsLaw
         [Tooltip("Current the running target activity asks for (S11_Target, S13_Apply), in amperes; negative when none. The readings panel shows it; Ask Wattson hints toward it.")] public float targetAmps = -1f;
         public float PreviousVoltage { get; private set; }
         public float StartVoltage { get; private set; }
+        [Tooltip("The Explore lab's wire choice, in ohms; 0 or less is ExperimentData's (the nichrome wire XY, 5 Ω). The lesson scenes never set it.")] public float resistanceOverride = -1f;
+        public float Resistance => resistanceOverride > 0f ? resistanceOverride : ExperimentData.Main.resistance;
 
         [Header("Parts")]
         public Transform ammeter, voltmeter, key, keyLever;
@@ -75,9 +77,6 @@ namespace OhmsLaw
         [Header("Learner input")]
         [Tooltip("Part the learner may select right now: \"ammeter\", \"voltmeter\" or empty.")] public string draggable = "";
         public bool keyArmed;
-        // The part the learner has selected (tapped) and not yet placed: it lifts and waits for a tap on its slot.
-        public string SelectedPart { get; private set; } = "";
-
         public event Action<string> Placed;
         public event Action<string> Selected;
         public event Action<string> WrongPart; // a tap on the meter that is not the one wanted now (still in the tray)
@@ -87,26 +86,25 @@ namespace OhmsLaw
         Quaternion ammeterZero, voltmeterZero, knobZero;
         Vector3 seriesGlowScale, parallelGlowScale, highlightScale;
         bool lampLit;
-        Transform dragging;
-        Vector3 dragHome, selectedHome;
         Transform bench => transform;
-        Vector2 pressAt;
-        bool moving;
         Coroutine pulsing;
 
         public float Volts => VoltsAt(state.voltage);
         public float Amps => AmpsAt(state.voltage);
         // What the meters would read at another source voltage with the circuit as it is now ("was" readings, previews).
         public float VoltsAt(float volts) => state.keyClosed && ammeterPlaced && voltmeterPlaced ? volts : 0;
-        public float AmpsAt(float volts) => state.keyClosed && ammeterPlaced ? ExperimentData.Main.CurrentAt(volts) : 0;
+        public float AmpsAt(float volts) => state.keyClosed && ammeterPlaced ? volts / Resistance : 0;
 
         public void Place(string part)
         {
             var t = Part(part);
-            if (t && !IsPlaced(part)) StartCoroutine(Fly(t, part == "ammeter" ? ammeterSlot : voltmeterSlot, part));
+            if (t && !IsPlaced(part) && !InFlight(part)) StartCoroutine(Fly(t, part == "ammeter" ? ammeterSlot : voltmeterSlot, part));
         }
 
         public bool IsPlaced(string part) => part == "ammeter" ? ammeterPlaced : voltmeterPlaced;
+        // On its way to its slot: a second tap, Enter or an auto-place during the flight never starts another one.
+        public bool InFlight(string part) => flying.Contains(part);
+        readonly System.Collections.Generic.HashSet<string> flying = new System.Collections.Generic.HashSet<string>();
 
         // Snaps a part straight into its slot (scene setup, hand-offs).
         public void PlaceNow(string part)
@@ -163,34 +161,28 @@ namespace OhmsLaw
         {
             if (part == "ammeter") { ammeterPlaced = true; PlayPulse(); } else voltmeterPlaced = true;
             if (draggable == part) draggable = "";
-            if (SelectedPart == part) SelectedPart = "";
             Placed?.Invoke(part);
         }
 
+        // One tap and the part flies home: a lift off the tray, an arc over the bench, a soft settle into its slot.
+        public const float FlySeconds = 0.6f;
+
         IEnumerator Fly(Transform part, Transform slot, string name)
         {
+            if (!flying.Add(name)) yield break;
             Vector3 from = part.position;
             Quaternion turn = part.rotation;
-            for (float t = 0; t < 1; t += Time.deltaTime / 0.45f)
+            float arc = Mathf.Clamp(Vector3.Distance(from, slot.position) * 0.35f, 0.08f, 0.2f);
+            for (float t = 0; t < 1; t += Time.deltaTime / FlySeconds)
             {
                 float e = Mathf.SmoothStep(0, 1, t);
-                part.SetPositionAndRotation(Vector3.Lerp(from, slot.position, e) + Vector3.up * Mathf.Sin(e * Mathf.PI) * 0.12f, Quaternion.Slerp(turn, slot.rotation, e));
+                part.SetPositionAndRotation(Vector3.Lerp(from, slot.position, e) + Vector3.up * Mathf.Sin(e * Mathf.PI) * arc, Quaternion.Slerp(turn, slot.rotation, e));
                 yield return null;
             }
             part.SetPositionAndRotation(slot.position, slot.rotation);
+            flying.Remove(name);
             if (sfx && snap) sfx.PlayOneShot(snap);
             SetPlaced(name);
-        }
-
-        IEnumerator ShakeHome(Transform part, Vector3 home)
-        {
-            Vector3 from = part.position;
-            for (float t = 0; t < 1; t += Time.deltaTime / 0.5f)
-            {
-                part.position = Vector3.Lerp(from, home, Mathf.SmoothStep(0, 1, t)) + part.right * (Mathf.Sin(t * 40f) * 0.02f * (1 - t));
-                yield return null;
-            }
-            part.position = home;
         }
 
         // The imported pivots rest tilted with the dial (niddle_grp Euler (47, 0, 58)): every swing is relative to that pose.
@@ -214,7 +206,6 @@ namespace OhmsLaw
         void Update()
         {
             Pointing();
-            Lift();
 
             float ease = 1 - Mathf.Exp(-6f * Time.deltaTime);
             shownVolts = Mathf.Lerp(shownVolts, Volts, ease);
@@ -233,7 +224,9 @@ namespace OhmsLaw
             var palette = UI.Theme;
             Color lit = palette ? palette.current : new Color(1f, 0.72f, 0.19f);
             Color path = Color.clear;
-            if (ammeterPlaced && showPath) { path = lit; if (!state.keyClosed) path.a *= 0.4f; } // open key: the route is marked, not lit; full on CloseKey (additive SrcAlpha, so alpha is brightness)
+            // Open key: the route is marked, not lit. Closed: it brightens with the current (additive SrcAlpha, so alpha is
+            // brightness), never below a quarter, full at the ammeter's full scale.
+            if (ammeterPlaced && showPath) { path = lit; path.a *= state.keyClosed ? Mathf.Lerp(0.25f, 1f, Mathf.Clamp01(shownAmps / ammeterFullScale)) : 0.4f; }
             Tint(currentPath, path);
             Tint(currentPathReturn, path);
             if (ammeterLeads && ammeterLeads.activeSelf != ammeterPlaced) ammeterLeads.SetActive(ammeterPlaced);
@@ -332,9 +325,8 @@ namespace OhmsLaw
             sourceBody.SetPropertyBlock(block, lampMaterialIndex);
         }
 
-        // Select the part with a tap (it lifts), then tap the glowing slot to place it, or drag it there; a tap on the slot
-        // alone places it too. Tap the key to close the circuit. Mouse and touch. Nothing while the learner has pressed
-        // PAUSE (a part mid-drag waits where it is).
+        // One tap on the wanted meter (or on its glowing slot) flies it into place; a tap on the other meter says which it
+        // was. Tap the key to close the circuit. Mouse and touch. Nothing while the learner has pressed PAUSE.
         void Pointing()
         {
             var pointer = Pointer.current;
@@ -352,36 +344,20 @@ namespace OhmsLaw
                 Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
                 bool Under(Transform t) { if (t) foreach (var h in hits) if (h.transform.IsChildOf(t)) return true; return false; }
                 if (keyArmed && Under(key)) { CloseKey(); return; }
+                // One click: a tap on the meter that is wanted now sends it straight to its slot (no select-then-place).
                 if (part && Under(part))
                 {
-                    if (SelectedPart != draggable) { SelectedPart = draggable; selectedHome = part.position; Selected?.Invoke(draggable); }
-                    dragging = part; dragHome = selectedHome; pressAt = screen; moving = false;
+                    Selected?.Invoke(draggable);
+                    Place(draggable);
                     return;
                 }
                 string other = draggable == "ammeter" ? "voltmeter" : "ammeter";
-                if (part && !IsPlaced(other) && Under(Part(other))) { WrongPart?.Invoke(other); return; }
+                if (part && !IsPlaced(other) && !InFlight(other) && Under(Part(other))) { WrongPart?.Invoke(other); return; }
                 // The highlighted position: tapping the slot (or its glow) places the part, selected or not.
                 var first = hits[0].transform;
                 if (part && slot && (first.IsChildOf(slot) || first == bench) && SlotHit(cam, screen, slot))
-                    StartCoroutine(Fly(part, slot, draggable));
+                    Place(draggable);
             }
-            if (!dragging) return;
-
-            if (pointer.press.isPressed)
-            {
-                moving |= (screen - pressAt).magnitude > 18f;
-                var plane = new Plane(Vector3.up, dragHome + Vector3.up * 0.08f);
-                var ray = cam.ScreenPointToRay(screen);
-                if (moving && plane.Raycast(ray, out float at)) dragging.position = ray.GetPoint(at);
-                return;
-            }
-
-            var dropped = dragging;
-            dragging = null;
-            var target = dropped == ammeter ? ammeterSlot : voltmeterSlot;
-            if (!moving) return; // a tap: the part stays selected and lifted, waiting for the slot
-            if (Vector3.Distance(dropped.position, target.position) < 0.2f) StartCoroutine(Fly(dropped, target, draggable));
-            else StartCoroutine(ShakeHome(dropped, dragHome));
         }
 
         // The slot's footprint on the bench top, generously: a tap within 0.22 m of the slot counts as the slot.
@@ -390,14 +366,6 @@ namespace OhmsLaw
             var plane = new Plane(Vector3.up, slot.position);
             var ray = cam.ScreenPointToRay(screen);
             return plane.Raycast(ray, out float at) && Vector3.Distance(ray.GetPoint(at), slot.position) < 0.22f;
-        }
-
-        // The selected part hovers a little above its place until it is placed or dragged.
-        void Lift()
-        {
-            var part = Part(SelectedPart);
-            if (!part || dragging || IsPlaced(SelectedPart)) return;
-            part.position = Vector3.Lerp(part.position, selectedHome + Vector3.up * (0.035f + 0.008f * Mathf.Sin(Time.time * 3f)), 1 - Mathf.Exp(-8f * Time.deltaTime));
         }
     }
 }

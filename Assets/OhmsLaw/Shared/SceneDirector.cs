@@ -32,7 +32,6 @@ namespace OhmsLaw
 
         [Header("Review toggles")]
         [Tooltip("Scene 9: the learner places the meters, or they fly in by themselves (the key tap stays).")] public BuildMode buildMode = BuildMode.LearnerPlaces;
-        [Tooltip("Scene 9: add \"Your prediction: ...\" from Scene 6 under the reminder (Reminder() leaves it off when none was recorded).")] public bool showLearnerPrediction = true;
         [Tooltip("Reference px the HUD's right dock reserves in this scene (cards: notes, readings, table, graph ...); the camera composes into the rest. 0 = cinematic, full frame; -1 = decide from the scene (a bench or a wire reserves it, a cinematic scene does not).")] public float dockWidth = -1f;
 
         // The dock strip this scene reserves: the serialized value, or, for a scene built before the field existed (or
@@ -343,7 +342,7 @@ namespace OhmsLaw
                 case "rig.place": rig.Place(arg); break;
                 case "rig.slider": Volts(on); break;
                 case "table.rows": Table.ShowRows(Int(1)); LearnerSession.tableRows = Mathf.Max(LearnerSession.tableRows, Int(1)); break;
-                case "table.ratio": Table.ShowRatio(on); if (on) LearnerSession.ratioShown = true; break;
+                case "table.ratio": if (on) { LearnerSession.ratioShown = true; StartCoroutine(SnapThen(() => Table.ShowRatio(true))); } else Table.ShowRatio(false); break; // the new column lands on his snap
                 case "table.work": Table.SetRatio(Int(1), true); Play("Plot", 1f + 0.06f * Int(1)); break;
                 case "table.result": Table.SetRatio(Int(1), false); Play("Plot", 1f + 0.06f * Int(1)); break;
                 case "table.highlight": foreach (var w in words.Skip(1)) Table.Highlight(int.Parse(w), true); break;
@@ -363,12 +362,13 @@ namespace OhmsLaw
                 case "ohm.swing": foreach (var worker in FindObjectsByType<OhmWorker>(FindObjectsSortMode.None)) worker.Swing(); break;
                 // "ohm.look <ref>" / "ohm.look": Ohm glances at something (Wattson while he speaks) or back to his work.
                 case "ohm.look": { var at = Ref(rest); foreach (var worker in FindObjectsByType<OhmWorker>(FindObjectsSortMode.None)) worker.Attend(at ? at.transform : null); break; }
-                case "reminder": Reminder(); break;
                 // "callout show <id>" / "callout hide <id>" / "callout hideall": the object's note in the panel.
                 case "callout":
                 {
                     string id = words.Length > 2 ? rest.Substring(arg.Length + 1) : "";
-                    if (arg == "show") Callouts.Show(id); else if (arg == "hide") Callouts.Hide(id); else Callouts.HideAll();
+                    // A concept note (voltage, current, resistance) lands on his snap; an object's note just shows.
+                    if (arg == "show" && ConceptNotes.Contains(id)) StartCoroutine(SnapThen(() => Callouts.Show(id)));
+                    else if (arg == "show") Callouts.Show(id); else if (arg == "hide") Callouts.Hide(id); else Callouts.HideAll();
                     break;
                 }
                 case "show": SetActive(rest, true); break;
@@ -377,18 +377,19 @@ namespace OhmsLaw
                 case "note": break; // visual beat description for Docs/FLOW.md
                 default: if (!AreaCue(verb, words, rest, value, on)) Debug.LogWarning($"{sceneId}: unknown cue '{command}'", this); break;
             }
+            // A reveal that waits for his snap gets its sound rule on the click too.
+            if (SnappedFrame == Time.frameCount) StartCoroutine(SoundOnClick(command)); else CueSound(command);
+        }
+
+        static readonly HashSet<string> ConceptNotes = new HashSet<string> { "voltage", "current", "resistance" };
+
+        IEnumerator SoundOnClick(string command)
+        {
+            yield return Wait(WattsonController.SnapLead);
             CueSound(command);
         }
 
         void SetActive(string name, bool on) { var go = Ref(name); if (go) go.SetActive(on); }
-
-        // Scene 9 reminder, in the panel: the question from Scene 6 and the learner's own prediction when that toggle is on.
-        void Reminder()
-        {
-            if (!Panel) return;
-            string mine = showLearnerPrediction && LearnerSession.prediction != "" ? "Your prediction: " + LearnerSession.PredictionText : "";
-            Panel.Info("reminder", LessonPanel.Quantities("If the voltage across the wire increases, what happens to the current?"), mine); // coloured as in Scene 6
-        }
 
         // "boost" grows the object and brightens its glow and holds both; "pulse" (settle) peaks and returns to normal.
         // A cue that fires again while its run is still going (REPLAY, a retroactive re-fire) stops that run and starts

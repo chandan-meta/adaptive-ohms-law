@@ -124,9 +124,12 @@ namespace OhmsLaw
             var trackRect = UI.Rect("Track", row, new Vector2(0, 1), new Vector2(0, 1), new Vector2(TrackInset, -TrackTop), new Vector2(-2f * TrackInset, TrackHeight));
             trackRect.anchorMax = new Vector2(1, 1);
             view.track = UI.Panel(trackRect, new Color(1f, 1f, 1f, 0.16f), true, TrackHeight / 2f);
+            FigmaSkin.Apply(view.track, "SliderTrack");
             view.track.raycastTarget = false;
             var fillRect = UI.Stretch("Fill", UI.Stretch("Fill Area", trackRect));
-            UI.Panel(fillRect, LessonPanel.VoltColor, true, TrackHeight / 2f).raycastTarget = false;
+            var sliderFill = UI.Panel(fillRect, LessonPanel.VoltColor, true, TrackHeight / 2f);
+            FigmaSkin.Apply(sliderFill, "SliderFill");
+            sliderFill.raycastTarget = false;
             for (int i = 0; i <= Steps; i++)
             {
                 float u = (float)i / Steps;
@@ -149,6 +152,7 @@ namespace OhmsLaw
             var knob = handle.gameObject.AddComponent<Image>();
             knob.sprite = UI.Circle();
             knob.color = LessonPanel.Paper;
+            FigmaSkin.Apply(knob, "Icon-slider-thumb", false);
             var bolt = UI.Rect("Icon", handle, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(22, 22)).gameObject.AddComponent<Image>();
             bolt.sprite = Icons.Get("bolt");
             bolt.color = LessonPanel.Ink;
@@ -200,7 +204,7 @@ namespace OhmsLaw
             // Whole volts read "2 V"; the key's 0.5 V reads "0.5 V" (rounded to "1 V" it sat over a knob at 0).
             value.text = now.ToString(Mathf.Approximately(now, Mathf.Round(now)) ? "0" : "0.0", CultureInfo.InvariantCulture) + " V";
             float pulse = ReducedMotion.On ? 1f : 0.55f + 0.45f * Mathf.Sin(Time.unscaledTime * 4f);
-            track.color = new Color(1f, 1f, 1f, live ? 0.2f : 0.12f);
+            track.color = FigmaSkin.Available ? Color.white : new Color(1f, 1f, 1f, live ? 0.2f : 0.12f);
             knobGroup.alpha = live ? 1f : 0.7f;
             for (int i = 0; i <= Steps; i++)
             {
@@ -313,10 +317,11 @@ namespace OhmsLaw
         public static readonly Vector2 Size = new Vector2(600, 250);
         const float Loop = 6f, Thin = 4f;
         static readonly Vector2 A = new Vector2(70, 170), B = new Vector2(540, 170);   // loop bottom corners
-        const float Top = 120f, SourceX = 70f, AmmeterX = 185f, X = 300f, Y = 420f, KeyX = 540f, VoltY = 48f;
+        const float Top = 120f, SourceX = 70f, AmmeterX = 185f, X = 300f, Y = 420f, KeyX = 540f, Ring = 48f;
 
-        Image ammeterRing, voltmeterRing, voltLeadX, voltLeadY, voltTop, lever;
+        Image ammeterRing, voltmeterRing, voltLeadX, voltLeadY, voltTopX, voltTopY, lever;
         TextMeshProUGUI ammeterLabel, voltmeterLabel, note;
+        TextMeshProUGUI[] ammeterSigns, voltmeterSigns;
         readonly System.Collections.Generic.List<Image> loop = new System.Collections.Generic.List<Image>();
         bool shownKey;
         float pulse;
@@ -357,11 +362,13 @@ namespace OhmsLaw
             Draw.Label(area, "+", new Vector2(SourceX - 36, cellPlus - 6), 26, chalk, new Vector2(30, 30));
             Draw.Label(area, UI.Glyph("−", "-"), new Vector2(SourceX - 36, cellMinus + 6), 26, chalk, new Vector2(30, 30));
             Draw.Label(area, "source", new Vector2(SourceX + 56, Top + 34), 26, new Color(1, 1, 1, 0.7f), new Vector2(90, 28));
-            L(new Vector2(SourceX, wireY), new Vector2(AmmeterX - 24, wireY));
-            // Ammeter in series on the top wire.
-            ammeterRing = Draw.Disc(area, new Vector2(AmmeterX, wireY), 48, dim, 0.78f);
+            L(new Vector2(SourceX, wireY), new Vector2(AmmeterX - Ring / 2, wireY));
+            // Ammeter in series on the top wire. Conventional current runs source + → ammeter → X → Y → key → source −, so
+            // each meter's + terminal is the one toward the source's + side: the ammeter's left, the voltmeter's X side.
+            ammeterRing = Draw.Disc(area, new Vector2(AmmeterX, wireY), Ring, dim, 0.78f);
             ammeterLabel = Draw.Label(area, "A", new Vector2(AmmeterX, wireY), 24, dim, new Vector2(40, 40));
-            L(new Vector2(AmmeterX + 24, wireY), new Vector2(X, wireY));
+            ammeterSigns = Signs(area, new Vector2(AmmeterX - 30, wireY - 22), new Vector2(AmmeterX + 30, wireY - 22), dim);
+            L(new Vector2(AmmeterX + Ring / 2, wireY), new Vector2(X, wireY));
             // The nichrome wire between X and Y, thicker, in the alloy's tone.
             Draw.Bar(area, new Vector2(X, wireY), new Vector2(Y, wireY), 10, new Color(0.78f, 0.72f, 0.58f));
             Draw.Disc(area, new Vector2(X, wireY), 14, chalk);
@@ -379,14 +386,27 @@ namespace OhmsLaw
             L(new Vector2(KeyX, 150), B);
             Draw.Label(area, "key", new Vector2(KeyX + 40, 128), 26, new Color(1, 1, 1, 0.7f), new Vector2(70, 28));
             L(B, A);
-            // Voltmeter in parallel across XY, under the wire (between the wire and the return).
+            // Voltmeter in parallel across XY, under the wire (between the wire and the return). Its leads stop at the ring,
+            // as the ammeter's do: a wire drawn straight through the V would read as the meter shorted out.
+            float voltX = (X + Y) / 2;
             voltLeadX = Draw.Bar(area, new Vector2(X, wireY), new Vector2(X, Top), Thin, dim);
             voltLeadY = Draw.Bar(area, new Vector2(Y, wireY), new Vector2(Y, Top), Thin, dim);
-            voltTop = Draw.Bar(area, new Vector2(X, Top), new Vector2(Y, Top), Thin, dim);
-            voltmeterRing = Draw.Disc(area, new Vector2((X + Y) / 2, Top), 48, dim, 0.78f);
-            voltmeterLabel = Draw.Label(area, "V", new Vector2((X + Y) / 2, Top), 24, dim, new Vector2(40, 40));
+            voltTopX = Draw.Bar(area, new Vector2(X, Top), new Vector2(voltX - Ring / 2, Top), Thin, dim);
+            voltTopY = Draw.Bar(area, new Vector2(voltX + Ring / 2, Top), new Vector2(Y, Top), Thin, dim);
+            voltmeterRing = Draw.Disc(area, new Vector2(voltX, Top), Ring, dim, 0.78f);
+            voltmeterLabel = Draw.Label(area, "V", new Vector2(voltX, Top), 24, dim, new Vector2(40, 40));
+            voltmeterSigns = Signs(area, new Vector2(voltX - 42, Top - 16), new Vector2(voltX + 42, Top - 16), dim);
             note = Draw.Label(area, "Conventional current is drawn + → − (electrons drift the other way)", new Vector2(300, 218), 21, UI.Alpha(amber, 0f), new Vector2(600, 28));
         }
+
+        // A meter's terminal marks: + at `plus`, − at `minus`.
+        static TextMeshProUGUI[] Signs(RectTransform area, Vector2 plus, Vector2 minus, Color color) => new[]
+        {
+            Draw.Label(area, "+", plus, 20, color, new Vector2(24, 24)),
+            Draw.Label(area, UI.Glyph("−", "-"), minus, 20, color, new Vector2(24, 24)),
+        };
+
+        static void Tint(TextMeshProUGUI[] signs, Color color) { foreach (var sign in signs) sign.color = color; }
 
         void Update()
         {
@@ -398,12 +418,14 @@ namespace OhmsLaw
             bool ammeterNext = rig.draggable == "ammeter" && !rig.ammeterPlaced, voltmeterNext = rig.draggable == "voltmeter" && !rig.voltmeterPlaced;
             ammeterRing.color = rig.ammeterPlaced ? amber : ammeterNext ? Color.Lerp(dim, amber, pulse) : dim;
             ammeterLabel.color = ammeterRing.color;
+            Tint(ammeterSigns, ammeterRing.color);
             voltmeterRing.color = rig.voltmeterPlaced ? volt : voltmeterNext ? Color.Lerp(dim, volt, pulse) : dim;
             voltmeterLabel.color = voltmeterRing.color;
+            Tint(voltmeterSigns, voltmeterRing.color);
             Color leads = rig.voltmeterPlaced ? volt : voltmeterNext ? Color.Lerp(dim, volt, pulse * 0.6f) : dim;
             voltLeadX.color = leads;
             voltLeadY.color = leads;
-            voltTop.color = leads;
+            voltTopX.color = voltTopY.color = leads;
             bool closed = rig.state.keyClosed;
             if (closed != shownKey)
             {
@@ -560,82 +582,133 @@ namespace OhmsLaw
         }
     }
 
+    // ------------------------------------------------------------------ the row -> point link
+
+    // A small glowing spark that travels from a table row to its point on the graph (the "link" cue, and every row Scene
+    // 10 records): one reading, shown twice, visibly the same. A dot with a short fading trail on the HUD root, over
+    // everything, along a shallow arc; `landed` runs when it arrives (the point pops in or lights then). When either end is
+    // out of sight (a card stepped aside, a view not built) or under reduced motion it lands at once.
+    public class LinkSpark : MonoBehaviour
+    {
+        public const float Seconds = 0.45f;
+        const int Trail = 6;
+        const float Head = 22f, HaloSize = 58f;
+
+        RectTransform from, to, root, head, halo;
+        Image[] trail;
+        Vector2[] past;
+        System.Action landed;
+        float t;
+
+        public static void Fly(RectTransform from, RectTransform to, System.Action landed)
+        {
+            var lesson = LessonPanel.Instance;
+            // The target may be a point not plotted yet (Scene 10: it pops in as the spark lands): its plot must show.
+            if (!lesson || ReducedMotion.On || !Visible(from) || !to || !Visible((RectTransform)to.parent)) { landed?.Invoke(); return; }
+            var spark = UI.Rect("Link Spark", lesson.Root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero).gameObject.AddComponent<LinkSpark>();
+            spark.transform.SetAsLastSibling();
+            spark.from = from;
+            spark.to = to;
+            spark.root = lesson.Root;
+            spark.landed = landed;
+            spark.Build();
+        }
+
+        // Shown, and not a card that stepped aside (LessonPanel.Crowd: alpha 0 and out of the layout).
+        static bool Visible(RectTransform rect)
+        {
+            if (!rect || !rect.gameObject.activeInHierarchy) return false;
+            foreach (var group in rect.GetComponentsInParent<CanvasGroup>())
+                if (group.alpha <= 0.01f && group.TryGetComponent(out LayoutElement element) && element.ignoreLayout) return false;
+            return true;
+        }
+
+        void Build()
+        {
+            var colour = LessonPanel.Spark;
+            trail = new Image[Trail];
+            past = new Vector2[Trail];
+            for (int i = Trail - 1; i >= 0; i--)
+            {
+                float k = 1f - (i + 1f) / (Trail + 1f);
+                trail[i] = Dot("Trail", Head * (0.45f + 0.45f * k), UI.Alpha(colour, 0.45f * k));
+            }
+            halo = Dot("Halo", HaloSize, UI.Alpha(colour, 0.22f)).rectTransform;
+            head = Dot("Head", Head, colour).rectTransform;
+            var start = At(from, new Vector2(1f, 0.5f));
+            for (int i = 0; i < Trail; i++) past[i] = start;
+            Place(start);
+        }
+
+        Image Dot(string name, float size, Color colour)
+        {
+            var dot = UI.Rect(name, transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * size).gameObject.AddComponent<Image>();
+            dot.sprite = UI.Circle();
+            dot.color = colour;
+            dot.raycastTarget = false;
+            return dot;
+        }
+
+        // A point of `rect` (pivot-style fraction of its rect) in the HUD root's local space, followed every frame (the
+        // stage and the dock still ease while it flies).
+        Vector2 At(RectTransform rect, Vector2 fraction)
+        {
+            var r = rect.rect;
+            return root.InverseTransformPoint(rect.TransformPoint(r.min + Vector2.Scale(r.size, fraction)));
+        }
+
+        void Place(Vector2 at)
+        {
+            for (int i = Trail - 1; i > 0; i--) past[i] = past[i - 1];
+            past[0] = at;
+            head.localPosition = halo.localPosition = at;
+            for (int i = 0; i < Trail; i++) trail[i].rectTransform.localPosition = past[i];
+        }
+
+        void Update()
+        {
+            if (!from || !to) { Land(); return; }
+            t = Mathf.Min(1f, t + Time.unscaledDeltaTime / Seconds);
+            float e = t * t * (3f - 2f * t);
+            Vector2 a = At(from, new Vector2(1f, 0.5f)), b = At(to, new Vector2(0.5f, 0.5f));
+            // A shallow arc above the straight path: it reads as a hand-off, not a laser.
+            Vector2 lift = new Vector2(-(b - a).y, (b - a).x).normalized * ((b - a).magnitude * 0.18f);
+            if (lift.y < 0f) lift = -lift;
+            Place(Vector2.Lerp(a, b, e) + lift * (4f * e * (1f - e)));
+            halo.localScale = Vector3.one * (1f + 0.25f * Mathf.Sin(t * Mathf.PI));
+            if (t >= 1f) Land();
+        }
+
+        void Land()
+        {
+            var done = landed;
+            landed = null;
+            gameObject.SetActive(false);
+            Destroy(gameObject);
+            done?.Invoke();
+        }
+    }
+
     // ------------------------------------------------------------------ build the law (Scene 13)
 
-    // Three tiles, R · V · I (shuffled on screen), and the law building above them: the learner taps V, then I, then R and
-    // "V = I × R" fills in, each symbol in its colour. A wrong tile says which one comes next; nothing is marked wrong.
+    // The BuildLaw gate's handle on the finale surface (LawReveal): the clues V, I and R sit there as tiles (shuffled to
+    // R · V · I); the learner taps V, then I, then R and each flies into its place in V = I × R. A wrong tile says which
+    // one comes next and shakes; nothing is marked wrong. Complete once the last tile has landed.
     public class LawTiles : MonoBehaviour
     {
-        static readonly string[] Sequence = { "V", "I", "R" };
-        static readonly string[] Next = { "Start with V, the push.", "Next comes I, the flow.", "Last: R, the opposition." };
-
-        readonly System.Collections.Generic.Dictionary<string, Button> tiles = new System.Collections.Generic.Dictionary<string, Button>();
-        TextMeshProUGUI line, hint;
-        int placed;
-
-        public bool Complete => placed >= Sequence.Length;
+        public bool Complete => !LawReveal.Instance || LawReveal.Instance.Built;
 
         public static LawTiles Create()
         {
-            var lesson = LessonPanel.Instance;
-            var block = lesson.Fresh("MCQ", null, 12f);
-            var view = block.gameObject.AddComponent<LawTiles>();
-            LessonPanel.Eyebrow(block, "Build the law");
-            view.line = UI.Display(LessonPanel.Text(block, "", 56f, LessonPanel.Paper, TextAlignmentOptions.Center));   // the law in the display face
-            LessonPanel.OneLine(view.line, 56f);
-            var row = LessonPanel.Row("Tiles", block, 10f);
-            row.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = true;
-            LessonPanel.Fixed(row, 88f);
-            foreach (var symbol in new[] { "R", "V", "I" })
-            {
-                string s = symbol;
-                var color = s == "V" ? LessonPanel.VoltColor : s == "I" ? LessonPanel.AmpColor : LessonPanel.OhmColor;
-                var tile = LessonPanel.Pill(s, row, s, () => view.Tap(s), LessonPanel.Kind.Raised, null, 88f, 48f);
-                tile.GetComponent<LayoutElement>().flexibleWidth = 1f;
-                tile.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
-                tile.GetComponentInChildren<TextMeshProUGUI>().color = color;
-                view.tiles[s] = tile;
-            }
-            view.hint = LessonPanel.Text(block, Next[0], 17f, LessonPanel.Spark);
-            view.Refresh();
-            lesson.Show("MCQ", true);
-            return view;
+            var reveal = LawReveal.Ensure();
+            if (!reveal) return new GameObject("Law Tiles (no HUD)").AddComponent<LawTiles>();
+            reveal.BeginBuild();
+            return reveal.TryGetComponent(out LawTiles tiles) ? tiles : reveal.gameObject.AddComponent<LawTiles>();
         }
 
-        public void Tap(string symbol)
-        {
-            if (Complete) return;
-            if (symbol == Sequence[placed])
-            {
-                tiles[symbol].interactable = false;
-                placed++;
-                UiSounds.Play("done");
-                hint.text = Complete ? "That's the law." : Next[placed];
-                LessonPanel.Pop(line.rectTransform);
-            }
-            else
-            {
-                hint.text = Next[placed];
-                UiSounds.Play("hint");
-            }
-            Refresh();
-        }
+        public void Tap(string symbol) { if (LawReveal.Instance) LawReveal.Instance.Tap(symbol); }
 
         // The next correct tile, for autoAnswer and the Enter key.
-        public void Advance() { if (!Complete) Tap(Sequence[placed]); }
-
-        void Refresh()
-        {
-            string Coloured(string s, Color c) => $"<color=#{ColorUtility.ToHtmlStringRGB(c)}>{s}</color>";
-            string v = Coloured("V", LessonPanel.VoltColor), i = Coloured("I", LessonPanel.AmpColor), r = Coloured("R", LessonPanel.OhmColor);
-            const string dim = "<alpha=#38>";
-            line.text = placed switch
-            {
-                0 => dim + "V = I × R",
-                1 => v + dim + " = I × R",
-                2 => v + " = " + i + dim + " × R",
-                _ => v + " = " + i + " × " + r,
-            };
-        }
+        public void Advance() { if (LawReveal.Instance) LawReveal.Instance.Advance(); }
     }
 }

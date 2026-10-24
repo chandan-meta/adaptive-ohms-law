@@ -19,6 +19,7 @@ namespace OhmsLaw
         // A gate's line by id; a line declared on another gate of this scene is found too.
         DialogueLine Line(InteractionGate gate, string id)
         {
+            if (string.IsNullOrEmpty(id)) return null;
             var line = gate ? gate.lines.FirstOrDefault(l => l && l.id == id) : null;
             if (line) return line;
             if (sceneLines == null)
@@ -37,19 +38,18 @@ namespace OhmsLaw
             switch (gate.gateId)
             {
                 case "Test_MCQ": yield return TestMcq(gate); break;
-                case "S06_Prediction": yield return Prediction(gate); break;
+                // The module's two detective challenges (graded, a hint and a retry on a miss): the first right after voltage
+                // and current are met, the second once resistance has been named.
+                case "S06_Prediction": yield return DetectiveTest(gate); break;
+                case "S12_MoreResistance": yield return ResistanceChallenge(gate); break;
                 case "S09_PlaceAmmeter": yield return PlacePart(gate, "ammeter"); break;
                 case "S09_PlaceVoltmeter": yield return PlacePart(gate, "voltmeter"); break;
-                case "S09_CloseKey": yield return CloseKey(); break;
                 // Scene 10: the learner sets 1 V, 2 V ... 5 V in turn; each setting records its row and plots its point.
                 case "S10_Set1V": yield return SetVoltage(gate, 1); break;
                 case "S10_Set2V": yield return SetVoltage(gate, 2); break;
                 case "S10_Set3V": yield return SetVoltage(gate, 3); break;
                 case "S10_Set4V": yield return SetVoltage(gate, 4); break;
                 case "S10_Set5V": yield return SetVoltage(gate, 5); break;
-                // v5 quick checks: the 3 V wager (recorded, judged by the ammeter at S10_After3V) and which wire resists more.
-                case "S10_Predict3V": yield return QuickCheck(gate, "At 3 volts, what will the ammeter read?", new[] { "A. 0.40 A", "B. 0.60 A", "C. 0.80 A" }, 1, Concepts.Relationship, "S10_Predict3V_Q", _ => "S10_Predict3V_R", judge: false); break;
-                case "S12_WhichResists": yield return QuickCheck(gate, "Same voltage. Which wire has the higher resistance?", new[] { "A. Copper", "B. Nichrome" }, 1, Concepts.Resistance, "S12_QC", letter => "S12_QC_R_If_S12_WhichResists_" + letter, judge: true); break;
                 // v3: the four chapters that used to be watched only now each ask for one meaningful action.
                 case "S05_ApplyVoltage": yield return ApplyVoltage(); break;
                 case "S11_DrawLine": yield return DrawLine(); break;
@@ -117,109 +117,123 @@ namespace OhmsLaw
             StopSaying(saying, spoken);
         }
 
-        // A graded quick check ("[QC]" eyebrow): the question line is spoken while the options are up (cut short by a
-        // pick), the pick is recorded ("<gate> <letter> Correct|Incorrect") under its concept, and Wattson says the line
-        // `reaction(letter)` names. judge: mark the pick right or wrong at once; a prediction (judge false) leaves the
-        // verdict to the bench and only locks the answer in. autoAnswer picks the correct option.
-        IEnumerator QuickCheck(InteractionGate gate, string question, string[] options, int correct, string concept, string ask, System.Func<string, string> reaction, bool judge)
+        // A detective challenge: the question is spoken while the options are up (cut short by a pick). Right: the row
+        // turns green with a check and a chime, Wattson pumps a fist, and he says the one short `right` line. Wrong: the
+        // row is marked and stays out, a hint aimed at that wrong idea shows under the options and `visualHint` points the
+        // scene at the clue; the learner picks again at once, with no extra narration. A second miss shows the answer and
+        // goes on with the same line, so nobody is stuck. Every pick is recorded ("<gate> <letter> Correct|Incorrect");
+        // the concept and `firstPick` get the first one only. autoAnswer picks the right option (a wrong one first under
+        // ReviewMode.missFirst, so a hands-free run shows the hint and the retry).
+        // A challenge's hint went up after a miss (the play test shoots that frame): the gate id.
+        public static event System.Action<string> ChallengeMissed;
+
+        IEnumerator Challenge(InteractionGate gate, string question, string[] options, int correct, string concept, string ask, string right,
+            System.Func<int, string> hintFor, System.Action<int> visualHint = null, System.Action<string> firstPick = null)
         {
-            Turn("Quick check.", null, options.Length > 2 ? "Tap an answer or press 1, 2 or 3." : "Tap an answer or press 1 or 2.");
-            var panel = new MCQPanel("[QC]" + question, options);
-            yield return Pick(panel, Line(gate, ask), correct);
-            Play("Select");
-            string letter = LearnerSession.Letter(panel.Picked);
-            var grade = panel.Picked == correct ? Grade.Correct : Grade.Incorrect;
-            LearnerSession.answers.Add($"{gate.gateId} {letter} {grade}");
-            LearnerSession.Record(concept, grade);
-            panel.Select(panel.Picked);
-            if (judge) { panel.Mark(panel.Picked, grade == Grade.Correct ? MCQPanel.RightMark : MCQPanel.WrongMark); React(grade); }
-            if (Panel) Panel.Done(!judge ? "Locked in." : grade == Grade.Correct ? "Correct." : "Not quite.");
+            Turn("Detective challenge.", null, options.Length > 2 ? "Tap an answer or press 1, 2 or 3." : "Tap an answer or press 1 or 2.");
+            var panel = new MCQPanel(question, options, -1, "Detective challenge");
+            yield return Pick(panel, Line(gate, ask), ReviewMode.missFirst ? (correct + 1) % options.Length : correct);
+            for (int misses = 0; ; misses++)
+            {
+                if (panel.Picked < 0) yield break; // the panel was swept away (the scene was skipped)
+                int picked = panel.Picked;
+                string letter = LearnerSession.Letter(picked);
+                var grade = picked == correct ? Grade.Correct : Grade.Incorrect;
+                LearnerSession.answers.Add($"{gate.gateId} {letter} {grade}");
+                if (misses == 0) { LearnerSession.Record(concept, grade); firstPick?.Invoke(letter); }
+                if (grade == Grade.Correct)
+                {
+                    panel.Select(picked);
+                    panel.Mark(picked, MCQPanel.RightMark);
+                    React(grade);
+                    if (Panel) Panel.Done("Correct.");
+                    break;
+                }
+                panel.Mark(picked, MCQPanel.WrongMark);
+                panel.Disable(picked, MCQPanel.WrongMark);
+                React(grade);
+                panel.Hint(hintFor(picked));
+                visualHint?.Invoke(picked);
+                ChallengeMissed?.Invoke(gate.gateId);
+                if (misses >= 1)
+                {
+                    panel.Reveal(correct);
+                    if (Panel) Panel.Done("Here's the answer.");
+                    yield return Wait(1.6f);
+                    break;
+                }
+                if (Panel) Panel.Turn("Try again.", null, "One option is out. Pick again.");
+                panel.Reopen();
+                yield return panel.WaitForPick(correct);
+            }
             yield return Wait(1.0f);
             panel.Close();
-            yield return Say(Line(gate, reaction(letter)));
+            yield return Say(Line(gate, right));
         }
 
-        // Scene 6: the prediction is stored, never judged here. Each option gets its own reaction.
-        IEnumerator Prediction(InteractionGate gate)
-        {
-            Turn("Make your prediction.", null, "Tap an answer or press 1, 2 or 3. The experiment will decide.");
-            var panel = new MCQPanel("If we increase the voltage across the wire, with everything else the same, what happens to the current?", // S06_L02's words
-                new[] { "A. Increase", "B. Decrease", "C. Stay the same" });
-            yield return panel.WaitForPick(0);
-            Play("Select");
-            LearnerSession.prediction = LearnerSession.Letter(panel.Picked);
-            panel.Select(panel.Picked);
-            panel.Hint("Your answer is saved for later.");
-            if (Panel) Panel.Done("Prediction locked in.");
-            yield return Wait(1.2f);
-            panel.Close();
-            yield return Say(Line(gate, "S06_R_" + LearnerSession.prediction));
-        }
+        // Scene 6, right after voltage and current: a stronger push with the wire unchanged. The first pick is the
+        // learner's prediction (Scene 10 calls it back); a miss pulses the + terminal and its rising gauge: the push.
+        IEnumerator DetectiveTest(InteractionGate gate) => Challenge(gate,
+            "If voltage increases while resistance stays constant, what happens to current?",
+            new[] { "A. It increases", "B. It decreases", "C. It stays the same" }, 0, Concepts.Relationship, null, "S06_R_A",
+            picked => picked == 1
+                ? "Same wire, same temperature, so its resistance stays put. Voltage is the push: would a bigger push give less flow?"
+                : "Same wire, same temperature, so its resistance stays put. The push got stronger: watch the + terminal. Can the flow stay the same?",
+            _ => { Run("pulse Card Terminal +"); Run("pulse Battery Readout"); Play("Highlight"); },
+            letter => LearnerSession.prediction = letter);
+
+        // Scene 12, once resistance is named: the same push through more opposition. A miss lights the note on resistance
+        // and the test wire again.
+        IEnumerator ResistanceChallenge(InteractionGate gate) => Challenge(gate,
+            "Same voltage. If the resistance increases, what happens to the current?",
+            new[] { "A. It increases", "B. It decreases", "C. It stays the same" }, 1, Concepts.Resistance, "S12_MR_Q", "S12_MR_R",
+            picked => picked == 0
+                ? "Resistance opposes the flow. Same push, more opposition: more current or less?"
+                : "Remember the two wires: same push, but nichrome let less current through. Resistance changes the current.",
+            _ => { Callouts.Show("resistance"); Run("pulse Wire Highlight"); Play("Highlight"); });
 
         // The current turn in the panel: what to do, the step ("1 OF 3"), a hint. SceneDirector.Instruction keeps the
         // plain one-line form for cues.
         void Turn(string text, string step, string hint) { if (Panel) Panel.Turn(text, step, hint); }
 
-        // Scene 9: select the instrument, then tap the highlighted position (or drag it there). The turn names each
-        // step and the hand points at the meter, then at its slot; AutoPlace, autoAnswer and Enter fly it in.
+        // Scene 9: one tap on the instrument and it flies into its place in the circuit (a tap on its glowing slot, Enter,
+        // AutoPlace and autoAnswer fly it in too). The turn names the meter and where it goes, the hand points at it, and
+        // once it lands the turn says what it measures. When the voltmeter lands with the ammeter already in, the circuit
+        // completes itself: the key closes with its clack and the needles move (no separate switch step).
         IEnumerator PlacePart(InteractionGate gate, string part)
         {
             if (rig.IsPlaced(part)) yield break;
-            string title = part == "ammeter" ? "ammeter" : "voltmeter", step = part == "ammeter" ? "Step 1 of 3" : "Step 2 of 3";
-            string select = $"Select the {title}.", selectHint = part == "ammeter" ? "Tap the meter marked A on the bench." : "Tap the meter marked V on the bench.";
-            string place = "Place it in the glowing slot.", placeHint = part == "ammeter" ? "In series: in line with the wire." : "In parallel: across the wire, X to Y.";
+            bool ammeter = part == "ammeter";
+            string step = ammeter ? "Step 1 of 2" : "Step 2 of 2";
+            string tap = ammeter ? "Tap the ammeter." : "Tap the voltmeter.";
+            string hint = ammeter ? "The meter marked A: it joins the loop in series, in line with the wire." : "The meter marked V: it joins in parallel, across X and Y.";
             bool auto = buildMode == BuildMode.AutoPlace || ReviewMode.autoAnswer;
             rig.draggable = part; // its slot glows in auto runs too, until the part lands (CircuitRig clears it)
-            Turn(select, step, selectHint);
-            bool selectedShown = false;
-            void OnSelected(string which) { if (which == part && !selectedShown) { selectedShown = true; Play("Select"); } }
+            Turn(tap, step, hint);
             // The two meters look alike but for the letter on the dial: a tap on the other one says which it was.
             void OnWrong(string which) { if (Panel) Panel.ShowHint(which == "voltmeter" ? "That's the voltmeter: find the A." : "That's the ammeter: find the V."); }
-            IEnumerator Hints()
-            {
-                // The part's origin is its base: from the upper left the fingertip lands on the meter's face, not the bench edge.
-                yield return TapHint(part == "ammeter" ? rig.ammeter : rig.voltmeter, () => rig.SelectedPart == part || rig.IsPlaced(part), new Vector2(-0.6f, 0.8f));
-                if (!rig.IsPlaced(part)) yield return TapHint(part == "ammeter" ? rig.ammeterSlot : rig.voltmeterSlot, () => rig.IsPlaced(part), Vector2.down);
-            }
-            rig.Selected += OnSelected;
             rig.WrongPart += OnWrong;
-            StartCoroutine(Hints());
+            // The part's origin is its base: from the upper left the fingertip lands on the meter's face, not the bench edge.
+            StartCoroutine(TapHint(ammeter ? rig.ammeter : rig.voltmeter, () => rig.IsPlaced(part) || rig.InFlight(part), new Vector2(-0.6f, 0.8f)));
             if (auto) { yield return Wait(buildMode != BuildMode.AutoPlace ? ReviewMode.autoDelay : 1f); rig.Place(part); }
             float waited = 0;
             while (!rig.IsPlaced(part))
             {
                 if (!AskWattsonUI.IsOpen) waited += Dt;
-                if (rig.SelectedPart == part) Turn(place, step, placeHint); else Turn(select, step, selectHint);
                 if (HudKeys.ConsumeAct()) rig.Place(part);
-                if (ReviewMode.autoAnswer && waited > ReviewMode.autoDelay + 2f) rig.PlaceNow(part);
+                if (ReviewMode.autoAnswer && waited > ReviewMode.autoDelay + 2f && !rig.InFlight(part)) rig.PlaceNow(part);
                 yield return null;
             }
-            rig.Selected -= OnSelected;
             rig.WrongPart -= OnWrong;
             rig.draggable = "";
             Play("Place");
-            if (Panel) Panel.Done(part == "ammeter" ? "Ammeter placed, in series." : "Voltmeter placed, in parallel.");
+            if (Panel) Panel.Done(ammeter ? "Ammeter in series: it measures the current I." : "Voltmeter across XY: it measures the voltage V.");
             React(Grade.Correct); // the part snapped in (gesture only, no line)
-        }
-
-        IEnumerator CloseKey()
-        {
-            if (rig.state.keyClosed) yield break;
-            rig.keyArmed = true;
-            Turn("Close the switch.", "Step 3 of 3", "Tap the key to complete the circuit.");
-            // The fingertip at the lever's grip, not the base, from below-right: the lever stays in view.
-            var grip = rig.keyLever ? rig.keyLever.Find("Handle") : null;
-            StartCoroutine(TapHint(grip ? grip : rig.key, () => rig.state.keyClosed));
-            float waited = 0;
-            while (!rig.state.keyClosed)
-            {
-                if (!AskWattsonUI.IsOpen) waited += Dt;
-                if (HudKeys.ConsumeAct() || (ReviewMode.autoAnswer && waited >= ReviewMode.autoDelay)) rig.CloseKey();
-                yield return null;
-            }
+            if (ammeter || !rig.ammeterPlaced || rig.state.keyClosed) yield break;
+            yield return Wait(0.5f);
+            rig.CloseKey();
             Play("Switch");
             if (Panel) Panel.Done("Circuit complete.");
-            React(Grade.Correct);
             // CircuitRig.CloseKey applies the small default voltage (0.5 V) so the needles move; Scene 10 starts from it.
         }
 

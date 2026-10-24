@@ -497,6 +497,22 @@
    "originalFile": "mixkit_2352.wav"
   },
   {
+   "name": "SFX_Wattson_Snap",
+   "path": "Assets/OhmsLaw/Audio/SFX/Character/SFX_Wattson_Snap.wav",
+   "group": "Character",
+   "loop": false,
+   "gain": 0.8,
+   "seconds": 0.25,
+   "measured": -26.7,
+   "unit": "dBmean",
+   "reference": -20,
+   "source": "Finger snap with an electric sparkle (Tools/synth_snap.py)",
+   "author": "Ohm's Law module (synthesized)",
+   "license": "CC0",
+   "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "originalFile": "SFX_Wattson_Snap.wav"
+  },
+  {
    "name": "SFX_Magic_Gather",
    "path": "Assets/OhmsLaw/Audio/SFX/Character/SFX_Magic_Gather.wav",
    "group": "Character",

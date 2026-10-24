@@ -1,11 +1,14 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace OhmsLaw
 {
     // Scene 4 moments the Timeline triggers through signals: the words drifting back, the slow-motion raise,
-    // the tap-the-wire hold before the dive, and the hand-off to Scene 5.
+    // the tap-the-wire hold before the dive, the hand-off to Scene 5, and the beds. The music and the room tone are runtime
+    // sources, not Timeline tracks: the wire-tap hold (and PAUSE, and the Ask panel) freeze the Timeline, and the music must
+    // play on through the hold, the tap and the dive into Scene 5, which takes the playing bed over (AudioBus carry).
     public class Scene04Director : MonoBehaviour
     {
         public const string TapInstruction = "Click or tap the highlighted wire to explore what happens inside.";
@@ -18,6 +21,15 @@ namespace OhmsLaw
         public WattsonController wattson;
         public Niscope niscope;
 
+        [Header("Beds")]
+        [Tooltip("The crossfade pair, both named Music (Music buses): whichever plays at the dive is carried into Scene 5.")] public AudioSource music, musicTwin;
+        [Tooltip("The room tone (an Sfx bus named Ambience), carried into Scene 5's WireHum crossfade.")] public AudioSource ambience;
+        public AudioClip laboratory, theme, wireBed, roomTone;
+        [Tooltip("Seconds into each clip where its bed enters (on the music's own downbeats).")] public float laboratoryIn = 11.13f, themeIn = 1.7f;
+        public float laboratoryFade = 1.5f, themeFade = 2f, dipLevel = 0.4f, dipSeconds = 6f, wireFade = 3f, roomFade = 1f;
+        AudioSource activeBed;
+        Coroutine bedFade, roomFadeRun;
+
         RectTransform tapIcon;
         Vector3 wordsHome;
         float holdStarted = -1, idle;
@@ -25,12 +37,89 @@ namespace OhmsLaw
 
         void Start()
         {
+            // A bed carried INTO Scene 4 (Replay from the finale, a chapter jump) was taken over by a bus of the same name: it
+            // goes out at once rather than playing under the title or doubling the laboratory theme.
+            foreach (var bed in new[] { music, musicTwin })
+                if (bed && bed.isPlaying) { activeBed = bed; bedFade = StartCoroutine(Crossfade(null, null, 0f, 0f, 1f)); }
+            if (ambience && ambience.isPlaying) roomFadeRun = StartCoroutine(Room(null, 1f));
             if (wattson) wattson.gestureSounds = false; // Scene 4's Timeline carries Wattson's wave / gadget sounds at the exact frames
             wordsHome = words.position;
             if (LessonPanel.Instance && wattson && wattson.agentContext) LessonPanel.Instance.SetTitle(wattson.agentContext.sceneTitle);
         }
 
         public void DriftWords() => drifting = true;
+
+        // ------------------------------------------------------------------ beds (signals)
+
+        public void StartBeds()
+        {
+            Bed(laboratory, laboratoryIn, 1f, laboratoryFade);
+            if (roomFadeRun != null) StopCoroutine(roomFadeRun);
+            roomFadeRun = StartCoroutine(Room(roomTone, roomFade));
+        }
+
+        public void ThemeBed() => Bed(theme, themeIn, 1f, themeFade);
+        public void DipBed() => Bed(activeBed ? activeBed.clip : theme, 0f, dipLevel, dipSeconds);
+        public void WireBed() => Bed(wireBed ? wireBed : AudioLibrary.ClipOrNull("PadWire"), 0f, 1f, wireFade);
+
+        // `clip` at `level` of the bus's built gain, entering `clipIn` seconds into the clip, over `seconds`. The same clip
+        // as the playing bed only changes its level (the dip); another one starts on the idle source and rises while every
+        // other playing bed lowers, equal power: never a dip to silence. A missing clip leaves the bed as it is.
+        void Bed(AudioClip clip, float clipIn, float level, float seconds)
+        {
+            if (!clip || !music) return;
+            if (bedFade != null) StopCoroutine(bedFade);
+            AudioSource to = activeBed && activeBed.isPlaying && activeBed.clip == clip ? activeBed : activeBed == music && musicTwin ? musicTwin : music;
+            bedFade = StartCoroutine(Crossfade(to, clip, clipIn, level, seconds));
+        }
+
+        IEnumerator Crossfade(AudioSource to, AudioClip clip, float clipIn, float level, float seconds)
+        {
+            var inBus = to ? to.GetComponent<AudioBus>() : null;
+            if (to && (to.clip != clip || !to.isPlaying))
+            {
+                if (inBus) inBus.gain = 0f;
+                to.clip = clip;
+                to.loop = true;
+                to.Play();
+                if (clip && clip.length > 0f) to.time = Mathf.Repeat(clipIn, clip.length);
+            }
+            if (inBus) inBus.trim = AudioLibrary.GainOf(clip ? clip.name : "");
+            float inFrom = inBus ? inBus.gain : 0f, inTo = inBus ? inBus.NominalGain * level : 0f;
+            var outs = new List<(AudioBus bus, AudioSource source, float from)>();
+            foreach (var bed in new[] { music, musicTwin })
+                if (bed && bed != to && bed.isPlaying && bed.TryGetComponent(out AudioBus bus)) outs.Add((bus, bed, bus.gain));
+            activeBed = to;
+            for (float t = 0; t < 1; t += Time.unscaledDeltaTime / Mathf.Max(0.05f, seconds))
+            {
+                float a = t * Mathf.PI * 0.5f;
+                foreach (var o in outs) o.bus.gain = o.from * Mathf.Cos(a);
+                if (inBus) inBus.gain = Mathf.Lerp(inFrom, inTo, Mathf.Sin(a));
+                yield return null;
+            }
+            foreach (var o in outs) { o.source.Stop(); o.bus.gain = o.bus.NominalGain; }
+            if (inBus) inBus.gain = inTo;
+            bedFade = null;
+        }
+
+        // The room tone: whatever plays lowers first, then `clip` rises (null: it just goes out).
+        IEnumerator Room(AudioClip clip, float seconds)
+        {
+            if (!ambience || !ambience.TryGetComponent(out AudioBus bus)) yield break;
+            if (ambience.isPlaying && ambience.clip != clip)
+            {
+                float from = bus.gain;
+                for (float t = 0; t < 1; t += Time.unscaledDeltaTime / 0.5f) { bus.gain = from * (1 - t); yield return null; }
+                ambience.Stop();
+            }
+            if (!clip) { bus.gain = bus.NominalGain; roomFadeRun = null; yield break; }
+            if (!ambience.isPlaying) { bus.gain = 0f; ambience.clip = clip; ambience.loop = true; ambience.Play(); }
+            bus.trim = AudioLibrary.GainOf(clip.name);
+            float start = bus.gain;
+            for (float t = 0; t < 1; t += Time.unscaledDeltaTime / Mathf.Max(0.05f, seconds)) { bus.gain = Mathf.Lerp(start, bus.NominalGain, t); yield return null; }
+            bus.gain = bus.NominalGain;
+            roomFadeRun = null;
+        }
 
         public void SlowMotion() => StartCoroutine(Slow(1.3f));
 

@@ -38,7 +38,7 @@ namespace OhmsLaw
             string Gate { get; }           // the activity in progress, or null
             double TargetAmps { get; }     // the current a target activity asks for (S11_Target, S13_Apply); negative when none
             double StartVoltage { get; }   // the scene's starting setting (CircuitRig.StartVoltage), what "reset" goes back to
-            double AmpsAt(double volts);   // this wire's current at a voltage (ExperimentData)
+            double AmpsAt(double volts);   // this wire's current at a voltage (the rig's resistance)
             double SetVoltage(double volts); // returns the value applied
         }
 
@@ -549,7 +549,7 @@ namespace OhmsLaw
                     return SceneNumber(context ? context.sceneId : UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
                 }
             }
-            public double AmpsAt(double volts) => ExperimentData.Main ? ExperimentData.Main.CurrentAt((float)volts) : volts / 5.0;
+            public double AmpsAt(double volts) => Rig ? volts / Rig.Resistance : ExperimentData.Main ? ExperimentData.Main.CurrentAt((float)volts) : volts / 5.0; // the rig's wire (the lab can swap it)
             public double SetVoltage(double volts) => Rig ? Rig.SetVoltage((float)volts) : 0;
         }
 #endif

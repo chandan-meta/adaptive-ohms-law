@@ -73,7 +73,8 @@ namespace OhmsLaw
         public static TextMeshProUGUI Label(Transform parent, string text, float size, Color color, TextAlignmentOptions align = TextAlignmentOptions.Center)
         {
             var label = Stretch("Label", parent).gameObject.AddComponent<TextMeshProUGUI>();
-            if (Theme && Theme.font) label.font = Theme.font;
+            if (FigmaSkin.Available && FigmaSkin.BodyFont) label.font = FigmaSkin.BodyFont;
+            else if (Theme && Theme.font) label.font = Theme.font;
             label.text = text;
             label.fontSize = size;
             label.color = color;
@@ -95,6 +96,7 @@ namespace OhmsLaw
         {
             get
             {
+                if (FigmaSkin.Available && FigmaSkin.DisplayFont) return FigmaSkin.DisplayFont;
                 if (!display && !displayLooked) { displayLooked = true; display = Resources.Load<TMP_FontAsset>("Fredoka SDF"); }
                 return display ? display : Theme ? Theme.font : null;
             }
@@ -111,13 +113,22 @@ namespace OhmsLaw
         {
             var rect = Rect(name, parent, anchor, pivot, position, new Vector2(Mathf.Max(size.x, MinTarget), Mathf.Max(size.y, MinTarget)));
             Panel(rect, PanelColor);
+            FigmaSkin.Apply(rect.GetComponent<Image>(), "SecondaryNormal");
             var button = rect.gameObject.AddComponent<Button>();
             if (onClick != null) button.onClick.AddListener(onClick);
             // Always present, even for "": callers fetch it with GetComponentInChildren<TextMeshProUGUI>() and set the text later.
             var label = Label(rect, text ?? "", fontSize, Color.white);
             label.rectTransform.offsetMin = new Vector2(14, 6);
             label.rectTransform.offsetMax = new Vector2(-14, -6);
-            Hover(button);
+            if (FigmaSkin.Available)
+            {
+                button.transition = Selectable.Transition.None;
+                var hud = rect.gameObject.AddComponent<HudButton>();
+                hud.fill = rect.GetComponent<Image>();
+                hud.figmaStyle = "Secondary";
+                hud.figmaForeground = new Graphic[] { label };
+            }
+            else Hover(button);
             return button;
         }
 

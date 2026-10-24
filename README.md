@@ -2,21 +2,29 @@
 
 An interactive 3D learning module for teaching voltage, current, resistance, graph interpretation and Ohm's Law. Wattson guides learners through predictions, laboratory equipment, circuit construction, measurements, graphing and equation-building activities.
 
+[Play the current WebGL release](https://chandan-meta.github.io/adaptive-ohms-law/?v=20261024).
+
 ## Requirements
 
 - Unity 6000.3.0f1
 - Universal Render Pipeline
-- Windows or Android tablet target
+- WebGL browser, Windows or Android tablet target
 - Landscape orientation
 
 ## Open and run
 
 1. Add this folder in Unity Hub.
 2. Open it with Unity 6000.3.0f1.
-3. Open `Assets/AdaptiveLearning/Scenes/Scene_06_AdaptivePrediction.unity`.
+3. Open `Assets/OhmsLaw/Scenes/Scene00_ModulePlayer.unity`.
 4. Enter Play mode.
 
-The implemented learning sequence continues through Scenes 8–13. Scene 7 is represented by the preceding cinematic/storyboard handoff.
+The current module plays Scenes 04–13, including the study, wire interior, laboratory, graph and free experiment. The editor's module player supports jumping between scenes; release builds open on the lesson's title screen.
+
+## Build and publish
+
+Use **Ohm's Law → Build WebGL** in Unity. If it switches the target platform, run the menu item again after importing finishes. The build is written to `Builds/WebGL` and its result to `Logs/WebGL/build.txt`.
+
+After a successful build, `bash Tools/publish_webgl.sh` publishes it to the existing GitHub Pages deployment branch without changing source files or the staged index. See `Docs/Optimization/WebGL_2026-10-24.md` for the current build verification and `Docs/UI_v2/UNITY_FIGMA_INTEGRATION.md` for the directly exported Figma artwork.
 
 ## Main features
 
@@ -36,8 +44,10 @@ Backend credentials are deliberately excluded from version control. See `Backend
 
 ## Project structure
 
-- `Assets/AdaptiveLearning/Scenes` — lesson scenes
-- `Assets/AdaptiveLearning/Scripts` — learning, UI, Wattson, circuit and save systems
+- `Assets/OhmsLaw/Scenes` — current lesson scenes
+- `Assets/OhmsLaw/Shared` — current UI, Wattson, circuit and lesson systems
+- `Assets/OhmsLaw/Shared/Resources/FigmaUI` — Figma PNG exports and licensed fonts
+- `Assets/AdaptiveLearning` — earlier implementation and shared imported art
 - `Assets/AdaptiveLearning/Prefabs` — reusable equipment and character prefabs
 - `Assets/AdaptiveLearning/Documentation` — implementation and asset notes
 - `Backend` — local chat and WebGL hosting utilities

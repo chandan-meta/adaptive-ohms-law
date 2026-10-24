@@ -27,6 +27,8 @@ MonoBehaviour:
     not destroyed.'
   - The material of a conductor opposes the flow of current. That opposition is electrical
     resistance, symbol R. Nichrome has the higher resistance.
+  - 'The detective challenge asked what happens to the current when the resistance
+    increases at the same voltage: it decreases.'
   - "For the nichrome wire XY, V/I is the same for every reading (1.0 \xF7 0.20 =
     5, 2.0 \xF7 0.40 = 5, ...). V \u221D I means V = kI, so V/I = k, and that constant
     k is the resistance R: V = IR."
